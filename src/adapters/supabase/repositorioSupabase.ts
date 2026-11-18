@@ -75,6 +75,7 @@ export class RepositorioSupabase implements RepositorioJuego {
   }
 
   async guardarAvatar(a: AvatarConfig) { await this.rpc('guardar_avatar', { p_token: this.token, p_avatar: a }) }
+  async cambiarRango(r: Rango) { await this.rpc('cambiar_rango', { p_token: this.token, p_rango: r }) }
 
   iniciarReto(reto: string, dificultad: Dificultad) { return this.rpc<string>('iniciar_reto', { p_token: this.token, p_reto: reto, p_dificultad: dificultad }) }
 

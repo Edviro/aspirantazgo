@@ -4,7 +4,7 @@ import { Sparkles } from '@react-three/drei'
 import { Malla } from '../tres/Toon'
 import { useJuego } from '../estado'
 import { Cielo } from '../componentes/Comunes'
-import { Avatar3D } from '../tres/Avatar3D'
+import { Jugador3D } from '../tres/Personaje'
 import type { Alcance, FilaRanking } from '../../application/puertos'
 import { mensajeError } from '../../application/errores'
 
@@ -21,7 +21,7 @@ function Podio({ top }: { top: FilaRanking[] }) {
         {lugares.map(l => (
           <group key={l.i} position={[l.x, 0, 0]}>
             <Malla position={[0, l.h / 2, 0]} geo={<boxGeometry args={[1.1, l.h, 0.9]} />} color={l.c} t={0.03} />
-            {top[l.i] && <group position={[0, l.h, 0]}><Avatar3D a={top[l.i].avatar ?? {}} rango={top[l.i].rango ?? 'conquistador'} animo={l.i === 0 ? 'celebra' : 'saluda'} escala={0.62} /></group>}
+            {top[l.i] && <group position={[0, l.h, 0]}><Jugador3D a={top[l.i].avatar ?? {}} rango={top[l.i].rango ?? 'conquistador'} apodo={top[l.i].nombre} club={top[l.i].detalle ?? ''} animo={l.i === 0 ? 'celebra' : 'saluda'} escala={0.62} /></group>}
           </group>
         ))}
       </group>

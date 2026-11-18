@@ -1,5 +1,5 @@
-import { bandaCorrecta, banderaCorrecta, banderinCorrecto, perfilDemo, pieza, uniformeCorrecto } from './uniformes'
-import type { Colocacion, PanelId, Pieza, Rango } from './tipos'
+import { bandaCorrecta, banderaCorrecta, banderinCorrecto, perfilAleatorio, perfilDemo, pieza, uniformeCorrecto } from './uniformes'
+import type { Colocacion, PanelId, PerfilUniforme, Pieza, Rango } from './tipos'
 import type { Afirmacion, Pregunta } from './quiz'
 import { BANCO_CLUB, BANCO_EMBLEMA, BANCO_MARANATA, BANCO_PALABRA, PAREJAS_IDEALES, RONDAS_LEY, RONDAS_VOTO, VF_IDEALES, type RondaFrase } from './aspirantazgo'
 
@@ -18,7 +18,10 @@ export interface Nivel {
   npc: Npc
   intro: string
   /** Colocaciones objetivo (taller) o uniforme base (inspector). */
-  objetivo: (nombre: string, club: string) => Colocacion[]
+  objetivo: (nombre: string, club: string, unidad?: string) => Colocacion[]
+  /** Si existe, cada partida trae un caso distinto (siempre fiel al manual) y el objetivo sale de él. */
+  caso?: (rnd: () => number) => PerfilUniforme
+  filtroCaso?: (c: Colocacion) => boolean
   distractores?: Pieza[]
   /** Trampas que se suman solo en dificultad Leyenda. */
   trampasLeyenda?: Pieza[]
@@ -49,6 +52,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'taller', rango: 'conquistador', paneles: ['manga_der', 'pecho', 'manga_izq'], parSeg: 70, npc: 'nudo',
       intro: '¡Hoy es la ceremonia! Arrastra cada pieza a su lugar. Ojo: hay piezas que NO van en el uniforme de un Conquistador.',
       objetivo: (n, c) => sinAccesorios(uniformeCorrecto(perfilDemo('conquistador', n, c))),
+      caso: rnd => perfilAleatorio('conquistador', rnd), filtroCaso: c => c.pieza.tipo !== 'correa',
       distractores: [pieza.estrella(1), pieza.tiraCargo('DIRECTOR')],
       trampasLeyenda: [pieza.divisa('guia_mayor', 2), pieza.liderazgo('gm')],
     },
@@ -64,6 +68,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'taller', rango: 'conquistador', paneles: ['manga_izq'], parSeg: 30, npc: 'trompeta',
       intro: 'Campo, C2 y divisa: cada uno a su medida. Recuerda: 1,5 cm, luego 1 cm, luego 1 cm.',
       objetivo: (n, c) => filtrar(['manga_izq'])(uniformeCorrecto(perfilDemo('conquistador', n, c))),
+      caso: rnd => perfilAleatorio('conquistador', rnd), filtroCaso: c => c.panel === 'manga_izq',
       trampasLeyenda: [pieza.c1()],
     },
     {
@@ -80,6 +85,8 @@ export const MUNDO_UNIFORMES = {
         rango: 'conquistador', clasesRegulares: ['amigo', 'companero', 'explorador', 'pionero'],
         clasesAvanzadas: ['amigo', 'companero'], excelencia: true, bautismo: true, funcion: 'CAPITÁN', nombre: n, club: c,
       }).filter(x => x.panel === 'pecho' && x.pieza.tipo !== 'panoleta' && x.pieza.tipo !== 'correa'),
+      caso: rnd => { const p = perfilAleatorio('conquistador', rnd); return { ...p, clasesRegulares: p.clasesRegulares.length < 2 ? ['amigo', 'companero'] : p.clasesRegulares } },
+      filtroCaso: x => x.panel === 'pecho' && x.pieza.tipo !== 'panoleta' && x.pieza.tipo !== 'correa',
       distractores: [pieza.boton('guia')],
       trampasLeyenda: [pieza.avanzada('explorador')],
     },
@@ -96,6 +103,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'inspector', rango: 'conquistador', paneles: ['manga_der', 'pecho', 'manga_izq'], parSeg: 40, npc: 'lectora', errores: 4,
       intro: 'Este Conquistador se vistió con prisa. Toca cada pieza mal puesta antes de la revista.',
       objetivo: (n, c) => uniformeCorrecto({ ...perfilDemo('conquistador', n, c), clasesRegulares: ['amigo', 'companero', 'explorador'], clasesAvanzadas: ['amigo'] }),
+      caso: rnd => { const p = perfilAleatorio('conquistador', rnd); return p.clasesRegulares.length < 3 ? { ...p, clasesRegulares: ['amigo', 'companero', 'explorador'] } : p },
     },
     {
       id: 'u14-verdadero-falso', num: 9, titulo: '¿Verdadero o falso?', subtitulo: 'Responde lo más rápido que puedas',
@@ -114,7 +122,7 @@ export const MUNDO_UNIFORMES = {
       id: 'u16-banderin', num: 11, titulo: 'El banderín de unidad', subtitulo: 'Franja azul, C1 y el diseño de tu unidad',
       tipo: 'taller', rango: 'conquistador', paneles: ['banderin'], parSeg: 35, npc: 'nudo',
       intro: 'Cada unidad lleva su banderín. Arma el tuyo con las medidas del manual.',
-      objetivo: (_n, c) => banderinCorrecto(c, 'HALCONES'),
+      objetivo: (_n, c, u) => banderinCorrecto(c, u || 'HALCONES'),
       trampasLeyenda: [pieza.estrella(1)],
     },
     {
@@ -122,6 +130,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'taller', rango: 'lider', paneles: ['manga_der', 'pecho', 'manga_izq'], parSeg: 90, npc: 'trompeta',
       intro: 'Consejero con dos años de servicio y sus seis clases regulares, pero aún no es Guía Mayor. ¿Qué divisa le toca?',
       objetivo: (n, c) => sinAccesorios(uniformeCorrecto(perfilDemo('lider', n, c))),
+      caso: rnd => perfilAleatorio('lider', rnd), filtroCaso: c => c.pieza.tipo !== 'correa',
       distractores: [pieza.divisa('guia_mayor', 6), pieza.divisa('conquistador', 6), pieza.panoleta(true)],
       trampasLeyenda: [pieza.liderazgo('gm')],
     },
@@ -130,6 +139,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'taller', rango: 'guia_mayor', paneles: ['manga_der', 'pecho', 'manga_izq'], parSeg: 110, npc: 'trompeta',
       intro: 'Director, Guía Mayor investido, con 5 años de servicio, avanzadas y excelencia. El uniforme más completo hasta ahora.',
       objetivo: (n, c) => sinAccesorios(uniformeCorrecto(perfilDemo('guia_mayor', n, c))),
+      caso: rnd => perfilAleatorio('guia_mayor', rnd), filtroCaso: c => c.pieza.tipo !== 'correa',
       distractores: [pieza.divisa('lider', 6), pieza.panoleta(false)],
       trampasLeyenda: [pieza.lcManga('master')],
     },
@@ -138,6 +148,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'taller', rango: 'gm_master_avanzado', paneles: ['manga_der', 'pecho', 'manga_izq'], parSeg: 120, npc: 'nudo',
       intro: 'Un Máster Avanzado usa todo lo del Guía Mayor, pero el C2 de la manga se cambia por el emblema LC3, y suma los botones de liderazgo: el de mayor grado, a la derecha.',
       objetivo: (n, c) => sinAccesorios(uniformeCorrecto(perfilDemo('gm_master_avanzado', n, c))),
+      caso: rnd => perfilAleatorio(rnd() < 0.5 ? 'gm_master' : 'gm_master_avanzado', rnd), filtroCaso: c => c.pieza.tipo !== 'correa',
       distractores: [pieza.c2('blanco'), pieza.divisa('lider', 6)],
       trampasLeyenda: [pieza.lcManga('master')],
     },
@@ -152,6 +163,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'inspector', rango: 'gm_master', paneles: ['manga_der', 'pecho', 'manga_izq'], parSeg: 50, npc: 'trompeta', errores: 5,
       intro: 'La revista de la Asociación. Un Guía Mayor Máster con varios errores. ¡Que no se te escape ninguno!',
       objetivo: (n, c) => uniformeCorrecto(perfilDemo('gm_master', n, c)),
+      caso: rnd => perfilAleatorio((['guia_mayor', 'gm_master', 'gm_master_avanzado'] as Rango[])[Math.floor(rnd() * 3)], rnd),
     },
   ] as Nivel[],
 }
@@ -224,13 +236,14 @@ export const MUNDO_ASPIRANTAZGO = {
   ] as Nivel[],
 }
 
-export const MUNDOS_JUGABLES = [MUNDO_ASPIRANTAZGO, MUNDO_UNIFORMES]
+// La Isla del Aspirantazgo queda lista en el código, pero se activará más adelante.
+export const MUNDOS_JUGABLES = [MUNDO_UNIFORMES]
 export const TODOS_LOS_NIVELES: Nivel[] = MUNDOS_JUGABLES.flatMap(m => m.niveles)
 export const mundoDeNivel = (id: string) => MUNDOS_JUGABLES.find(m => m.niveles.some(n => n.id === id)) ?? MUNDO_UNIFORMES
 
 /** Mundos del mapa general. Solo Uniformes está abierto por ahora. */
 export const MUNDOS = [
-  { id: 'aspirantazgo', nombre: 'Isla del Aspirantazgo', abierto: true, color: '#D7242F' },
+  { id: 'aspirantazgo', nombre: 'Isla del Aspirantazgo', abierto: false, color: '#D7242F' },
   { id: 'uniformes', nombre: 'Isla del Uniforme', abierto: true, color: '#F6C21C' },
   { id: 'regulares', nombre: 'Clases Regulares', abierto: false, color: '#1F5FD1' },
   { id: 'especialidades', nombre: 'Especialidades', abierto: false, color: '#1E9A4B' },
@@ -238,3 +251,11 @@ export const MUNDOS = [
   { id: 'historia', nombre: 'Historia', abierto: false, color: '#9AA0A6' },
   { id: 'ideales', nombre: 'Ideales', abierto: false, color: '#F6C21C' },
 ]
+
+/** Prepara una partida: el caso (si el nivel lo usa) y las piezas objetivo. */
+export function prepararNivel(n: Nivel, nombre: string, club: string, unidad: string, rnd: () => number): { slots: Colocacion[]; caso: PerfilUniforme | null } {
+  if (!n.caso) return { slots: n.objetivo(nombre, club, unidad), caso: null }
+  const caso = { ...n.caso(rnd), nombre, club }
+  const todo = uniformeCorrecto(caso)
+  return { slots: n.filtroCaso ? todo.filter(n.filtroCaso) : todo, caso }
+}

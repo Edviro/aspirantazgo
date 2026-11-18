@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { ClaseId, Pieza } from '../../domain/tipos'
 import { COLOR_CLASE, ORDEN_CLASES } from '../../domain/tipos'
-import { urlOficial } from '../../assetsOficiales'
+import { urlAsset, urlOficial } from '../../assetsOficiales'
 
 /**
  * Dibujo vectorial de cada pieza del uniforme, en CENTÍMETROS y centrado en (0,0).
@@ -51,7 +51,26 @@ function ajustar(t: string, max: number) {
 export function PiezaSVG({ p }: { p: Pieza }) {
   const uid = useId().replace(/:/g, '')
   const oficial = urlOficial(p)
-  if (oficial) return <image href={oficial} x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} preserveAspectRatio="xMidYMid meet" />
+  if (oficial) {
+    const fondo = <image href={oficial} x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} preserveAspectRatio="none" />
+    // Las tiras oficiales vienen vacías: el texto se escribe encima y se ajusta al ancho, como el bordado real.
+    if (p.tipo === 'tira_nombre') return <g>{fondo}<TextoAjustado t={p.texto || 'NOMBRE'} ancho={p.w * 0.88} alto={p.h * 0.56} color="#111" /></g>
+    if (p.tipo === 'tira_cargo') return <g>{fondo}<TextoAjustado t={p.texto || 'CARGO'} ancho={p.w * 0.88} alto={p.h * 0.55} color="#FFD300" /></g>
+    if (p.tipo === 'funcion') return <g>{fondo}<g transform={`translate(${p.w * 0.1},0)`}><TextoAjustado t={p.texto || 'FUNCIÓN'} ancho={p.w * 0.66} alto={p.h * 0.62} color="#FFFFFF" /></g></g>
+    if (p.tipo === 'tira_club') {
+      const t = (p.texto || 'NOMBRE DEL CLUB').toUpperCase()
+      const tam = Math.max(0.42, Math.min(0.86, 11.2 / Math.max(1, t.length)))
+      return (
+        <g>{fondo}
+          <path id={'arcof' + uid} d={`M${-p.w * 0.39},${p.h * 0.1} Q0,${-p.h * 0.56} ${p.w * 0.39},${p.h * 0.1}`} fill="none" />
+          <text fontSize={tam} fill="#FFD300" fontFamily={FUENTE} dominantBaseline="central">
+            <textPath href={'#arcof' + uid} startOffset="50%" textAnchor="middle">{t.length > 24 ? t.slice(0, 23) + '…' : t}</textPath>
+          </text>
+        </g>
+      )
+    }
+    return fondo
+  }
   switch (p.tipo) {
     case 'tira_club': {
       const t = ajustar(p.texto || 'NOMBRE DEL CLUB', 22)
@@ -247,8 +266,7 @@ export function PiezaSVG({ p }: { p: Pieza }) {
         <g>
           <rect x={-17} y={-1.3} width={34} height={2.6} rx={0.2} fill="#0B3B36" />
           <rect x={-17} y={-1.1} width={34} height={2.2} fill="none" stroke="#1C5C55" strokeWidth={0.06} strokeDasharray="0.3 0.25" />
-          <rect x={-2.1} y={-1.55} width={4.2} height={3.1} rx={0.3} fill="#C9A227" stroke="#7A5C00" strokeWidth={0.1} />
-          <g transform="scale(0.55)"><C3 /></g>
+          <image href={urlAsset('hebilla')} x={-2.6} y={-1.92} width={5.2} height={3.84} />
         </g>
       )
     case 'bandera_pais':

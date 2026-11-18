@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import { mundoDeNivel } from '../../domain/niveles'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { mundoDeNivel, prepararNivel } from '../../domain/niveles'
+import { describirCaso } from '../../domain/uniformes'
+import { azar } from '../../domain/azar'
+import { esAdulto } from '../../domain/tipos'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { useJuego } from '../estado'
 import { Boton, Confeti, Dialogo, Estrellas } from '../componentes/Comunes'
@@ -23,6 +26,12 @@ export default function Juego() {
   const [ronda, setRonda] = useState(0)
   const [reloj, setReloj] = useState(0)
   const reto = useReto(nivel!, desafio, dificultad)
+  const apodo = perfil ? (perfil.avatar.nombreTira || perfil.apodo) : ''
+  const club = !perfil || perfil.club.nombre === 'Modo práctica' ? 'CLUB CONQUIS' : perfil.club.nombre
+  const unidad = perfil?.avatar.unidad || 'HALCONES'
+  // Un caso nuevo por partida. En una sala, todos reciben el mismo (misma semilla).
+  const partida = useMemo(() => nivel ? prepararNivel(nivel, apodo, club, unidad, semilla ? azar(semilla) : Math.random) : null,
+    [nivel, apodo, club, unidad, semilla, ronda]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (enSala) { reto.iniciar(); sfx.trompeta() } }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -41,8 +50,6 @@ export default function Juego() {
 
   if (!nivel || !perfil) return null
   const siguiente = mundoDeNivel(nivel.id).niveles.find(n => n.num === nivel.num + 1)
-  const apodo = perfil.apodo
-  const club = perfil.club.nombre === 'Modo práctica' ? 'CLUB CONQUIS' : perfil.club.nombre
   const reglas = DIFICULTADES[dificultad]
 
   const empezar = () => { reto.iniciar(); setFase('jugando'); sfx.trompeta() }
@@ -66,8 +73,8 @@ export default function Juego() {
       </header>
 
       <main className="juego-zona" key={ronda}>
-        {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} desafio={desafio} dificultad={dificultad} apodo={apodo} club={club} onFin={alTerminar} />}
-        {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} apodo={apodo} club={club} {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} slots={partida!.slots} blanca={esAdulto(partida!.caso?.rango ?? nivel.rango)} desafio={desafio} dificultad={dificultad} onFin={alTerminar} />}
+        {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} base={partida!.slots} rango={partida!.caso?.rango ?? nivel.rango} {...props} />}
         {fase !== 'intro' && nivel.tipo === 'quiz' && <Quiz {...props} banco={nivel.banco} imagen={nivel.imagen} segPregunta={nivel.id === 'a08-palabra' ? (desafio ? 40 : 90) : undefined} />}
         {fase !== 'intro' && nivel.tipo === 'vf' && <VerdaderoFalso {...props} banco={nivel.vf} />}
         {fase !== 'intro' && nivel.tipo === 'frase' && nivel.rondas && <Frase rondas={nivel.rondas} {...props} />}
@@ -81,6 +88,12 @@ export default function Juego() {
         <Dialogo npc={nivel.npc} titulo={nivel.titulo} accion={desafio ? '¡Al desafío!' : '¡A practicar!'} onAccion={empezar}
           secundaria="Volver" onSecundaria={() => ir('mapa')}>
           <p>{nivel.intro}</p>
+          {partida?.caso && (
+            <div className="caso">
+              <b>Caso de hoy</b>
+              <ul>{describirCaso(partida.caso).map(l => <li key={l}>{l}</li>)}</ul>
+            </div>
+          )}
           {nivel.tipo === 'taller' && <p className="nota">Arrastra cada pieza o tócala y luego toca su lugar. {desafio && !reglas.pistas ? 'Sin pistas: cuentan la precisión, el tiempo y los errores.' : 'Verás dónde va cada pieza y la regla del manual.'}</p>}
           {desafio && <p className="nota">Dificultad {reglas.nombre}: {reglas.descripcion}</p>}
           {desafio && modo === 'practica' && <p className="nota">Sin cuenta, tu puntaje se guarda solo en este dispositivo.</p>}

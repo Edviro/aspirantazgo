@@ -1,14 +1,14 @@
 import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
-import { OrbitControls, Sparkles } from '@react-three/drei'
+import { OrbitControls, Sparkles, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitImpl } from 'three-stdlib'
 import type { AvatarConfig } from '../../application/puertos'
 import type { Rango } from '../../domain/tipos'
 import type { Nivel } from '../../domain/niveles'
 import { MUNDOS } from '../../domain/niveles'
-import { Avatar3D } from './Avatar3D'
-import { Malla, ToonMat } from './Toon'
+import { Jugador3D } from './Personaje'
+import { Malla, ToonMat, gradMap } from './Toon'
 import { Escenario } from './Escenario'
 
 export type EstadoNodo = 'bloqueado' | 'abierto' | 'hecho'
@@ -32,7 +32,7 @@ function Carpa({ p, r = 0, c = '#D7242F' }: { p: [number, number, number]; r?: n
   )
 }
 
-function Fogata({ p }: { p: [number, number, number] }) {
+function Fogata({ p, soloLlama = false }: { p: [number, number, number]; soloLlama?: boolean }) {
   const luz = useRef<THREE.PointLight>(null)
   const llama = useRef<THREE.Mesh>(null)
   useFrame(({ clock }) => {
@@ -42,7 +42,7 @@ function Fogata({ p }: { p: [number, number, number] }) {
   })
   return (
     <group position={p}>
-      {[0, 1, 2, 3].map(i => (
+      {!soloLlama && [0, 1, 2, 3].map(i => (
         <mesh key={i} position={[0, 0.06, 0]} rotation={[0, (i * Math.PI) / 4, Math.PI / 2]}><cylinderGeometry args={[0.04, 0.04, 0.55, 6]} /><ToonMat color="#5a3a1e" /></mesh>
       ))}
       <mesh ref={llama} position={[0, 0.3, 0]}><coneGeometry args={[0.16, 0.45, 6]} /><meshBasicMaterial color="#FFB000" /></mesh>
@@ -100,7 +100,7 @@ function Mastil({ p, club }: { p: [number, number, number]; club: string }) {
 }
 
 /** Banderín de unidad: franja azul con el C1 a la izquierda, diseño de la unidad y la "V" en la punta. */
-function Banderin({ p, club }: { p: [number, number, number]; club: string }) {
+function Banderin({ p, club, unidad = 'MI UNIDAD' }: { p: [number, number, number]; club: string; unidad?: string }) {
   const img = useLoader(THREE.ImageLoader, `${BASE}assets/emblema-c1.webp`)
   const tex = useMemo(() => {
     const c = document.createElement('canvas'); c.width = 550; c.height = 360
@@ -115,10 +115,11 @@ function Banderin({ p, club }: { p: [number, number, number]; club: string }) {
     g.restore()
     g.fillStyle = '#1F4FBF'
     g.beginPath(); g.moveTo(290, 70); g.lineTo(345, 90); g.lineTo(340, 145); g.quadraticCurveTo(330, 180, 290, 192); g.quadraticCurveTo(250, 180, 240, 145); g.lineTo(235, 90); g.closePath(); g.fill()
-    g.font = '900 28px "Archivo Black", Arial Black, sans-serif'; g.textAlign = 'center'; g.fillText('MI UNIDAD', 290, 240)
+    const u = unidad.toUpperCase().slice(0, 14)
+    g.font = `900 ${Math.min(32, Math.round(300 / Math.max(5, u.length)))}px "Archivo Black", Arial Black, sans-serif`; g.textAlign = 'center'; g.fillText(u, 290, 245)
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
     return t
-  }, [img, club])
+  }, [img, club, unidad])
   return (
     <group position={p}>
       <mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.025, 0.03, 1.8, 8]} /><ToonMat color="#8A5A2B" /></mesh>
@@ -143,6 +144,28 @@ function Isla({ r, p = [0, 0, 0], pasto = '#58B055' }: { r: number; p?: [number,
       <Malla position={[0, 0.02, 0]} geo={<cylinderGeometry args={[r, r * 1.02, 0.22, 48]} />} color={pasto} t={0.012} />
     </group>
   )
+}
+
+const URL_ISLA = (globalThis as unknown as { __MODELOS?: Record<string,string> }).__MODELOS?.isla ?? `${BASE}modelos/isla-uniforme.glb`
+
+/** Isla de Uniformes modelada en Blender (pinos, carpas, fogata, muelle). Materiales planos con sombreado toon. */
+function IslaModelo() {
+  const { scene } = useGLTF(URL_ISLA, false, true)
+  const isla = useMemo(() => {
+    const r = scene.clone(true)
+    r.traverse(o => {
+      const m = o as THREE.Mesh
+      if (!m.isMesh) return
+      const mats = Array.isArray(m.material) ? m.material : [m.material]
+      const nuevos = mats.map(x => {
+        const orig = x as THREE.MeshStandardMaterial
+        return new THREE.MeshToonMaterial({ color: orig.color.clone(), gradientMap: gradMap(), vertexColors: !!m.geometry.attributes.color })
+      })
+      m.material = Array.isArray(m.material) ? nuevos : nuevos[0]
+    })
+    return r
+  }, [scene])
+  return <primitive object={isla} position={[0, 0.12, 0]} />
 }
 
 /** Posiciones de los niveles: un camino en espiral sobre la isla. */
@@ -241,9 +264,9 @@ function Camara({ foco }: { foco: [number, number, number] }) {
   return null
 }
 
-export function Mundo3D({ mundo, niveles, estados, estrellas, actual, foco, avatar, rango, club, onElegir, onIrMundo }: {
+export function Mundo3D({ mundo, niveles, estados, estrellas, actual, foco, avatar, rango, club, apodo = '', onElegir, onIrMundo }: {
   mundo: string; niveles: Nivel[]; estados: EstadoNodo[]; estrellas: number[]; actual: number; foco: number
-  avatar: AvatarConfig; rango: Rango; club: string; onElegir: (i: number) => void; onIrMundo: (id: string) => void
+  avatar: AvatarConfig; rango: Rango; club: string; apodo?: string; onElegir: (i: number) => void; onIrMundo: (id: string) => void
 }) {
   const aspirantazgo = mundo === 'aspirantazgo'
   const nombreClub = club === 'Modo práctica' ? 'CLUB CONQUIS' : club
@@ -268,13 +291,13 @@ export function Mundo3D({ mundo, niveles, estados, estrellas, actual, foco, avat
       <hemisphereLight args={['#BFE3FF', '#3B5B2B', 0.9]} />
       <directionalLight position={[6, 12, 6]} intensity={2.2} />
       <Agua />
-      <Isla r={7.0} pasto={aspirantazgo ? '#6DBB5A' : '#58B055'} />
+      {aspirantazgo ? <Isla r={7.0} pasto="#6DBB5A" /> : <Suspense fallback={<Isla r={7.0} />}><IslaModelo /></Suspense>}
       <Camino n={n} />
       {niveles.map((nv, i) => (
         <Nodo key={nv.id} estado={estados[i]} pos={posicionNodo(i, n)} actual={i === actual} onElegir={() => onElegir(i)} />
       ))}
       <group position={[posAvatar[0] + 0.6, 0.15, posAvatar[2] + 0.25]}>
-        <Avatar3D a={avatar} rango={rango} escala={0.62} animo="saluda" />
+        <Jugador3D a={avatar} rango={rango} apodo={apodo} club={club} escala={0.62} animo="saluda" />
       </group>
       {aspirantazgo ? (
         <>
@@ -287,19 +310,21 @@ export function Mundo3D({ mundo, niveles, estados, estrellas, actual, foco, avat
         </>
       ) : (
         <>
-          <Fogata p={[0.5, 0.12, 0]} />
+          <Fogata p={[0.5, 0.12, 0]} soloLlama />
           <Suspense fallback={null}>
             <Mastil p={[1.5, 0.12, -1.6]} club={nombreClub} />
-            <Banderin p={[1.1, 0.12, 1.0]} club={nombreClub} />
+            <Banderin p={[1.1, 0.12, 1.0]} club={nombreClub} unidad={avatar.unidad || 'MI UNIDAD'} />
           </Suspense>
         </>
       )}
-      <Carpa p={[-5.0, 0.12, -2.8]} r={0.6} />
-      <Carpa p={[-2.2, 0.12, -5.6]} r={-0.2} c="#1F5FD1" />
-      <Carpa p={[5.9, 0.12, -1.0]} r={1.2} c="#1E9A4B" />
-      {[[-4.5, 4.1], [-4.0, -4.6], [5.9, 2.0], [4.8, -3.9], [2.7, -5.6], [-6.3, 0.6], [-1.0, 6.2], [3.1, 5.8], [6.4, 0.4]].map(([x, z], i) => (
-        <Arbol key={i} p={[x, 0.12, z]} s={0.85 + (i % 3) * 0.15} />
-      ))}
+      {aspirantazgo && (<>
+        <Carpa p={[-5.0, 0.12, -2.8]} r={0.6} />
+        <Carpa p={[-2.2, 0.12, -5.6]} r={-0.2} c="#1F5FD1" />
+        <Carpa p={[5.9, 0.12, -1.0]} r={1.2} c="#1E9A4B" />
+        {[[-4.5, 4.1], [-4.0, -4.6], [5.9, 2.0], [4.8, -3.9], [2.7, -5.6], [-6.3, 0.6], [-1.0, 6.2], [3.1, 5.8], [6.4, 0.4]].map(([x, z], i) => (
+          <Arbol key={i} p={[x, 0.12, z]} s={0.85 + (i % 3) * 0.15} />
+        ))}
+      </>)}
       {lejanas.map((m, i) => <IslaLejana key={m.id} mundo={m} p={posLejanas[i]} />)}
       <Sparkles count={40} scale={[18, 4, 18]} position={[0, 3, 0]} size={2} speed={0.2} color="#FFF6C8" />
       <OrbitControls makeDefault enablePan={false} minDistance={7} maxDistance={30} maxPolarAngle={1.2} minPolarAngle={0.3} enableDamping />
@@ -325,3 +350,5 @@ export function Mundo3D({ mundo, niveles, estados, estrellas, actual, foco, avat
     </div>
   )
 }
+
+useGLTF.preload(URL_ISLA, false, true)

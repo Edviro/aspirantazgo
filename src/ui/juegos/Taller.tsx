@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Nivel } from '../../domain/niveles'
-import type { Dificultad, PanelId, Pieza } from '../../domain/tipos'
-import { esAdulto } from '../../domain/tipos'
+import type { Colocacion, Dificultad, PanelId, Pieza } from '../../domain/tipos'
+import { ORDEN_CLASES } from '../../domain/tipos'
+import { pieza as fabrica } from '../../domain/uniformes'
 import { evaluarPrecision, type Calidad } from '../../domain/puntuacion'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { PiezaIcono, PiezaSVG, nombrePieza } from '../componentes/Insignias'
@@ -12,7 +13,7 @@ import { useJuego } from '../estado'
 import { sfx } from '../sonido'
 
 interface ItemBandeja { id: string; pieza: Pieza; real: boolean }
-interface Colocada { slot: number; x: number; y: number; calidad: Calidad; n: number }
+interface Colocada { slot: number; x: number; y: number; calidad: Calidad; n: number; desde: number }
 interface Arrastre { item: ItemBandeja; cx: number; cy: number; lift: number; movido: boolean; x0: number; y0: number }
 interface Flotante { id: number; texto: string; tipo: 'pts' | 'combo' }
 
@@ -20,6 +21,25 @@ const fmt = (n: number) => n.toFixed(1).replace('.', ',')
 const FILA = new Set(['boton_clase', 'boton_liderazgo', 'barra_avanzada'])
 const grupoDe = (p: Pieza) => p.grupo ?? p.key
 const dist = (ax: number, ay: number, bx: number, by: number) => Math.hypot(ax - bx, ay - by)
+/** Tamaño mínimo en pantalla mientras se arrastra: los botones pequeños se ven grandes y al colocarlos se encogen. */
+const MIN_ARRASTRE = 76
+
+/**
+ * Borde de referencia de un lugar: el borde inferior de la pieza que va justo encima (o la costura, 0).
+ * El juego muestra separaciones entre piezas, no medidas absolutas.
+ */
+function bordeArriba(slots: Colocacion[], i: number): number {
+  const s = slots[i]
+  const top = s.y - s.pieza.h / 2
+  let ref = 0
+  slots.forEach((o, k) => {
+    if (k === i || o.panel !== s.panel) return
+    const bottom = o.y + o.pieza.h / 2
+    const solapa = Math.abs(o.x - s.x) < (o.pieza.w + s.pieza.w) / 2
+    if (solapa && bottom <= top + 0.05 && bottom > ref) ref = bottom
+  })
+  return ref
+}
 
 function useMovil() {
   const q = '(max-width: 820px)'
@@ -33,20 +53,28 @@ function useMovil() {
   return m
 }
 
-export function Taller({ nivel, desafio, dificultad, apodo, club, onFin }: {
-  nivel: Nivel; desafio: boolean; dificultad: Dificultad; apodo: string; club: string; onFin: (factores: number[], errores: number) => void
+export function Taller({ nivel, slots, blanca, desafio, dificultad, onFin }: {
+  nivel: Nivel; slots: Colocacion[]; blanca: boolean; desafio: boolean; dificultad: Dificultad; onFin: (factores: number[], errores: number) => void
 }) {
   const reglas = DIFICULTADES[dificultad]
   const pistas = !desafio || reglas.pistas
   const tol = desafio ? reglas.tolerancia : 1.6
-  const slots = useMemo(() => nivel.objetivo(apodo, club), [nivel, apodo, club])
   const items = useMemo<ItemBandeja[]>(() => {
     const reales = slots.map((c, i) => ({ id: c.pieza.key + '#' + i, pieza: c.pieza, real: true }))
-    const trampas = [...(nivel.distractores ?? []), ...(desafio && reglas.trampasExtra ? nivel.trampasLeyenda ?? [] : [])]
+    const claves = new Set(slots.map(c => c.pieza.key))
+    const extra: Pieza[] = []
+    // Trampa didáctica: una avanzada de una clase regular que todavía no tiene.
+    const regulares = slots.filter(c => c.pieza.tipo === 'boton_clase').map(c => c.pieza.clase)
+    if (regulares.length && regulares.length < 6 && slots.some(c => c.panel === 'pecho')) {
+      const falta = ORDEN_CLASES.find(c => !regulares.includes(c))
+      if (falta) extra.push(fabrica.avanzada(falta))
+      if (desafio && reglas.trampasExtra && falta) extra.push(fabrica.boton(falta))
+    }
+    const trampas = [...(nivel.distractores ?? []), ...(desafio && reglas.trampasExtra ? nivel.trampasLeyenda ?? [] : []), ...extra]
+      .filter((p, i, arr) => !claves.has(p.key) && arr.findIndex(q => q.key === p.key) === i)
     const falsos = trampas.map((p, i) => ({ id: 'x' + i + p.key, pieza: { ...p, texto: p.texto ?? (p.tipo === 'tira_cargo' ? 'DIRECTOR' : undefined) }, real: false }))
     return [...reales, ...falsos].sort(() => Math.random() - 0.5)
   }, [slots, nivel, desafio, reglas.trampasExtra])
-  const blanca = esAdulto(nivel.rango)
 
   const [colocadas, setColocadas] = useState<Record<string, Colocada>>({})
   const [descartadas, setDescartadas] = useState<Set<string>>(new Set())
@@ -131,17 +159,18 @@ export function Taller({ nivel, desafio, dificultad, apodo, club, onFin }: {
     return { tipo: Math.hypot(dx, dy) <= margenIman ? 'ok' as const : 'posicion' as const, slot: cerca.i, regla: s.regla }
   }, [slots, ocupados, tol])
 
+  const descartar = useCallback((it: ItemBandeja) => {
+    if (!it.real) {
+      acierto(it, 1)
+      setDescartadas(s => new Set(s).add(it.id))
+      sfx.bien()
+      avisar('¡Bien visto! Esa pieza no va aquí.', 'bien')
+    } else fallo(it, `¡Esa sí va! ${slots.find(s => grupoDe(s.pieza) === grupoDe(it.pieza))?.regla ?? ''}`)
+  }, [acierto, fallo, slots])
+
   const soltar = useCallback((it: ItemBandeja, cx: number, cy: number) => {
     const sobre = document.elementsFromPoint(cx, cy).find(el => (el as HTMLElement).closest?.('[data-descarte]'))
-    if (sobre) {
-      if (!it.real) {
-        acierto(it, 1)
-        setDescartadas(s => new Set(s).add(it.id))
-        sfx.bien()
-        avisar('¡Bien visto! Esa pieza no va aquí.', 'bien')
-      } else fallo(it, `¡Esa sí va! ${slots.find(s => grupoDe(s.pieza) === grupoDe(it.pieza))?.regla ?? ''}`)
-      return
-    }
+    if (sobre) { descartar(it); return }
     const pt = puntoEnPanel(cx, cy)
     if (!pt) return
     if (!it.real) {
@@ -154,18 +183,19 @@ export function Taller({ nivel, desafio, dificultad, apodo, club, onFin }: {
     const s = slots[r.slot]
     if (r.tipo === 'precision') {
       const ev = evaluarPrecision(r.err / tol)
-      if (ev.calidad === 'fallo') { fallo(it, `Quedó a ${fmt(Math.max(0, r.top))} cm de la costura. ${s.regla}`); return }
+      const sep = r.top - bordeArriba(slots, r.slot)
+      if (ev.calidad === 'fallo') { fallo(it, `Dejaste ${fmt(Math.max(0, sep))} cm de separación. ${s.regla}`); return }
       acierto(it, ev.factor)
-      setColocadas(c => ({ ...c, [it.id]: { slot: r.slot, x: s.x, y: pt.y, calidad: ev.calidad, n: Date.now() } }))
-      if (ev.calidad === 'perfecto') { sfx.perfecto(); avisar(`¡Perfecto! ${fmt(Math.max(0, r.top))} cm`, 'bien') }
+      setColocadas(c => ({ ...c, [it.id]: { slot: r.slot, x: s.x, y: pt.y, calidad: ev.calidad, n: Date.now(), desde: escalaDrag(it.pieza) } }))
+      if (ev.calidad === 'perfecto') { sfx.perfecto(); avisar(`¡Perfecto! ${fmt(Math.max(0, sep))} cm de separación`, 'bien') }
       else { sfx.bien(); avisar(`${ev.calidad === 'bien' ? 'Bien' : 'Casi'}: te desviaste ${fmt(Math.abs(r.err))} cm`, 'info') }
       return
     }
     acierto(it, 1)
-    setColocadas(c => ({ ...c, [it.id]: { slot: r.slot, x: s.x, y: s.y, calidad: 'perfecto', n: Date.now() } }))
+    setColocadas(c => ({ ...c, [it.id]: { slot: r.slot, x: s.x, y: s.y, calidad: 'perfecto', n: Date.now(), desde: escalaDrag(it.pieza) } }))
     sfx.bien()
     if (!desafio) avisar(s.regla, 'bien')
-  }, [acierto, fallo, desafio, resolver, slots, tol])
+  }, [acierto, fallo, descartar, desafio, resolver, slots, tol])
 
   useEffect(() => {
     if (pendientes.length === 0 && !terminado.current) {
@@ -187,6 +217,10 @@ export function Taller({ nivel, desafio, dificultad, apodo, club, onFin }: {
       if (pistas && drag.item.real) {
         const r = resolver(drag.item, pt.panel, pt.x, pt.y)
         slot = r.tipo === 'ok' || r.tipo === 'precision' ? r.slot : null
+      }
+      if (slot === null && drag.item.real) {
+        const r = resolver(drag.item, pt.panel, pt.x, pt.y)
+        if (r.tipo === 'precision') slot = r.slot
       }
       setGuia({ panel: pt.panel, top: pt.y - drag.item.pieza.h / 2, slot })
     }
@@ -217,6 +251,11 @@ export function Taller({ nivel, desafio, dificultad, apodo, club, onFin }: {
   }
 
   const esc = drag ? escalaActual() : 10
+  /** Cuánto más grande se ve la pieza al arrastrarla (respecto a su tamaño real en el tablero). */
+  function escalaDrag(p: Pieza) {
+    const e = escalaActual()
+    return Math.max(1, MIN_ARRASTRE / (Math.max(p.w, p.h) * e))
+  }
   const conRegla = (p: PanelId) => p === 'manga_der' || p === 'manga_izq' || p === 'banda'
 
   return (
@@ -241,7 +280,7 @@ export function Taller({ nivel, desafio, dificultad, apodo, club, onFin }: {
 
       <Tablero paneles={visibles} onPanelClick={clicPanel} render={p => (
         <>
-          <PanelFondo panel={p} blanca={blanca} regla={conRegla(p)} numeros={!desafio || reglas.reglaConNumeros} />
+          <PanelFondo panel={p} blanca={blanca} regla={conRegla(p)} numeros={false} />
           {pistas && slots.map((s, i) => s.panel !== p || ocupados.has(i) ? null : (
             <g key={'h' + i} transform={`translate(${s.x},${s.y})`} className={`pista ${guia?.slot === i ? 'iman' : ''}`} data-grupo={grupoDe(s.pieza)}>
               <rect x={-s.pieza.w / 2} y={-s.pieza.h / 2} width={s.pieza.w} height={s.pieza.h} rx={Math.min(0.4, s.pieza.w * 0.05)} />
@@ -253,29 +292,45 @@ export function Taller({ nivel, desafio, dificultad, apodo, club, onFin }: {
             const r = Math.min(4, Math.max(i.pieza.w, i.pieza.h) / 2)
             return (
               <g key={i.id + c.n} transform={`translate(${c.x},${c.y})`}>
-                <g className="cae"><PiezaSVG p={i.pieza} /></g>
+                <g className="cae" style={{ ['--desde' as string]: c.desde }}><PiezaSVG p={i.pieza} /></g>
                 <g className="polvo" aria-hidden>
                   <circle r={r * 0.9} className="onda" />
                   {[-1, -0.5, 0.5, 1].map(k => <circle key={k} cx={k * r * 0.7} cy={Math.min(i.pieza.h / 2, 4)} r={Math.max(0.18, r * 0.07)} style={{ ['--dx' as string]: `${k * r * 0.5}px` }} />)}
                 </g>
-                {s.modo === 'precision' && (
-                  <g transform={`translate(${i.pieza.w / 2 + 0.4},${-i.pieza.h / 2})`} className="etiqueta-cm">
-                    <rect x={0} y={-0.45} width={3.2} height={0.9} rx={0.45} fill={c.calidad === 'perfecto' ? '#1E9A4B' : c.calidad === 'bien' ? '#1F5FD1' : '#E07B00'} />
-                    <text x={1.6} y={0.02} fontSize={0.58} fill="#fff" textAnchor="middle" dominantBaseline="central" fontFamily="Nunito" fontWeight={900}>{fmt(c.y - i.pieza.h / 2)} cm</text>
-                  </g>
-                )}
+                {s.modo === 'precision' && (() => {
+                  // Muestra la separación con la pieza de arriba (o con la costura), no la medida de la pieza.
+                  const top = c.y - i.pieza.h / 2
+                  const ref = bordeArriba(slots, c.slot)
+                  const gap = Math.max(0, top - ref)
+                  const color = c.calidad === 'perfecto' ? '#1E9A4B' : c.calidad === 'bien' ? '#1F5FD1' : '#E07B00'
+                  const x = i.pieza.w / 2 + 0.5
+                  return (
+                    <g className="etiqueta-cm" transform={`translate(0,${-c.y})`}>
+                      <path d={`M${x - 0.25},${ref} h0.5 M${x},${ref} V${top} M${x - 0.25},${top} h0.5`} stroke={color} strokeWidth={0.12} fill="none" />
+                      <rect x={x + 0.3} y={(ref + top) / 2 - 0.45} width={3.2} height={0.9} rx={0.45} fill={color} />
+                      <text x={x + 1.9} y={(ref + top) / 2 + 0.02} fontSize={0.58} fill="#fff" textAnchor="middle" dominantBaseline="central" fontFamily="Nunito" fontWeight={900}>{fmt(gap)} cm</text>
+                    </g>
+                  )
+                })()}
               </g>
             )
           })}
-          {guia && guia.panel === p && conRegla(p) && (
-            <g pointerEvents="none">
-              <line x1={-0.6} x2={p === 'banda' ? 12 : 20} y1={guia.top} y2={guia.top} stroke="#FFC20E" strokeWidth={0.09} strokeDasharray="0.3 0.18" />
-              <rect x={-3.1} y={guia.top - 0.55} width={2.6} height={1.1} rx={0.3} fill="#FFC20E" />
-              <text x={-1.8} y={guia.top + 0.02} fontSize={0.66} textAnchor="middle" dominantBaseline="central" fontFamily="Nunito" fontWeight={900} fill="#1B2440">
-                {!desafio || reglas.reglaConNumeros ? fmt(Math.max(0, guia.top)) : '?'}
-              </text>
-            </g>
-          )}
+          {guia && guia.panel === p && conRegla(p) && (() => {
+            const ref = guia.slot !== null && slots[guia.slot]?.modo === 'precision' ? bordeArriba(slots, guia.slot) : 0
+            const gap = guia.top - ref
+            const ancho = p === 'banda' ? 12 : 20
+            return (
+              <g pointerEvents="none">
+                <line x1={0} x2={ancho} y1={ref} y2={ref} stroke="#FFC20E" strokeWidth={0.07} strokeOpacity={0.6} />
+                <line x1={0} x2={ancho} y1={guia.top} y2={guia.top} stroke="#FFC20E" strokeWidth={0.09} strokeDasharray="0.3 0.18" />
+                <path d={`M-0.9,${ref} V${guia.top}`} stroke="#FFC20E" strokeWidth={0.14} />
+                <rect x={-3.1} y={(ref + guia.top) / 2 - 0.55} width={2.6} height={1.1} rx={0.3} fill="#FFC20E" />
+                <text x={-1.8} y={(ref + guia.top) / 2 + 0.02} fontSize={0.66} textAnchor="middle" dominantBaseline="central" fontFamily="Nunito" fontWeight={900} fill="#1B2440">
+                  {!desafio || reglas.reglaConNumeros ? fmt(gap) : '?'}
+                </text>
+              </g>
+            )
+          })()}
         </>
       )} />
 
@@ -300,12 +355,25 @@ export function Taller({ nivel, desafio, dificultad, apodo, club, onFin }: {
         </div>
       </div>
 
-      {sel && !drag && <div className="ayuda-sel">Toca el lugar donde va: <b>{nombrePieza(sel.pieza)}</b></div>}
+      {sel && !drag && (
+        <div className="ayuda-sel">
+          <span>Toca dónde va <b>{nombrePieza(sel.pieza)}</b></span>
+          <button className="btn-novia" onClick={() => { descartar(sel); setSel(null) }}>No va</button>
+          <button className="btn-cerrar-sel" onClick={() => setSel(null)} aria-label="Cancelar">×</button>
+        </div>
+      )}
+
+      {drag?.movido && (
+        <div className="zona-novia" data-descarte aria-hidden>
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
+          Suelta aquí si no va
+        </div>
+      )}
 
       {drag?.movido && (
         <div className="arrastre" style={{ left: drag.cx, top: drag.cy - drag.lift }}>
           <svg viewBox={`${-drag.item.pieza.w / 2} ${-drag.item.pieza.h / 2} ${drag.item.pieza.w} ${drag.item.pieza.h}`}
-            width={drag.item.pieza.w * esc} height={drag.item.pieza.h * esc} style={{ overflow: 'visible' }}>
+            width={drag.item.pieza.w * esc * escalaDrag(drag.item.pieza)} height={drag.item.pieza.h * esc * escalaDrag(drag.item.pieza)} style={{ overflow: 'visible' }}>
             <PiezaSVG p={drag.item.pieza} />
           </svg>
         </div>

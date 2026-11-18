@@ -62,7 +62,11 @@ export interface PerfilUniforme {
   estrellaAnios?: number // estrella de tiempo de servicio
   nombre: string
   club: string
+  /** Galón según el nivel en que actúa el líder. */
+  galon?: Galon
 }
+
+export type Galon = 'ninguno' | 'director' | 'distrital' | 'regional' | 'departamental'
 
 export const ORDEN_CLASES: ClaseId[] = ['amigo', 'companero', 'explorador', 'pionero', 'excursionista', 'guia']
 export const ORDEN_LIDERAZGO: LiderazgoId[] = ['gm', 'master', 'master_avanzado']

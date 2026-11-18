@@ -18,6 +18,20 @@ export interface AvatarConfig {
   colorPelo?: number
   /** El aspirante la gana en la Ceremonia de la pañoleta. */
   panoleta?: boolean
+  /** Lo que aparece en la tira del nombre (por defecto, el apodo). */
+  nombreTira?: string
+  /** Nombre de su unidad (va en el banderín). */
+  unidad?: string
+  /** Uniforme configurado por el propio jugador (sobre todo líderes). */
+  uniforme?: {
+    regulares?: string[]
+    avanzadas?: string[]
+    anios?: number
+    cargo?: string
+    galon?: 'ninguno' | 'director' | 'distrital' | 'regional' | 'departamental'
+    bautismo?: boolean
+    excelencia?: boolean
+  }
 }
 
 export type Alcance = 'jugador' | 'club' | 'ciudad' | 'campo' | 'pais'
@@ -62,6 +76,8 @@ export interface RepositorioJuego {
   crearClub(d: DatosClub): Promise<Perfil>
   unirseAdulto(codigo: string, apodo: string, rango: Rango, acepta: boolean): Promise<Perfil>
   guardarAvatar(a: AvatarConfig): Promise<void>
+  /** Solo adultos: actualizar el rango cuando reciben una investidura. */
+  cambiarRango(r: Rango): Promise<void>
   iniciarReto(reto: string, dificultad: Dificultad): Promise<string>
   terminarReto(intento: string, puntaje: number): Promise<ResultadoServidor>
   misPuntajes(): Promise<Record<string, number>>

@@ -381,7 +381,7 @@ a { color: var(--oro); cursor: pointer; text-decoration: underline; text-underli
 
 /* ¡Pum! La pieza cae, rebota y levanta polvo */
 .cae { animation: cae .42s cubic-bezier(.3, 1.6, .5, 1) both; transform-box: fill-box; transform-origin: 50% 100%; }
-@keyframes cae { 0% { transform: translateY(-140%) scale(1.25); opacity: 0; } 55% { transform: translateY(0) scale(1.12, .86); opacity: 1; } 80% { transform: scale(.96, 1.05); } 100% { transform: none; } }
+@keyframes cae { 0% { transform: translateY(-60%) scale(var(--desde, 1.25)); opacity: .9; } 55% { transform: translateY(0) scale(1.12, .86); opacity: 1; } 80% { transform: scale(.96, 1.05); } 100% { transform: none; } }
 .polvo circle { fill: #FFF3C4; opacity: 0; transform-box: fill-box; transform-origin: center; }
 .polvo circle:not(.onda) { animation: polvo .55s .2s ease-out both; }
 .polvo .onda { fill: none; stroke: #FFC20E; stroke-width: .18; animation: onda .5s .18s ease-out both; }
@@ -508,3 +508,34 @@ a { color: var(--oro); cursor: pointer; text-decoration: underline; text-underli
 .voz-mando { font-family: var(--titulo); font-size: 1.35rem; color: var(--oro); }
 .voto-lineas { font-size: 1.15rem; font-weight: 800; color: var(--crema); }
 .voto-lineas .actual { color: var(--oro); }
+
+/* Selección táctil: "No va" a un toque */
+.ayuda-sel { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px !important; pointer-events: auto; }
+.ayuda-sel span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-novia { border: 0; background: var(--rojo); color: #fff; font-weight: 900; border-radius: 99px; padding: 8px 14px; flex: none; outline: 2px dashed rgba(255,255,255,.5); outline-offset: -4px; }
+.btn-cerrar-sel { border: 0; background: rgba(0,0,0,.15); color: #4A2A00; border-radius: 50%; width: 32px; height: 32px; font-size: 1.2rem; flex: none; }
+.zona-novia { position: fixed; z-index: 90; top: calc(70px + env(safe-area-inset-top)); left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 8px; background: rgba(215,36,47,.92); color: #fff; font-weight: 900; padding: 12px 22px; border-radius: 99px; outline: 2px dashed rgba(255,255,255,.6); outline-offset: -6px; box-shadow: var(--sombra); animation: pop .25s both; }
+.caso { background: #FFF3C4; border-radius: 14px; padding: 10px 14px; margin: 6px 0 4px; }
+.caso b { display: block; font-family: var(--titulo); font-weight: 400; color: #7A1F3D; }
+.caso ul { margin: 4px 0 0; padding-left: 18px; line-height: 1.4; font-size: .92rem; }
+
+/* ---------- Editor: pestañas y uniforme ---------- */
+.editor-panel { max-height: calc(100dvh - 32px); }
+.tabs-editor { display: flex; gap: 6px; background: rgba(0,0,0,.22); border-radius: 99px; padding: 4px; }
+.tabs-editor button { flex: 1; border: 0; background: transparent; border-radius: 99px; padding: 9px 10px; font-weight: 900; color: var(--crema); }
+.tabs-editor button.on { background: var(--oro); color: #4A2A00; }
+.editor-scroll { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; min-height: 0; flex: 1; padding-right: 2px; overscroll-behavior: contain; }
+.opcion > span em { font-style: normal; font-weight: 600; color: var(--suave); }
+.chips.clases button { padding: 7px 12px; font-size: .88rem; }
+.chips button.apagada { opacity: .4; border-style: dashed; }
+.chips button:disabled { opacity: .85; cursor: default; }
+.campos-uni { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.campos-uni label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; font-weight: 800; color: var(--suave); min-width: 0; }
+.campos-uni input { border: 2px solid #2D3E7A; background: rgba(0,0,0,.25); color: #fff; border-radius: 12px; padding: 9px 10px; font-weight: 900; letter-spacing: .5px; text-transform: uppercase; min-width: 0; font-size: 16px; }
+.campos-uni input:focus { outline: 2px solid var(--oro); outline-offset: 1px; }
+.nota { display: block; margin-top: 6px; color: var(--suave); font-size: .78rem; line-height: 1.35; }
+.nota.aviso { color: #FFD27A; }
+@media (max-width: 760px) {
+  .editor-escena { flex: 0 0 38dvh; }
+  .editor-panel { max-height: 62dvh; }
+}

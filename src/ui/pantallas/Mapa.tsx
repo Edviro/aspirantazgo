@@ -53,7 +53,7 @@ export default function Mapa() {
     <div className="pantalla mapa">
       <div className="mapa-canvas">
         <Mundo3D key={mundoActual.id} mundo={mundoActual.id} onIrMundo={id => { setSel(null); setMundo(id) }} niveles={niveles} estados={estados} estrellas={estrellas} actual={actual} foco={sel ?? actual}
-          avatar={perfil.avatar} rango={perfil.rango} club={perfil.club.nombre} onElegir={i => setSel(i)} />
+          avatar={perfil.avatar} rango={perfil.rango} club={perfil.club.nombre} apodo={perfil.apodo} onElegir={i => setSel(i)} />
       </div>
 
       <header className="hud">
@@ -84,12 +84,12 @@ export default function Mapa() {
       <div className="mapa-titulo">
         <h1>{mundoActual.nombre}</h1>
         <p>{estados.filter(e => e === 'hecho').length} de {niveles.length} niveles superados</p>
-        <div className="islas" role="tablist" aria-label="Islas">
+        {MUNDOS_JUGABLES.length > 1 && <div className="islas" role="tablist" aria-label="Islas">
           {MUNDOS_JUGABLES.map(m => (
             <button key={m.id} role="tab" aria-selected={m.id === mundoActual.id} className={m.id === mundoActual.id ? 'on' : ''}
               onClick={() => { setSel(null); setMundo(m.id) }}>{m.nombre.replace('Isla del ', '')}</button>
           ))}
-        </div>
+        </div>}
       </div>
 
       <nav className="mapa-acciones">

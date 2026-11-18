@@ -1,4 +1,5 @@
 import type { Alcance, AvatarConfig, FilaRanking, Perfil, RepositorioJuego } from '../../application/puertos'
+import type { Rango } from '../../domain/tipos'
 
 /**
  * Adaptador de "modo práctica": todo queda en este dispositivo. Sin cuenta, sin servidor, sin ranking público.
@@ -32,6 +33,11 @@ export class RepositorioLocal implements RepositorioJuego {
   async enviarEnlaceAdulto() { throw new Error('Sin conexión') }
   async crearClub(): Promise<Perfil> { throw new Error('Sin conexión') }
   async unirseAdulto(): Promise<Perfil> { throw new Error('Sin conexión') }
+
+  async cambiarRango(r: Rango) {
+    const p = leer<Perfil | null>(K.perfil, null)
+    if (p) escribir(K.perfil, { ...p, rango: r, grupo_edad: r === 'conquistador' ? 'menor' : 'adulto' })
+  }
 
   async guardarAvatar(a: AvatarConfig) {
     const p = leer<Perfil | null>(K.perfil, null)

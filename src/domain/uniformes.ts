@@ -1,6 +1,6 @@
 import {
   type ClaseId, type Colocacion, type LiderazgoId, type PanelId, type PerfilUniforme, type Pieza, type Rango,
-  ORDEN_LIDERAZGO, esAdulto, esGuiaMayor,
+  ORDEN_CLASES, ORDEN_LIDERAZGO, esAdulto, esGuiaMayor,
 } from './tipos'
 
 /**
@@ -25,20 +25,20 @@ export const pieza = {
   tiraClub: (club: string): Pieza => ({ key: 'tira_club', tipo: 'tira_club', texto: club, w: 10, h: 5 }),
   tiraCargo: (cargo: string): Pieza => ({ key: 'tira_cargo', tipo: 'tira_cargo', texto: cargo, w: 7.5, h: 2 }),
   c1: (): Pieza => ({ key: 'c1', tipo: 'c1', w: 7.2, h: 7.5 }),
-  estrella: (n = 1): Pieza => ({ key: 'estrella', tipo: 'estrella', nivel: n, w: 3, h: 3 }),
+  estrella: (n = 1): Pieza => ({ key: 'estrella', tipo: 'estrella', nivel: n, w: 3.2, h: 3.04 }),
   campo: (): Pieza => ({ key: 'campo', tipo: 'campo', w: 7.5, h: 5.5 }),
   c2: (fondo: 'caqui' | 'blanco'): Pieza => ({ key: 'c2_' + fondo, tipo: 'c2', fondo, w: 6.4, h: 5 }),
   divisa: (v: 'conquistador' | 'lider' | 'guia_mayor', nivel: number): Pieza => ({
-    key: `divisa_${v}_${nivel}`, tipo: 'divisa', divisa: v, nivel, w: 4, h: v === 'guia_mayor' ? 8.5 : 4.6,
+    key: `divisa_${v}_${nivel}`, tipo: 'divisa', divisa: v, nivel, w: 4, h: v === 'guia_mayor' ? 7.17 : 4.6,
   }),
-  boton: (clase: ClaseId): Pieza => ({ key: 'boton_' + clase, tipo: 'boton_clase', clase, w: 1.6, h: 1.6 }),
-  avanzada: (clase: ClaseId): Pieza => ({ key: 'avanzada_' + clase, tipo: 'barra_avanzada', clase, w: 2.4, h: 0.8 }),
-  liderazgo: (l: LiderazgoId): Pieza => ({ key: 'lid_' + l, tipo: 'boton_liderazgo', liderazgo: l, w: 1.7, h: 1.7 }),
-  excelencia: (): Pieza => ({ key: 'excelencia', tipo: 'excelencia', w: 3.6, h: 0.9 }),
-  nombre: (nombre: string, fondo: 'caqui' | 'blanco'): Pieza => ({ key: 'tira_nombre', tipo: 'tira_nombre', texto: nombre, fondo, w: 8, h: 1.6 }),
-  funcion: (f: string): Pieza => ({ key: 'funcion', tipo: 'funcion', texto: f, w: 6.5, h: 1.4 }),
+  boton: (clase: ClaseId): Pieza => ({ key: 'boton_' + clase, tipo: 'boton_clase', clase, w: 1.64, h: 1.64 }),
+  avanzada: (clase: ClaseId): Pieza => ({ key: 'avanzada_' + clase, tipo: 'barra_avanzada', clase, w: 2.42, h: 0.82 }),
+  liderazgo: (l: LiderazgoId): Pieza => ({ key: 'lid_' + l, tipo: 'boton_liderazgo', liderazgo: l, w: 1.7, h: l === 'gm' ? 1.7 : 1.33 }),
+  excelencia: (): Pieza => ({ key: 'excelencia', tipo: 'excelencia', w: 4.1, h: 0.92 }),
+  nombre: (nombre: string, fondo: 'caqui' | 'blanco'): Pieza => ({ key: 'tira_nombre', tipo: 'tira_nombre', texto: nombre, fondo, w: 8.07, h: 1.67 }),
+  funcion: (f: string): Pieza => ({ key: 'funcion', tipo: 'funcion', texto: f, w: 6.54, h: 1.4 }),
   bautismo: (): Pieza => ({ key: 'bautismo', tipo: 'bautismo', w: 2, h: 2 }),
-  panoleta: (gm: boolean): Pieza => ({ key: gm ? 'panoleta_gm' : 'panoleta', tipo: 'panoleta', liderazgo: gm ? 'gm' : undefined, w: 14, h: 10 }),
+  panoleta: (gm: boolean): Pieza => ({ key: gm ? 'panoleta_gm' : 'panoleta', tipo: 'panoleta', liderazgo: gm ? 'gm' : undefined, w: 17, h: 17 }),
   correa: (): Pieza => ({ key: 'correa', tipo: 'correa', w: 34, h: 2.6 }),
   bandera: (): Pieza => ({ key: 'bandera', tipo: 'bandera_pais', w: 3.6, h: 2.4 }),
   especialidad: (n: number): Pieza => ({ key: 'esp_' + n, tipo: 'especialidad', nivel: n, grupo: 'especialidad', w: 3.4, h: 3.4 }),
@@ -123,6 +123,7 @@ export function uniformeCorrecto(u: PerfilUniforme): Colocacion[] {
     add(pieza.liderazgo(ORDEN_LIDERAZGO[i]), 'pecho', x, solapaMid - 0.95, 'zona',
       'Distintivos de liderazgo: centrados encima de las clases regulares; el de mayor grado siempre a la derecha.')
   })
+  u = { ...u, clasesAvanzadas: avanzadasValidas(u.clasesRegulares, u.clasesAvanzadas) }
   // Avanzadas: 0,5 cm encima de la tapa, filas de 3, de izquierda a derecha y de abajo hacia arriba.
   let topeAvanzadas = BOLSILLO.top - 0.5
   u.clasesAvanzadas.forEach((c, i) => {
@@ -153,7 +154,7 @@ export function uniformeCorrecto(u: PerfilUniforme): Colocacion[] {
   }
 
   // ---- Accesorios ----
-  add(pieza.panoleta(gm), 'pecho', 25, 5.5, 'zona', gm
+  add(pieza.panoleta(gm), 'pecho', 25, 8.2, 'zona', gm
     ? 'Pañoleta de Guía Mayor (borde rojo, emblema LC1), solo después de la investidura.'
     : 'Pañoleta oficial amarilla con el emblema C2, sujeta con el sujetador.')
   add(pieza.correa(), 'pecho', 25, 39.5, 'zona', 'Correa verde petróleo con hebilla del emblema C3.')
@@ -214,4 +215,50 @@ export function perfilDemo(rango: Rango, nombre = 'TU APODO', club = 'TU CLUB'):
         clasesAvanzadas: ['amigo', 'companero', 'explorador', 'pionero', 'excursionista', 'guia'], excelencia: true, bautismo: true,
         cargo: 'DIRECTOR', estrellaAnios: 10, nombre, club }
   }
+}
+
+// ---------- Casos aleatorios coherentes ----------
+export const FUNCIONES = ['CAPITÁN', 'SECRETARIO', 'TESORERO', 'CAPELLÁN']
+export const CARGOS = ['CONSEJERO', 'INSTRUCTOR', 'SECRETARIO', 'DIRECTOR', 'DIR. ASOCIADO']
+
+/**
+ * Regla del manual: una clase avanzada solo se lleva si ya se tiene la regular de esa clase.
+ * Devuelve las avanzadas que sí corresponden, en orden de investidura.
+ */
+export function avanzadasValidas(regulares: ClaseId[], avanzadas: ClaseId[]): ClaseId[] {
+  return ORDEN_CLASES.filter(c => avanzadas.includes(c) && regulares.includes(c))
+}
+
+/** Un caso al azar que siempre respeta el manual (para salas y desafíos). */
+export function perfilAleatorio(rango: Rango, rnd: () => number, nombre = 'TU APODO', club = 'TU CLUB'): PerfilUniforme {
+  const entre = (a: number, b: number) => a + Math.floor(rnd() * (b - a + 1))
+  const conquis = rango === 'conquistador'
+  const nReg = conquis ? entre(1, 6) : rango === 'lider' ? entre(3, 6) : 6
+  const regulares = ORDEN_CLASES.slice(0, nReg)
+  const nAv = conquis ? (rnd() < 0.35 ? 0 : entre(1, nReg)) : rango === 'lider' ? entre(0, nReg) : entre(rango === 'gm_master_avanzado' ? 3 : 0, 6)
+  const avanzadas = avanzadasValidas(regulares, ORDEN_CLASES.slice(0, nAv))
+  return {
+    rango, clasesRegulares: regulares, clasesAvanzadas: avanzadas,
+    excelencia: rnd() < 0.4, bautismo: rnd() < 0.75,
+    funcion: conquis && rnd() < 0.6 ? FUNCIONES[entre(0, FUNCIONES.length - 1)] : undefined,
+    cargo: conquis ? undefined : CARGOS[entre(0, CARGOS.length - 1)],
+    estrellaAnios: conquis ? undefined : entre(1, 12),
+    nombre, club,
+  }
+}
+
+export const NOMBRE_CLASE: Record<ClaseId, string> = { amigo: 'Amigo', companero: 'Compañero', explorador: 'Explorador', pionero: 'Pionero', excursionista: 'Excursionista', guia: 'Guía' }
+const RANGO_TXT: Record<Rango, string> = { conquistador: 'Conquistador', lider: 'Líder (no Guía Mayor)', guia_mayor: 'Guía Mayor', gm_master: 'Guía Mayor Máster', gm_master_avanzado: 'Guía Mayor Máster Avanzado' }
+
+/** Texto corto del caso, para mostrarlo antes de jugar. */
+export function describirCaso(p: PerfilUniforme): string[] {
+  const r = p.clasesRegulares, a = p.clasesAvanzadas
+  const tramo = (l: ClaseId[]) => l.length === 1 ? NOMBRE_CLASE[l[0]] : `de ${NOMBRE_CLASE[l[0]]} a ${NOMBRE_CLASE[l[l.length - 1]]}`
+  const out = [RANGO_TXT[p.rango] + (p.cargo ? `, cargo ${p.cargo.toLowerCase()}` : p.funcion ? `, ${p.funcion.toLowerCase()} de su unidad` : '')]
+  out.push(`Clases regulares: ${tramo(r)}`)
+  out.push(a.length ? `Clases avanzadas: ${tramo(a)}` : 'Sin clases avanzadas')
+  const extras = [p.bautismo ? 'bautizado' : 'aún no bautizado', p.excelencia ? 'con insignia de excelencia' : '']
+  if (p.estrellaAnios) extras.push(`${p.estrellaAnios} año${p.estrellaAnios === 1 ? '' : 's'} de servicio`)
+  out.push(extras.filter(Boolean).join(', '))
+  return out
 }

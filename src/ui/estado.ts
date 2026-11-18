@@ -61,7 +61,7 @@ export const useJuego = create<Estado>((set, get) => ({
   semilla: null,
   sonido: (() => { try { return localStorage.getItem('asp_sonido') !== '0' } catch { return true } })(),
   sala: null,
-  mundo: (() => { try { return localStorage.getItem('asp_mundo') || 'aspirantazgo' } catch { return 'aspirantazgo' } })(),
+  mundo: (() => { try { return localStorage.getItem('asp_mundo') || 'uniformes' } catch { return 'uniformes' } })(),
   setMundo: m => { try { localStorage.setItem('asp_mundo', m) } catch { /* */ } set({ mundo: m }) },
   ir: p => set({ pantalla: p }),
   verLegal: t => set({ legalTab: t, pantalla: 'legal' }),

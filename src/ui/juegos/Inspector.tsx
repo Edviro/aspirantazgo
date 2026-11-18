@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Nivel } from '../../domain/niveles'
 import { sembrarErrores } from '../../domain/inspector'
-import { esAdulto, type Dificultad } from '../../domain/tipos'
+import { esAdulto, type Colocacion, type Dificultad, type Rango } from '../../domain/tipos'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { azar } from '../../domain/azar'
 import { useJuego } from '../estado'
@@ -12,14 +12,14 @@ import { Tablero } from './Tablero'
 import { sfx } from '../sonido'
 
 
-export function Inspector({ nivel, apodo, club, dificultad, semilla, onFin }: {
-  nivel: Nivel; apodo: string; club: string; dificultad: Dificultad; semilla: number | null; onFin: (factores: number[], errores: number) => void
+export function Inspector({ nivel, base, rango, dificultad, semilla, onFin }: {
+  nivel: Nivel; base: Colocacion[]; rango: Rango; dificultad: Dificultad; semilla: number | null; onFin: (factores: number[], errores: number) => void
 }) {
   const reglas = DIFICULTADES[dificultad]
   const LIMITE = Math.round(75 * reglas.tiempo)
   const { uniforme, errores } = useMemo(
-    () => sembrarErrores(nivel.objetivo(apodo, club), nivel.rango, Math.max(2, (nivel.errores ?? 4) + reglas.erroresExtra), semilla ? azar(semilla) : Math.random),
-    [nivel, apodo, club, reglas.erroresExtra, semilla])
+    () => sembrarErrores(base, rango, Math.max(2, (nivel.errores ?? 4) + reglas.erroresExtra), semilla ? azar(semilla + 7) : Math.random),
+    [base, rango, nivel.errores, reglas.erroresExtra, semilla])
   const [hallados, setHallados] = useState<Set<number>>(new Set())
   const [fallos, setFallos] = useState(0)
   const [marcasMal, setMarcasMal] = useState<number[]>([])
@@ -85,7 +85,7 @@ export function Inspector({ nivel, apodo, club, dificultad, semilla, onFin }: {
       )}
       <Tablero paneles={visibles} render={p => (
         <>
-          <PanelFondo panel={p} blanca={esAdulto(nivel.rango)} regla={false} />
+          <PanelFondo panel={p} blanca={esAdulto(rango)} regla={false} />
           {uniforme.map((c, i) => c.panel !== p ? null : (
             <g key={i} transform={`translate(${c.x},${c.y})`} className={`tocable ${marcasMal.includes(i) ? 'tiembla' : ''}`}
               onPointerDown={e => { e.stopPropagation(); tocar(i) }}>
