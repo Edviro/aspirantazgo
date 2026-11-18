@@ -79,13 +79,12 @@ const MUTACIONES: Mutacion[] = [
     },
   },
   {
-    aplica: (_, u) => idx(u, 'tira_club') >= 0,
+    aplica: (_, u) => idx(u, 'tira_club') >= 0 && idx(u, 'c1') >= 0,
     hacer: u => {
+      // Solo se mueve la tira del club (debajo del C1). El C1 se queda en su sitio correcto.
       const a = idx(u, 'tira_club'), b = idx(u, 'c1')
-      const ya = u[a].y, yb = u[b].y
-      u[a] = { ...u[a], y: yb + u[b].pieza.h / 2 + 3.2 }
-      u[b] = { ...u[b], y: ya + 1 }
-      return { indices: [a], explicacion: 'La tira del club va arriba, a 1,5 cm de la costura del hombro, encima del C1.' }
+      u[a] = { ...u[a], y: u[b].y + u[b].pieza.h / 2 + 2.6 }
+      return { indices: [a], explicacion: 'La tira del club va ARRIBA, a 1,5 cm de la costura del hombro, encima del C1.' }
     },
   },
   {
@@ -114,12 +113,11 @@ const MUTACIONES: Mutacion[] = [
     },
   },
   {
-    aplica: (_, u) => idx(u, 'tira_cargo') >= 0,
+    aplica: (_, u) => idx(u, 'tira_cargo') >= 0 && idx(u, 'tira_club') >= 0,
     hacer: u => {
-      const a = idx(u, 'tira_cargo'), b = idx(u, 'tira_club')
-      const ya = u[a].y
+      // Solo se mueve la tira de cargo (por encima de la del club). La del club se queda.
+      const a = idx(u, 'tira_cargo')
       u[a] = { ...u[a], y: 0.6 + u[a].pieza.h / 2 }
-      u[b] = { ...u[b], y: ya + 1.5 }
       return { indices: [a], explicacion: 'La tira de cargo va DEBAJO de la tira del club (1,5 cm), no encima.' }
     },
   },

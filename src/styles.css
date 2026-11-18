@@ -414,6 +414,8 @@ a { color: var(--oro); cursor: pointer; text-decoration: underline; text-underli
 
 /* Lluvia de insignias */
 .lluvia { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.lluvia-titulo { text-align: center; padding: 8px 12px 0; color: var(--crema); font-weight: 800; font-size: .9rem; }
+.lluvia-titulo b { color: var(--oro); }
 .lluvia-consigna { text-align: center; padding: 10px 12px 0; animation: pop .4s both; }
 .lluvia-consigna small { display: block; color: var(--suave); font-weight: 800; }
 .lluvia-consigna strong { font-family: var(--titulo); font-weight: 400; font-size: clamp(1.4rem, 5vw, 2rem); color: var(--oro); text-shadow: 0 3px 0 #5A2A00; }
@@ -548,3 +550,7 @@ a { color: var(--oro); cursor: pointer; text-decoration: underline; text-underli
 .caso-flotante li { color: var(--crema); font-size: .86rem; font-weight: 700; }
 .caso-tip { margin: 8px 0 0; color: var(--suave); font-size: .78rem; }
 .pista-hint { pointer-events: none; }
+
+/* Imagen de la pieza en la trivia */
+.quiz-pieza { display: flex; justify-content: center; margin: 4px 0 2px; }
+.quiz-pieza svg { background: rgba(255,255,255,.06); border-radius: 12px; padding: 8px; }

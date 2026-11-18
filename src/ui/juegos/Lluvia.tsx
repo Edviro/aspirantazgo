@@ -14,7 +14,7 @@ const TEXTO: Record<Cat, string> = {
   manga_izq: 'la manga izquierda',
   bolsillo_der: 'el bolsillo derecho',
   bolsillo_izq: 'el bolsillo izquierdo',
-  no_conquis: 'lo que NO usa un Conquistador',
+  no_conquis: 'lo que NO usa un Conquistador (es de líder o Guía Mayor)',
 }
 const DURACION = 45
 const POR_CONSIGNA = 9
@@ -114,8 +114,9 @@ export function Lluvia({ dificultad, semilla, onFin }: { dificultad: Dificultad;
   const resta = Math.max(0, DURACION - t)
   return (
     <div className="lluvia">
+      <div className="lluvia-titulo">👕 Uniforme de <b>Conquistador</b> (10–15 años)</div>
       <div className="lluvia-consigna" key={consigna}>
-        <small>Atrapa lo que va en</small>
+        <small>{consigna === 'no_conquis' ? 'Atrapa solo' : 'Atrapa lo que va en'}</small>
         <strong>{TEXTO[consigna]}</strong>
       </div>
       <div className="lluvia-datos"><span>{aciertos} atrapadas</span><span className={resta <= 5 ? 'urgente' : ''}>{resta}s</span></div>

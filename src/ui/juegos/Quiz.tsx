@@ -3,6 +3,7 @@ import { mezclarPreguntas, type Pregunta } from '../../domain/quiz'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { azar } from '../../domain/azar'
 import type { Dificultad } from '../../domain/tipos'
+import { PiezaIcono } from '../componentes/Insignias'
 import { useJuego } from '../estado'
 import { sfx } from '../sonido'
 
@@ -44,6 +45,11 @@ export function Quiz({ dificultad, semilla, banco, imagen, segPregunta, onFin }:
         <div className="quiz-reloj"><div style={{ width: `${(resta / POR_PREGUNTA) * 100}%` }} /></div>
       </div>
       {imagen && <img className="quiz-imagen" src={`${import.meta.env.BASE_URL}assets/${imagen}.webp`} alt="" />}
+      {p.img && (
+        <div className="quiz-pieza" key={'img' + i} aria-hidden>
+          <PiezaIcono p={p.img} size={Math.round(Math.min(130, Math.max(p.img.w, p.img.h) * 15))} />
+        </div>
+      )}
       <h2 className="quiz-q" key={i}>{p.q}</h2>
       <div className="quiz-ops">
         {p.opciones.map((o, k) => (
