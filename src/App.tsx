@@ -19,16 +19,18 @@ function Cargando() {
 export default function App() {
   const pantalla = useJuego(s => s.pantalla)
   return (
-    <Suspense fallback={<Cargando />}>
-      {pantalla === 'intro' && <Intro />}
-      {pantalla === 'acceso' && <Acceso />}
-      {pantalla === 'editor' && <Editor />}
-      {pantalla === 'mapa' && <Mapa />}
-      {pantalla === 'juego' && <Juego />}
-      {pantalla === 'ranking' && <Ranking />}
-      {pantalla === 'legal' && <Legal />}
-      {pantalla === 'director' && <Director />}
-      {pantalla === 'sala' && <Sala />}
-    </Suspense>
+    <div className="marco">
+      <Suspense fallback={<Cargando />}>
+        {pantalla === 'intro' && <Intro />}
+        {pantalla === 'acceso' && <Acceso />}
+        {pantalla === 'editor' && <Editor />}
+        {pantalla === 'mapa' && <Mapa />}
+        {pantalla === 'juego' && <Juego />}
+        {pantalla === 'ranking' && <Ranking />}
+        {pantalla === 'legal' && <Legal />}
+        {pantalla === 'director' && <Director />}
+        {pantalla === 'sala' && <Sala />}
+      </Suspense>
+    </div>
   )
 }

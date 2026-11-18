@@ -16,11 +16,12 @@ export function MapaPixel({ niveles, estados, estrellas, actual, avatar, rango, 
 }) {
   const scroll = useRef<HTMLDivElement>(null)
   const n = niveles.length
-  const alto = n * GAP + 160
+  const TOPE = 150 // espacio para el HUD y el título
+  const alto = n * GAP + TOPE + 90
   // posición de cada nodo: x en %, y en px (nivel 1 arriba)
   const pos = useMemo(() => niveles.map((_, i) => ({
     x: 50 + Math.sin(i * 0.9) * AMPL,
-    y: 80 + i * GAP,
+    y: TOPE + i * GAP,
   })), [niveles])
 
   // auto-centrar en el nivel actual al entrar
