@@ -10,6 +10,7 @@ const Juego = lazy(() => import('./ui/pantallas/Juego'))
 const Ranking = lazy(() => import('./ui/pantallas/Ranking'))
 const Legal = lazy(() => import('./ui/pantallas/Legal'))
 const Director = lazy(() => import('./ui/pantallas/Director'))
+const Sala = lazy(() => import('./ui/pantallas/Sala'))
 
 function Cargando() {
   return <div className="pantalla cargando-pantalla"><div className="spinner" /></div>
@@ -27,6 +28,7 @@ export default function App() {
       {pantalla === 'ranking' && <Ranking />}
       {pantalla === 'legal' && <Legal />}
       {pantalla === 'director' && <Director />}
+      {pantalla === 'sala' && <Sala />}
     </Suspense>
   )
 }

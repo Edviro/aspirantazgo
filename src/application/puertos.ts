@@ -1,4 +1,4 @@
-import type { GrupoEdad, Rango } from '../domain/tipos'
+import type { Dificultad, GrupoEdad, Rango } from '../domain/tipos'
 
 /** Puertos (interfaces) de la arquitectura hexagonal. La UI solo conoce estos contratos. */
 
@@ -60,7 +60,7 @@ export interface RepositorioJuego {
   crearClub(d: DatosClub): Promise<Perfil>
   unirseAdulto(codigo: string, apodo: string, rango: Rango, acepta: boolean): Promise<Perfil>
   guardarAvatar(a: AvatarConfig): Promise<void>
-  iniciarReto(reto: string): Promise<string>
+  iniciarReto(reto: string, dificultad: Dificultad): Promise<string>
   terminarReto(intento: string, puntaje: number): Promise<ResultadoServidor>
   misPuntajes(): Promise<Record<string, number>>
   ranking(alcance: Alcance, pais?: string): Promise<FilaRanking[]>
@@ -68,4 +68,31 @@ export interface RepositorioJuego {
   borrarMiembro(apodo: string): Promise<void>
   borrarMisDatos(): Promise<void>
   salir(): Promise<void>
+  /** Salas en vivo (null si el adaptador no las soporta, como el modo práctica). */
+  readonly salas: PuertoSalas | null
+}
+
+// ---------- Salas en tiempo real ----------
+export interface JugadorSala { id: string; apodo: string; club: string; avatar?: AvatarConfig; anfitrion?: boolean }
+export interface InicioRonda { ronda: number; nivelId: string; dificultad: Dificultad; semilla: number; cuentaAtras: number }
+export interface ProgresoSala { id: string; apodo: string; avance: number; puntaje?: number; segundos?: number; ronda: number }
+
+export interface EventosSala {
+  onJugadores?: (j: JugadorSala[]) => void
+  onInicio?: (r: InicioRonda) => void
+  onProgreso?: (p: ProgresoSala) => void
+  onCerrada?: () => void
+}
+
+export interface ConexionSala {
+  codigo: string
+  iniciarRonda(r: InicioRonda): Promise<void>
+  enviarProgreso(p: ProgresoSala): Promise<void>
+  cerrar(): Promise<void>
+  salir(): Promise<void>
+}
+
+export interface PuertoSalas {
+  nuevoCodigo(): string
+  conectar(codigo: string, yo: JugadorSala, eventos: EventosSala): Promise<ConexionSala>
 }

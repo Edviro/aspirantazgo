@@ -1,10 +1,10 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { PANEL } from '../../domain/uniformes'
 import type { PanelId } from '../../domain/tipos'
-import { MARGEN, NOMBRE_PANEL, viewBoxPanel } from '../componentes/Paneles'
+import { margen, NOMBRE_PANEL, viewBoxPanel } from '../componentes/Paneles'
 
-export const vbW = (p: PanelId) => PANEL[p].w + MARGEN.izq + MARGEN.der
-export const vbH = (p: PanelId) => PANEL[p].h + MARGEN.arriba + MARGEN.abajo
+export const vbW = (p: PanelId) => PANEL[p].w + margen(p).izq + margen(p).der
+export const vbH = (p: PanelId) => PANEL[p].h + margen(p).arriba + margen(p).abajo
 
 /**
  * Coloca los paneles con UNA sola escala (px por cm), para que una pieza mida lo mismo en todas las mangas.

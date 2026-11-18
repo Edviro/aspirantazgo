@@ -17,6 +17,14 @@ const idx = (u: Colocacion[], tipo: string) => u.findIndex(c => c.pieza.tipo ===
 
 const MUTACIONES: Mutacion[] = [
   {
+    aplica: (_, u) => idx(u, 'lc_manga') >= 0,
+    hacer: u => {
+      const i = idx(u, 'lc_manga')
+      u[i] = { ...u[i], pieza: pieza.c2('blanco') }
+      return { indices: [i], explicacion: 'Un Máster ya no usa el C2 en la manga: lo reemplaza el emblema LC2 (Máster) o LC3 (Máster Avanzado).' }
+    },
+  },
+  {
     aplica: (_, u) => idx(u, 'c1') >= 0 && idx(u, 'c2') >= 0,
     hacer: u => {
       const a = idx(u, 'c1'), b = idx(u, 'c2')

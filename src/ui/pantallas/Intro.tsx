@@ -40,7 +40,7 @@ export default function Intro() {
       <div className="intro-centro">
         <img className="intro-logo" src={asset('logo-alas')} alt="Emblema de Conquistadores con alas" />
         <h1 className="titulo-juego">ASPIRANTAZGO</h1>
-        <p className="intro-lema">Aprende · Compite · Conquista</p>
+        <p className="intro-lema">Aprende el uniforme jugando y compite con tu club</p>
         <div className="intro-carga">
           {listo ? (
             <Boton className="intro-boton" onClick={entrar}>¡Comenzar aventura!</Boton>

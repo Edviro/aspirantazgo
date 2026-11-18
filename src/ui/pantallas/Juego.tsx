@@ -1,20 +1,27 @@
 import { useCallback, useEffect, useState } from 'react'
 import { MUNDO_UNIFORMES } from '../../domain/niveles'
+import { DIFICULTADES } from '../../domain/dificultad'
 import { useJuego } from '../estado'
 import { Boton, Confeti, Dialogo, Estrellas } from '../componentes/Comunes'
 import { Taller } from '../juegos/Taller'
 import { Inspector } from '../juegos/Inspector'
 import { Quiz } from '../juegos/Quiz'
+import { VerdaderoFalso } from '../juegos/VerdaderoFalso'
+import { Lluvia } from '../juegos/Lluvia'
+import { Ordenar } from '../juegos/Ordenar'
 import { useReto, type FinReto } from '../juegos/useReto'
 import { sfx } from '../sonido'
 
 export default function Juego() {
-  const { nivel, desafio, perfil, ir, jugar, modo } = useJuego()
-  const [fase, setFase] = useState<'intro' | 'jugando' | 'fin'>('intro')
+  const { nivel, desafio, dificultad, semilla, perfil, ir, jugar, modo, sala } = useJuego()
+  const enSala = !!sala && sala.rol === 'jugador'
+  const [fase, setFase] = useState<'intro' | 'jugando' | 'fin'>(enSala ? 'jugando' : 'intro')
   const [fin, setFin] = useState<FinReto | null>(null)
   const [ronda, setRonda] = useState(0)
   const [reloj, setReloj] = useState(0)
-  const reto = useReto(nivel!, desafio)
+  const reto = useReto(nivel!, desafio, dificultad)
+
+  useEffect(() => { if (enSala) { reto.iniciar(); sfx.trompeta() } }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (fase !== 'jugando') return
@@ -33,35 +40,44 @@ export default function Juego() {
   const siguiente = MUNDO_UNIFORMES.niveles.find(n => n.num === nivel.num + 1)
   const apodo = perfil.apodo
   const club = perfil.club.nombre === 'Modo práctica' ? 'CLUB CONQUIS' : perfil.club.nombre
+  const reglas = DIFICULTADES[dificultad]
 
   const empezar = () => { reto.iniciar(); setFase('jugando'); sfx.trompeta() }
   const repetir = () => { setFin(null); setRonda(r => r + 1); setFase('intro'); setReloj(0) }
+  const props = { dificultad, semilla, onFin: alTerminar }
 
   return (
     <div className="pantalla juego">
       <header className="juego-cabeza">
-        <button className="icono" onClick={() => ir('mapa')} aria-label="Volver al mapa">
+        <button className="icono" onClick={() => ir(enSala ? 'sala' : 'mapa')} aria-label="Salir del nivel">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         <div className="juego-titulo">
-          <small>Nivel {nivel.num} · {desafio ? 'Desafío' : 'Práctica'}</small>
+          <div className="chips-nivel">
+            <span className="chip-nivel">Nivel {nivel.num}</span>
+            <span className={`chip-modo ${desafio ? 'desafio' : ''}`}>{enSala ? `Sala ${sala?.conexion.codigo}` : desafio ? reglas.nombre : 'Práctica'}</span>
+          </div>
           <strong>{nivel.titulo}</strong>
         </div>
         <div className="juego-reloj">{Math.floor(reloj / 60)}:{String(reloj % 60).padStart(2, '0')}</div>
       </header>
 
       <main className="juego-zona" key={ronda}>
-        {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} desafio={desafio} apodo={apodo} club={club} onFin={alTerminar} />}
-        {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} apodo={apodo} club={club} onFin={alTerminar} />}
-        {fase !== 'intro' && nivel.tipo === 'quiz' && <Quiz onFin={alTerminar} />}
+        {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} desafio={desafio} dificultad={dificultad} apodo={apodo} club={club} onFin={alTerminar} />}
+        {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} apodo={apodo} club={club} {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'quiz' && <Quiz {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'vf' && <VerdaderoFalso {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'lluvia' && <Lluvia {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'ordenar' && <Ordenar {...props} />}
       </main>
 
       {fase === 'intro' && (
         <Dialogo npc={nivel.npc} titulo={nivel.titulo} accion={desafio ? '¡Al desafío!' : '¡A practicar!'} onAccion={empezar}
           secundaria="Volver" onSecundaria={() => ir('mapa')}>
           <p>{nivel.intro}</p>
-          {nivel.tipo === 'taller' && <p className="nota">Arrastra cada pieza (o tócala y luego toca su lugar). {desafio ? 'En desafío no hay pistas: cuenta la precisión, el tiempo y los errores.' : 'En práctica verás pistas punteadas y la regla de cada pieza.'}</p>}
-          {desafio && modo === 'practica' && <p className="nota">Estás en modo práctica: tu puntaje se guarda solo en este dispositivo.</p>}
+          {nivel.tipo === 'taller' && <p className="nota">Arrastra cada pieza o tócala y luego toca su lugar. {desafio && !reglas.pistas ? 'Sin pistas: cuentan la precisión, el tiempo y los errores.' : 'Verás dónde va cada pieza y la regla del manual.'}</p>}
+          {desafio && <p className="nota">Dificultad {reglas.nombre}: {reglas.descripcion}</p>}
+          {desafio && modo === 'practica' && <p className="nota">Sin cuenta, tu puntaje se guarda solo en este dispositivo.</p>}
         </Dialogo>
       )}
 
@@ -69,22 +85,28 @@ export default function Juego() {
         <div className="velo">
           {fin.resultado.estrellas >= 2 && <Confeti />}
           <div className="resultado pop">
-            <h2>{fin.resultado.estrellas === 3 ? '¡Uniforme impecable!' : fin.resultado.estrellas === 2 ? '¡Muy bien!' : fin.resultado.estrellas === 1 ? '¡Aprobado!' : '¡Sigue practicando!'}</h2>
+            <h2>{fin.resultado.estrellas === 3 ? '¡Impecable!' : fin.resultado.estrellas === 2 ? '¡Muy bien!' : fin.resultado.estrellas === 1 ? '¡Aprobado!' : '¡Sigue practicando!'}</h2>
             <Estrellas n={fin.resultado.estrellas} grande />
-            <div className="resultado-puntos"><span>{fin.resultado.puntaje}</span><small>puntos</small></div>
+            <div className="resultado-puntos"><span>{fin.resultado.puntaje}</span><small>puntos{desafio && reglas.multiplicador !== 1 ? ` (x${String(reglas.multiplicador).replace('.', ',')} por ${reglas.nombre})` : ''}</small></div>
             <div className="resultado-datos">
               <div><b>{Math.round(fin.resultado.precision * 100)}%</b><small>precisión</small></div>
               <div><b>{fin.resultado.errores}</b><small>errores</small></div>
               <div><b>{Math.round(fin.resultado.segundos)}s</b><small>tiempo</small></div>
             </div>
-            {fin.servidor && <p className="resultado-servidor">Tu mejor marca: <b>{fin.servidor.mejor}</b> · Puesto <b>#{fin.servidor.puesto}</b> en este nivel</p>}
-            {!desafio && <p className="nota">Práctica: este puntaje no cuenta para el ranking. Juega el desafío para competir.</p>}
+            {fin.servidor && <p className="resultado-servidor">Tu mejor marca: <b>{fin.servidor.mejor}</b>. Puesto <b>#{fin.servidor.puesto}</b> en este nivel.</p>}
+            {!desafio && <p className="nota">La práctica no cuenta para el ranking. Juega el desafío para competir.</p>}
             {fin.aviso && <p className="nota aviso">{fin.aviso}</p>}
             <div className="fila-botones">
-              <Boton tipo="fantasma" onClick={() => ir('mapa')}>Mapa</Boton>
-              <Boton tipo="azul" onClick={repetir}>Repetir</Boton>
-              {!desafio && <Boton onClick={() => { setFin(null); jugar(nivel, true); repetir() }}>Desafío</Boton>}
-              {desafio && siguiente && fin.resultado.estrellas > 0 && <Boton onClick={() => { jugar(siguiente, false); repetir() }}>Siguiente</Boton>}
+              {enSala ? (
+                <Boton onClick={() => ir('sala')}>Ver la sala</Boton>
+              ) : (
+                <>
+                  <Boton tipo="fantasma" onClick={() => ir('mapa')}>Mapa</Boton>
+                  <Boton tipo="azul" onClick={repetir}>Repetir</Boton>
+                  {!desafio && <Boton onClick={() => { setFin(null); jugar(nivel, true); repetir() }}>Desafío</Boton>}
+                  {desafio && siguiente && fin.resultado.estrellas > 0 && <Boton onClick={() => { jugar(siguiente, true); repetir() }}>Siguiente</Boton>}
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -8,13 +8,20 @@ export const NOMBRE_PANEL: Record<PanelId, string> = {
   manga_izq: 'Manga izquierda',
   pecho: 'Pecho',
   banda: 'Banda',
+  bandera: 'Bandera oficial',
+  banderin: 'Banderín de unidad',
 }
 
-export const MARGEN = { izq: 3.2, der: 1.2, arriba: 1.5, abajo: 1.2 }
+export function margen(panel: PanelId) {
+  if (panel === 'bandera') return { izq: 2, der: 2, arriba: 4.6, abajo: 2 }
+  if (panel === 'banderin') return { izq: 1.2, der: 1.2, arriba: 2.8, abajo: 1.2 }
+  return { izq: 3.2, der: 1.2, arriba: 1.5, abajo: 1.2 }
+}
 
 export function viewBoxPanel(panel: PanelId) {
   const { w, h } = PANEL[panel]
-  return `${-MARGEN.izq} ${-MARGEN.arriba} ${w + MARGEN.izq + MARGEN.der} ${h + MARGEN.arriba + MARGEN.abajo}`
+  const m = margen(panel)
+  return `${-m.izq} ${-m.arriba} ${w + m.izq + m.der} ${h + m.arriba + m.abajo}`
 }
 
 function Tela({ id, color }: { id: string; color: string }) {
@@ -36,13 +43,13 @@ function Tela({ id, color }: { id: string; color: string }) {
 const costura = { fill: 'none', stroke: '#000', strokeOpacity: 0.22, strokeWidth: 0.07, strokeDasharray: '0.35 0.25' }
 
 /** Regla en cm a la izquierda del panel: así se aprende a medir de verdad. */
-export function Regla({ alto }: { alto: number }) {
+export function Regla({ alto, numeros = true }: { alto: number; numeros?: boolean }) {
   const marcas = []
   for (let i = 0; i <= alto * 2; i++) {
     const y = i / 2
     const entero = i % 2 === 0
     marcas.push(<line key={i} x1={-0.6 - (entero ? 0.7 : 0.35)} x2={-0.6} y1={y} y2={y} stroke="#F8E7B0" strokeWidth={entero ? 0.07 : 0.04} />)
-    if (entero && y % 2 === 0) marcas.push(<text key={'t' + i} x={-1.55} y={y} fontSize={0.62} fill="#F8E7B0" textAnchor="end" dominantBaseline="central" fontFamily="Nunito, sans-serif" fontWeight={800}>{y}</text>)
+    if (numeros && entero && y % 2 === 0) marcas.push(<text key={'t' + i} x={-1.55} y={y} fontSize={0.62} fill="#F8E7B0" textAnchor="end" dominantBaseline="central" fontFamily="Nunito, sans-serif" fontWeight={800}>{y}</text>)
   }
   return (
     <g>
@@ -52,7 +59,7 @@ export function Regla({ alto }: { alto: number }) {
   )
 }
 
-export function PanelFondo({ panel, blanca, regla }: { panel: PanelId; blanca: boolean; regla: boolean }) {
+export function PanelFondo({ panel, blanca, regla, numeros = true }: { panel: PanelId; blanca: boolean; regla: boolean; numeros?: boolean }) {
   const tela = blanca ? '#F3F1EA' : '#D9C49A'
   const id = 'tela-' + panel + (blanca ? 'b' : 'c')
   const { w, h } = PANEL[panel]
@@ -68,7 +75,7 @@ export function PanelFondo({ panel, blanca, regla }: { panel: PanelId; blanca: b
         <path d={`M0.35,${h - 0.35} L${w - 0.35},${h - 0.35}`} {...costura} />
         <line x1={w / 2 - 3} x2={w / 2 + 3} y1={0} y2={0} stroke="#C2410C" strokeWidth={0.1} strokeDasharray="0.4 0.25" />
         <text x={w / 2} y={-0.65} fontSize={0.6} textAnchor="middle" fill="#F8E7B0" fontFamily="Nunito, sans-serif" fontWeight={800}>costura del hombro</text>
-        {regla && <Regla alto={h} />}
+        {regla && <Regla alto={h} numeros={numeros} />}
       </g>
     )
   }
@@ -85,7 +92,29 @@ export function PanelFondo({ panel, blanca, regla }: { panel: PanelId; blanca: b
         <path d={`M0.4,0.2 L0.4,${h - 0.2} M${w - 0.4},0.2 L${w - 0.4},${h - 0.2}`} stroke="#ffffff" strokeOpacity={0.25} strokeWidth={0.07} strokeDasharray="0.35 0.25" />
         <line x1={0} x2={w} y1={0} y2={0} stroke="#C2410C" strokeWidth={0.12} strokeDasharray="0.4 0.25" />
         <text x={w / 2} y={-0.6} fontSize={0.6} textAnchor="middle" fill="#F8E7B0" fontFamily="Nunito, sans-serif" fontWeight={800}>costura del hombro derecho</text>
-        {regla && <Regla alto={h} />}
+        {regla && <Regla alto={h} numeros={numeros} />}
+      </g>
+    )
+  }
+
+  if (panel === 'bandera') {
+    return (
+      <g>
+        <rect x={0} y={0} width={w} height={h} fill="#E9ECF1" stroke="#ffffff55" strokeWidth={0.6} />
+        <path d={`M${w / 2},0 L${w / 2},${h} M0,${h / 2} L${w},${h / 2}`} stroke="#9AA3B2" strokeWidth={0.5} strokeDasharray="2 1.4" />
+        <rect x={1.2} y={1.2} width={w - 2.4} height={h - 2.4} fill="none" stroke="#9AA3B2" strokeWidth={0.4} strokeDasharray="1.6 1.2" />
+        <text x={w / 2} y={-1.4} fontSize={2.6} textAnchor="middle" fill="#F8E7B0" fontFamily="Nunito, sans-serif" fontWeight={800}>128 × 90 cm</text>
+      </g>
+    )
+  }
+
+  if (panel === 'banderin') {
+    const forma = `M0,0 L${w},2 L${w - 8},${h / 2} L${w},${h - 2} L0,${h} Z`
+    return (
+      <g>
+        <path d={forma} fill="#FFFFFF" stroke="#9AA3B2" strokeWidth={0.25} />
+        <path d={forma} fill="none" stroke="#9AA3B2" strokeWidth={0.18} strokeDasharray="0.8 0.6" transform="translate(0.6,0.6) scale(0.98)" />
+        <text x={w / 2} y={-1} fontSize={1.4} textAnchor="middle" fill="#F8E7B0" fontFamily="Nunito, sans-serif" fontWeight={800}>55 cm de largo, 36 cm de alto a la izquierda y 32 cm a la derecha</text>
       </g>
     )
   }

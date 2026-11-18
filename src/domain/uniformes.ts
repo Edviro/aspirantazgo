@@ -13,6 +13,8 @@ export const PANEL: Record<PanelId, { w: number; h: number }> = {
   manga_izq: { w: 20, h: 26 },
   pecho: { w: 50, h: 42 },
   banda: { w: 12, h: 60 },
+  bandera: { w: 128, h: 90 },
+  banderin: { w: 55, h: 36 },
 }
 
 // Geometría del pecho (vista de frente: el bolsillo DERECHO de quien lo viste queda a la IZQUIERDA de la pantalla).
@@ -39,7 +41,16 @@ export const pieza = {
   panoleta: (gm: boolean): Pieza => ({ key: gm ? 'panoleta_gm' : 'panoleta', tipo: 'panoleta', liderazgo: gm ? 'gm' : undefined, w: 14, h: 10 }),
   correa: (): Pieza => ({ key: 'correa', tipo: 'correa', w: 34, h: 2.6 }),
   bandera: (): Pieza => ({ key: 'bandera', tipo: 'bandera_pais', w: 3.6, h: 2.4 }),
-  especialidad: (n: number): Pieza => ({ key: 'esp_' + n, tipo: 'especialidad', nivel: n, w: 3.4, h: 3.4 }),
+  especialidad: (n: number): Pieza => ({ key: 'esp_' + n, tipo: 'especialidad', nivel: n, grupo: 'especialidad', w: 3.4, h: 3.4 }),
+  lcManga: (l: 'master' | 'master_avanzado'): Pieza => ({ key: 'lc_' + l, tipo: 'lc_manga', liderazgo: l, w: 6.4, h: 5 }),
+  cuadrante: (color: 'azul' | 'blanco', n: number): Pieza => ({ key: `cuad_${color}_${n}`, tipo: 'cuadrante', fondo: color, grupo: 'cuad_' + color, w: 64, h: 45 }),
+  c1Bandera: (): Pieza => ({ key: 'c1_bandera', tipo: 'c1', w: 29, h: 30 }),
+  textoClub: (t: string): Pieza => ({ key: 'texto_club', tipo: 'texto_club', texto: t, w: 50, h: 6 }),
+  franjaAzul: (): Pieza => ({ key: 'franja_azul', tipo: 'franja_azul', w: 10, h: 36 }),
+  c1Banderin: (): Pieza => ({ key: 'c1_banderin', tipo: 'c1', w: 9.6, h: 10 }),
+  textoClubVertical: (t: string): Pieza => ({ key: 'texto_club_v', tipo: 'texto_club', texto: t, vertical: true, w: 4, h: 19 }),
+  disenoUnidad: (): Pieza => ({ key: 'diseno_unidad', tipo: 'diseno_unidad', w: 12.5, h: 12.5 }),
+  textoUnidad: (t: string): Pieza => ({ key: 'texto_unidad', tipo: 'texto_unidad', texto: t, w: 22, h: 3 }),
   c2Banda: (): Pieza => ({ key: 'c2_banda', tipo: 'c2_banda', w: 5, h: 4 }),
 }
 
@@ -82,8 +93,15 @@ export function uniformeCorrecto(u: PerfilUniforme): Colocacion[] {
   // ---- Manga izquierda ----
   const ca = pieza.campo()
   add(ca, 'manga_izq', CX_MANGA, centro(1.5, ca), 'precision', 'Emblema del Campo local: a 1,5 cm de la costura del hombro.')
-  const c2 = pieza.c2(fondo)
-  add(c2, 'manga_izq', CX_MANGA, centro(8, c2), 'precision', 'Emblema C2: 1 cm debajo del emblema del Campo.')
+  if (u.rango === 'gm_master' || u.rango === 'gm_master_avanzado') {
+    const lc = pieza.lcManga(u.rango === 'gm_master' ? 'master' : 'master_avanzado')
+    add(lc, 'manga_izq', CX_MANGA, centro(8, lc), 'precision', u.rango === 'gm_master'
+      ? 'El emblema LC2 de Guía Mayor Máster reemplaza al C2: 1 cm debajo del emblema del Campo.'
+      : 'El emblema LC3 de Máster Avanzado reemplaza al C2: 1 cm debajo del emblema del Campo.')
+  } else {
+    const c2 = pieza.c2(fondo)
+    add(c2, 'manga_izq', CX_MANGA, centro(8, c2), 'precision', 'Emblema C2: 1 cm debajo del emblema del Campo.')
+  }
   const variante = gm ? 'guia_mayor' : adulto ? 'lider' : 'conquistador'
   const dv = pieza.divisa(variante, Math.max(1, u.clasesRegulares.length))
   add(dv, 'manga_izq', CX_MANGA, centro(14, dv), 'precision',
@@ -154,6 +172,30 @@ export function bandaCorrecta(nEsp: number): Colocacion[] {
   }
   out.push({ pieza: pieza.c2Banda(), panel: 'banda', x: 6, y: 55, modo: 'zona', regla: 'Emblema C2: en la parte inferior de la banda, centrado.' })
   return out
+}
+
+/** Bandera oficial: 128 × 90 cm en cuatro partes, C1 de 30 × 30 al centro y el nombre del club abajo a la derecha. */
+export function banderaCorrecta(club: string): Colocacion[] {
+  const r = 'Bandera: superior izquierda e inferior derecha en azul royal; superior derecha e inferior izquierda en blanco.'
+  return [
+    { pieza: pieza.cuadrante('azul', 1), panel: 'bandera', x: 32, y: 22.5, modo: 'zona', regla: r },
+    { pieza: pieza.cuadrante('azul', 2), panel: 'bandera', x: 96, y: 67.5, modo: 'zona', regla: r },
+    { pieza: pieza.cuadrante('blanco', 1), panel: 'bandera', x: 96, y: 22.5, modo: 'zona', regla: r },
+    { pieza: pieza.cuadrante('blanco', 2), panel: 'bandera', x: 32, y: 67.5, modo: 'zona', regla: r },
+    { pieza: pieza.c1Bandera(), panel: 'bandera', x: 64, y: 45, modo: 'zona', regla: 'Emblema C1 de 30 × 30 cm, justo en el centro de la bandera.' },
+    { pieza: pieza.textoClub(club), panel: 'bandera', x: 98, y: 77, modo: 'zona', regla: 'El nombre del club va abajo a la derecha, en Arial Black, con 6 cm de alto y hasta 50 cm de largo.' },
+  ]
+}
+
+/** Banderín de unidad: 55 cm, franja azul de 36 × 10 a la izquierda, C1 a 5 cm de arriba, diseño de la unidad a la derecha. */
+export function banderinCorrecto(club: string, unidad: string): Colocacion[] {
+  return [
+    { pieza: pieza.franjaAzul(), panel: 'banderin', x: 5, y: 18, modo: 'zona', regla: 'Franja vertical azul royal de 36 × 10 cm en el lado izquierdo.' },
+    { pieza: pieza.c1Banderin(), panel: 'banderin', x: 10, y: 10, modo: 'zona', regla: 'Emblema C1 de 10 × 10 cm, a 5 cm de arriba, dividido entre la parte azul y la blanca.' },
+    { pieza: pieza.textoClubVertical(club), panel: 'banderin', x: 5, y: 25.5, modo: 'zona', regla: 'Nombre del club en amarillo, de abajo hacia arriba, sobre la franja azul.' },
+    { pieza: pieza.disenoUnidad(), panel: 'banderin', x: 29, y: 13.5, modo: 'zona', regla: 'Diseño de la unidad de 12,5 × 12,5 cm, centrado en la parte blanca.' },
+    { pieza: pieza.textoUnidad(unidad), panel: 'banderin', x: 29, y: 24, modo: 'zona', regla: 'Nombre de la unidad en azul royal, debajo del diseño.' },
+  ]
 }
 
 export function perfilDemo(rango: Rango, nombre = 'TU APODO', club = 'TU CLUB'): PerfilUniforme {

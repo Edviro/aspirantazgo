@@ -39,3 +39,35 @@ export function mezclarPreguntas(n: number, rnd = Math.random): Pregunta[] {
     return { ...p, opciones: orden.map(i => p.opciones[i]), correcta: orden.indexOf(p.correcta) }
   })
 }
+
+export interface Afirmacion { t: string; v: boolean; porque: string }
+
+// Verdadero o falso: frases cortas para responder rápido.
+export const BANCO_VF: Afirmacion[] = [
+  { t: 'El emblema C1 va en la manga derecha.', v: true, porque: 'Correcto: manga derecha, debajo de la tira del club.' },
+  { t: 'El C2 va en la manga derecha.', v: false, porque: 'El C2 va en la manga izquierda, debajo del emblema del Campo.' },
+  { t: 'La clase Explorador es de color verde.', v: true, porque: 'Amigo azul, Compañero rojo, Explorador verde.' },
+  { t: 'La clase Guía es de color gris.', v: false, porque: 'Guía es amarilla. La gris es Pionero.' },
+  { t: 'Los distintivos de clase se ordenan de izquierda a derecha según cuándo los recibiste.', v: true, porque: 'Siempre en orden de investidura.' },
+  { t: 'Un Conquistador de 12 años puede llevar la estrella de tiempo de servicio.', v: false, porque: 'La estrella es para la directiva, desde su primer año de actividad.' },
+  { t: 'La divisa de Guía Mayor tiene una estrella.', v: true, porque: 'Fondo blanco con estrella amarilla arriba.' },
+  { t: 'Un líder que no es Guía Mayor usa divisa con estrella.', v: false, porque: 'Usa la divisa blanca SIN estrella.' },
+  { t: 'La banda se lleva del hombro derecho a la cadera izquierda.', v: true, porque: 'Apoyada en el hombro derecho, a la altura de la cadera izquierda.' },
+  { t: 'Puedes usar dos bandas al mismo tiempo.', v: false, porque: 'Solo una banda a la vez.' },
+  { t: 'La bandera del país en la banda va a 6 cm de la costura del hombro.', v: true, porque: 'Centrada y a 6 cm.' },
+  { t: 'La tira con tu nombre va en el bolsillo izquierdo.', v: false, porque: 'Va encima de la solapa del bolsillo derecho.' },
+  { t: 'El distintivo de bautismo va centrado en la solapa del bolsillo derecho.', v: true, porque: 'Así lo indica el manual.' },
+  { t: 'Las clases avanzadas van 0,5 cm encima de la tapa del bolsillo izquierdo.', v: true, porque: 'Exacto: 0,5 cm.' },
+  { t: 'El Guía Mayor Máster sigue usando el C2 en la manga izquierda.', v: false, porque: 'El emblema LC2 de Máster reemplaza al C2.' },
+  { t: 'En los botones de liderazgo, el de mayor grado va a la derecha.', v: true, porque: 'Siempre a la derecha de los demás.' },
+  { t: 'La bandera oficial mide 128 × 90 cm.', v: true, porque: 'Y lleva el C1 de 30 × 30 cm al centro.' },
+  { t: 'En la bandera, la parte superior izquierda es blanca.', v: false, porque: 'Superior izquierda e inferior derecha son azul royal.' },
+  { t: 'El banderín de unidad tiene una franja azul a la izquierda.', v: true, porque: 'Franja vertical de 36 × 10 cm en azul royal.' },
+  { t: 'La camisa de los Conquistadores de 10 a 15 años es blanca.', v: false, porque: 'Es caqui. La blanca es para directivos y Guías Mayores.' },
+  { t: 'El uniforme de gala se usa desde la ceremonia de la pañoleta.', v: true, porque: 'Solo después de la admisión de la pañoleta.' },
+  { t: 'La correa lleva una hebilla con el emblema C3.', v: true, porque: 'Correa verde petróleo con hebilla C3.' },
+]
+
+export function mezclarVF(n: number, rnd = Math.random): Afirmacion[] {
+  return [...BANCO_VF].sort(() => rnd() - 0.5).slice(0, n)
+}

@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import type { ClaseId, Pieza } from '../../domain/tipos'
 import { COLOR_CLASE, ORDEN_CLASES } from '../../domain/tipos'
+import { urlOficial } from '../../assetsOficiales'
 
 /**
  * Dibujo vectorial de cada pieza del uniforme, en CENTÍMETROS y centrado en (0,0).
@@ -49,6 +50,8 @@ function ajustar(t: string, max: number) {
 
 export function PiezaSVG({ p }: { p: Pieza }) {
   const uid = useId().replace(/:/g, '')
+  const oficial = urlOficial(p)
+  if (oficial) return <image href={oficial} x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} preserveAspectRatio="xMidYMid meet" />
   switch (p.tipo) {
     case 'tira_club': {
       const t = ajustar(p.texto || 'NOMBRE DEL CLUB', 22)
@@ -70,7 +73,41 @@ export function PiezaSVG({ p }: { p: Pieza }) {
         </g>
       )
     case 'c1':
-      return <image href={`${import.meta.env.BASE_URL}assets/emblema-c1.webp`} x={-3.6} y={-3.75} width={7.2} height={7.5} />
+      return <image href={`${import.meta.env.BASE_URL}assets/emblema-c1.webp`} x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} />
+    case 'lc_manga': {
+      const avanzado = p.liderazgo === 'master_avanzado'
+      return (
+        <g>
+          <ellipse rx={3.05} ry={2.35} fill="#fff" stroke="#2E7D4A" strokeWidth={0.4} />
+          <ellipse rx={2.6} ry={1.9} fill="none" stroke="#C99A00" strokeWidth={0.07} />
+          <path d="M-2.6,0 L2.6,0 M0,-1.9 L0,1.9 M-1.4,-1.6 Q-0.4,0 -1.4,1.6 M1.4,-1.6 Q0.4,0 1.4,1.6" stroke="#C99A00" strokeWidth={0.05} fill="none" />
+          <path d="M-1.35,-0.95 L1.35,-0.95 L0,1.4 Z" fill={avanzado ? NAVY : ROJO} stroke={AMARILLO} strokeWidth={0.1} />
+          <g transform="translate(0,-0.15)"><Estrella r={0.75} fill={avanzado ? '#F2C230' : '#D5DBE3'} stroke="#333" sw={0.04} /></g>
+        </g>
+      )
+    }
+    case 'cuadrante':
+      return <rect x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} fill={p.fondo === 'azul' ? '#1F4FBF' : '#FFFFFF'} stroke="#00000022" strokeWidth={0.3} />
+    case 'franja_azul':
+      return <rect x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} fill="#1F4FBF" />
+    case 'texto_club':
+      return p.vertical ? (
+        <g transform="rotate(-90)">
+          <TextoAjustado t={p.texto || 'NOMBRE DEL CLUB'} ancho={p.h - 1} alto={p.w * 0.62} color={AMARILLO} />
+        </g>
+      ) : (
+        <TextoAjustado t={p.texto || 'NOMBRE DEL CLUB'} ancho={p.w} alto={p.h} color="#FFFFFF" />
+      )
+    case 'texto_unidad':
+      return <TextoAjustado t={p.texto || 'UNIDAD'} ancho={p.w} alto={p.h} color="#1F4FBF" />
+    case 'diseno_unidad':
+      return (
+        <g>
+          <path d="M0,-6 L5.5,-4 L5,1.5 Q4,5 0,6.2 Q-4,5 -5,1.5 L-5.5,-4 Z" fill="#1F4FBF" stroke={AMARILLO} strokeWidth={0.35} />
+          <path d="M-3.4,0.6 Q-1.2,-3.6 3.6,-2.2 Q1.4,-1.6 0.6,0.4 Q2.6,0.2 3.4,1.6 Q0,1.2 -1.4,3.6 Q-1.2,1.6 -3.4,0.6 Z" fill="#fff" />
+          <circle cx={1.9} cy={-1.9} r={0.28} fill={NAVY} />
+        </g>
+      )
     case 'estrella':
       return (
         <g>
@@ -173,7 +210,7 @@ export function PiezaSVG({ p }: { p: Pieza }) {
       return (
         <g>
           <rect x={-4} y={-0.8} width={8} height={1.6} rx={0.15} fill={p.fondo === 'blanco' ? '#fff' : CAQUI} stroke={VERDE} strokeWidth={0.2} />
-          {texto(ajustar(p.texto || 'NOMBRE', 14), 0.82, '#111')}
+          <TextoAjustado t={p.texto || 'NOMBRE'} ancho={7.2} alto={0.9} color="#111" />
         </g>
       )
     case 'funcion':
@@ -241,6 +278,24 @@ export function PiezaSVG({ p }: { p: Pieza }) {
   }
 }
 
+/**
+ * Texto que se achica para entrar en su tira (como el bordado real) y, si aun así no cabe,
+ * se corta con puntos suspensivos. Ancho aproximado de Archivo Black: 0,72 del tamaño por letra.
+ */
+export function TextoAjustado({ t, ancho, alto, color }: { t: string; ancho: number; alto: number; color: string }) {
+  const s = t.toUpperCase().trim()
+  const porLetra = 0.72
+  let tam = Math.min(alto, ancho / Math.max(1, s.length * porLetra))
+  let txt = s
+  const minimo = alto * 0.62
+  if (tam < minimo) {
+    tam = minimo
+    const caben = Math.max(3, Math.floor(ancho / (tam * porLetra)) - 1)
+    txt = s.slice(0, caben).trimEnd() + '…'
+  }
+  return <text x={0} y={0} fontSize={tam} fill={color} fontFamily={FUENTE} textAnchor="middle" dominantBaseline="central">{txt}</text>
+}
+
 /** Mini SVG autónomo para la bandeja (escala para que todo se lea bien). */
 export function PiezaIcono({ p, size = 64 }: { p: Pieza; size?: number }) {
   const m = Math.max(p.w, p.h) * 0.08 + 0.2
@@ -273,5 +328,11 @@ export function nombrePieza(p: Pieza): string {
     case 'correa': return 'Correa'
     case 'bandera_pais': return 'Bandera del país'
     case 'especialidad': return 'Especialidad'
+    case 'lc_manga': return p.liderazgo === 'master' ? 'Emblema LC2 Máster' : 'Emblema LC3 Máster Avanzado'
+    case 'cuadrante': return p.fondo === 'azul' ? 'Parte azul royal' : 'Parte blanca'
+    case 'franja_azul': return 'Franja azul'
+    case 'texto_club': return 'Nombre del club'
+    case 'texto_unidad': return 'Nombre de la unidad'
+    case 'diseno_unidad': return 'Diseño de la unidad'
   }
 }

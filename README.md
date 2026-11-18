@@ -1,26 +1,36 @@
 # Aspirantazgo
 
-Juego web en 3D para aprender el programa de Conquistadores. Primer mundo: **Isla del Uniforme** (11 niveles basados en el Manual de Uniformes de la DSA).
+Juego web en 3D para aprender el programa de Conquistadores. Primer mundo: **Isla del Uniforme** (16 niveles).
 
 Desarrollado por **Eduardo Villanueva**.
 
 ## Qué incluye
 
-| Nivel | Tipo | Qué se aprende |
-|---|---|---|
-| 1. Viste al Conquistador | Armar | Uniforme completo 10–15 años, con piezas trampa |
-| 2–3. Mangas al centímetro | Precisión | Medidas exactas desde la costura del hombro |
-| 4. Los bolsillos | Armar | Clases en orden de investidura, avanzadas a 0,5 cm, excelencia, función |
-| 5. La banda | Precisión | Bandera a 6 cm, especialidades, C2 |
-| 6. Inspector | Buscar errores | 4 errores sembrados al azar |
-| 7. Quiz relámpago | Preguntas | 10 preguntas del manual contra reloj |
-| 8. Uniforme de líder | Armar | Divisa blanca **sin** estrella, cargo, estrella de servicio |
-| 9. Guía Mayor | Armar | Divisa blanca **con** estrella, botón LC1, pañoleta GM |
-| 10. Máster / Máster Avanzado | Armar | Botones de liderazgo, el mayor grado a la derecha |
-| 11. Revista de líderes | Buscar errores | Jefe final, 5 errores |
+**Isla del Uniforme**, 16 niveles basados en el Manual de Uniformes de la DSA:
 
-Cada nivel tiene **Práctica** (pistas, no cuenta) y **Desafío** (cuenta para el ranking y desbloquea el siguiente con 400+ puntos).
-Rankings por jugador, club, ciudad, Campo y país, con podio 3D.
+| # | Nivel | Tipo |
+|---|---|---|
+| 1 | Lluvia de insignias | Arcade: atrapar solo lo que pide la consigna |
+| 2 | Viste al Conquistador | Armar el uniforme completo, con piezas trampa |
+| 3–4 | Mangas al centímetro | Precisión desde la costura del hombro |
+| 5 | Ordena la investidura | Orden de clases, colores y divisa correcta |
+| 6 | Los bolsillos | Clases en orden, avanzadas a 0,5 cm, excelencia, función |
+| 7 | La banda | Bandera a 6 cm, especialidades, C2 |
+| 8 | Inspector | Encontrar errores sembrados al azar |
+| 9 | ¿Verdadero o falso? | Trivia rápida con rachas |
+| 10 | La bandera del club | 128 × 90 cm, cuatro partes, C1 de 30 × 30 |
+| 11 | El banderín de unidad | Franja azul, C1, diseño y nombres |
+| 12 | Uniforme de líder | Divisa blanca sin estrella, cargo, estrella de servicio |
+| 13 | Guía Mayor | Divisa con estrella, LC1, pañoleta GM |
+| 14 | Máster y Máster Avanzado | LC2/LC3 en lugar del C2 y botones de liderazgo |
+| 15 | Gran trivia | Preguntas del manual |
+| 16 | Revista de líderes | Jefe final |
+
+- **Dificultad** Fácil (con pistas, x0,6), Medio (x1) y Leyenda (sin números en la regla, más trampas, menos tiempo, x1,5). El servidor aplica el mismo multiplicador.
+- **Imán**: la pieza se engancha al lugar correcto más cercano, así no falla "por milímetros".
+- **Salas en vivo** (Supabase Realtime): el líder crea una sala con código de 4 letras, elige nivel y dificultad, y ve la carrera de todos en tiempo real. Todos reciben la misma semilla (mismos errores y preguntas).
+- Rankings por jugador, club, ciudad, Campo y país, con podio 3D.
+- Para cambiar los dibujos por los oficiales, ver `ASSETS.md`.
 
 ## Arquitectura (hexagonal)
 

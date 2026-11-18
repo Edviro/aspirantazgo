@@ -6,11 +6,18 @@ import { Boton, Cielo } from '../componentes/Comunes'
 import { Avatar3D, PELOS, PIELES } from '../tres/Avatar3D'
 import type { AvatarConfig } from '../../application/puertos'
 
-const ESTILOS = ['Corto', 'Trenzas', 'Cola', 'Largo']
+const PEINADOS = {
+  m: [{ v: 0, n: 'Corto' }, { v: 1, n: 'Puntas' }, { v: 2, n: 'Rapado' }],
+  f: [{ v: 3, n: 'Trenzas' }, { v: 4, n: 'Cola' }, { v: 5, n: 'Suelto' }, { v: 6, n: 'Moño' }],
+}
 
 export default function Editor() {
   const { perfil, repo, setPerfil, ir } = useJuego()
-  const [a, setA] = useState<AvatarConfig>({ genero: 'm', piel: 2, pelo: 0, colorPelo: 0, ...(perfil?.avatar ?? {}) })
+  const [a, setA] = useState<AvatarConfig>(() => {
+    const base: AvatarConfig = { genero: 'm', piel: 2, pelo: 0, colorPelo: 0, ...(perfil?.avatar ?? {}) }
+    const validos = PEINADOS[base.genero === 'f' ? 'f' : 'm'].map(x => x.v)
+    return validos.includes(base.pelo ?? -1) ? base : { ...base, pelo: validos[0] }
+  })
   const [guardando, setGuardando] = useState(false)
   if (!perfil) return null
 
@@ -41,8 +48,8 @@ export default function Editor() {
         <div className="opcion">
           <span>Personaje</span>
           <div className="chips">
-            <button className={a.genero !== 'f' ? 'on' : ''} onClick={() => setA({ ...a, genero: 'm' })}>Chico</button>
-            <button className={a.genero === 'f' ? 'on' : ''} onClick={() => setA({ ...a, genero: 'f', pelo: a.pelo === 0 ? 1 : a.pelo })}>Chica</button>
+            <button className={a.genero !== 'f' ? 'on' : ''} onClick={() => setA({ ...a, genero: 'm', pelo: 0 })}>Chico</button>
+            <button className={a.genero === 'f' ? 'on' : ''} onClick={() => setA({ ...a, genero: 'f', pelo: 3 })}>Chica</button>
           </div>
         </div>
         <div className="opcion">
@@ -51,7 +58,7 @@ export default function Editor() {
         </div>
         <div className="opcion">
           <span>Peinado</span>
-          <div className="chips">{ESTILOS.map((n, i) => <button key={n} className={a.pelo === i ? 'on' : ''} onClick={() => setA({ ...a, pelo: i })}>{n}</button>)}</div>
+          <div className="chips">{PEINADOS[a.genero === 'f' ? 'f' : 'm'].map(x => <button key={x.v} className={a.pelo === x.v ? 'on' : ''} onClick={() => setA({ ...a, pelo: x.v })}>{x.n}</button>)}</div>
         </div>
         <div className="opcion">
           <span>Color de pelo</span>

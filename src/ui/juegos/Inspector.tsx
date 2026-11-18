@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Nivel } from '../../domain/niveles'
 import { sembrarErrores } from '../../domain/inspector'
-import { esAdulto } from '../../domain/tipos'
+import { esAdulto, type Dificultad } from '../../domain/tipos'
+import { DIFICULTADES } from '../../domain/dificultad'
+import { azar } from '../../domain/azar'
+import { useJuego } from '../estado'
 import { PiezaSVG } from '../componentes/Insignias'
 import { NOMBRE_PANEL, PanelFondo } from '../componentes/Paneles'
 import { Toast } from '../componentes/Comunes'
 import { Tablero } from './Tablero'
 import { sfx } from '../sonido'
 
-const LIMITE = 75
 
-export function Inspector({ nivel, apodo, club, onFin }: {
-  nivel: Nivel; apodo: string; club: string; onFin: (factores: number[], errores: number) => void
+export function Inspector({ nivel, apodo, club, dificultad, semilla, onFin }: {
+  nivel: Nivel; apodo: string; club: string; dificultad: Dificultad; semilla: number | null; onFin: (factores: number[], errores: number) => void
 }) {
+  const reglas = DIFICULTADES[dificultad]
+  const LIMITE = Math.round(75 * reglas.tiempo)
   const { uniforme, errores } = useMemo(
-    () => sembrarErrores(nivel.objetivo(apodo, club), nivel.rango, nivel.errores ?? 4),
-    [nivel, apodo, club])
+    () => sembrarErrores(nivel.objetivo(apodo, club), nivel.rango, Math.max(2, (nivel.errores ?? 4) + reglas.erroresExtra), semilla ? azar(semilla) : Math.random),
+    [nivel, apodo, club, reglas.erroresExtra, semilla])
   const [hallados, setHallados] = useState<Set<number>>(new Set())
   const [fallos, setFallos] = useState(0)
   const [marcasMal, setMarcasMal] = useState<number[]>([])
@@ -51,6 +55,7 @@ export function Inspector({ nivel, apodo, club, onFin }: {
       if (hallados.has(e)) return
       const h = new Set(hallados).add(e)
       setHallados(h)
+      useJuego.getState().reportarProgreso(h.size / errores.length)
       sfx.perfecto()
       setToast({ t: errores[e].explicacion, k: 'bien', n: Date.now() })
       if (h.size === errores.length) terminar(h, fallos)

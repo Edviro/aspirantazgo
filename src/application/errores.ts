@@ -12,6 +12,7 @@ const MENSAJES: Record<string, string> = {
   TIEMPO_INVALIDO: 'Ese intento no se pudo validar. ¡Juega de nuevo!',
   DEMASIADOS_INTENTOS: 'Vas muy rápido. Espera un momento.',
   RANGO_INVALIDO: 'Elige un rango válido.',
+  SALA_SIN_CONEXION: 'No se pudo conectar a la sala. Revisa el código y tu internet.',
 }
 
 export function mensajeError(e: unknown): string {

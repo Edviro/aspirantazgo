@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Alcance, AvatarConfig, DatosClub, FilaRanking, Perfil, RepositorioJuego, ResultadoServidor } from '../../application/puertos'
-import type { Rango } from '../../domain/tipos'
+import type { Dificultad, Rango } from '../../domain/tipos'
+import { SalasSupabase } from './salasSupabase'
 
 const CLAVE_TOKEN = 'asp_token'
 
@@ -12,10 +13,12 @@ const guardarToken = (t: string | null) => {
 /** Adaptador de salida: toda la comunicación con Supabase pasa por funciones RPC validadas en el servidor. */
 export class RepositorioSupabase implements RepositorioJuego {
   readonly enLinea = true
+  readonly salas: SalasSupabase
   private sb: SupabaseClient
 
   constructor(url: string, clave: string) {
     this.sb = createClient(url, clave, { auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' } })
+    this.salas = new SalasSupabase(this.sb)
   }
 
   private async rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
@@ -73,7 +76,7 @@ export class RepositorioSupabase implements RepositorioJuego {
 
   async guardarAvatar(a: AvatarConfig) { await this.rpc('guardar_avatar', { p_token: this.token, p_avatar: a }) }
 
-  iniciarReto(reto: string) { return this.rpc<string>('iniciar_reto', { p_token: this.token, p_reto: reto }) }
+  iniciarReto(reto: string, dificultad: Dificultad) { return this.rpc<string>('iniciar_reto', { p_token: this.token, p_reto: reto, p_dificultad: dificultad }) }
 
   terminarReto(intento: string, puntaje: number) {
     return this.rpc<ResultadoServidor>('terminar_reto', { p_token: this.token, p_intento: intento, p_puntaje: puntaje })

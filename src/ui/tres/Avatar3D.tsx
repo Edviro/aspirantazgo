@@ -116,23 +116,25 @@ export function Avatar3D({ a, rango = 'conquistador', animo = 'idle', escala = 1
           <mesh position={[0, -0.13, 0.345]} rotation={[0, 0, Math.PI]}><torusGeometry args={[0.06, 0.013, 6, 16, Math.PI]} /><meshBasicMaterial color="#5A2A1A" /></mesh>
           {[-0.2, 0.2].map(x => <mesh key={x} position={[x, -0.07, 0.31]}><circleGeometry args={[0.045, 12]} /><meshBasicMaterial color="#F08A7E" transparent opacity={0.45} /></mesh>)}
           {/* Pelo */}
-          <Malla position={[0, 0.07, -0.02]} scale={[1.06, 1.0, 1.06]} geo={<sphereGeometry args={[0.39, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2.1]} />} color={pelo} t={0.04} />
-          <mesh position={[0, 0.22, 0.28]} rotation={[0.9, 0, 0]} scale={[1.6, 0.6, 0.5]}><sphereGeometry args={[0.13, 12, 10]} /><ToonMat color={pelo} /></mesh>
-          {estilo === 0 && [-0.18, 0, 0.18].map((x, i) => (
+          <Malla position={[0, estilo === 2 ? 0.05 : 0.07, -0.02]} scale={estilo === 2 ? [1.02, 0.96, 1.02] : [1.06, 1.0, 1.06]}
+            geo={<sphereGeometry args={[0.39, 32, 16, 0, Math.PI * 2, 0, Math.PI / (estilo === 2 ? 2.4 : 2.1)]} />} color={pelo} t={0.04} />
+          {estilo !== 2 && <mesh position={[0, 0.22, 0.28]} rotation={[0.9, 0, 0]} scale={[1.6, 0.6, 0.5]}><sphereGeometry args={[0.13, 12, 10]} /><ToonMat color={pelo} /></mesh>}
+          {estilo === 1 && [-0.18, 0, 0.18].map((x, i) => (
             <Malla key={x} position={[x, 0.42, -0.02]} rotation={[0, 0, -x * 1.6]} geo={<coneGeometry args={[0.08, 0.18 + (i === 1 ? 0.05 : 0), 8]} />} color={pelo} t={0.1} />
           ))}
-          {estilo === 1 && [-1, 1].map(s => (
+          {estilo === 3 && [-1, 1].map(s => (
             <group key={s} position={[s * 0.3, -0.12, -0.08]}>
               {[0, 1, 2, 3].map(k => <Malla key={k} position={[s * 0.02, -k * 0.13, 0]} geo={<sphereGeometry args={[0.075 - k * 0.006, 10, 8]} />} color={pelo} t={0.12} />)}
             </group>
           ))}
-          {estilo === 2 && (
+          {estilo === 4 && (
             <group position={[0, 0.12, -0.38]}>
               <Malla geo={<sphereGeometry args={[0.14, 14, 12]} />} color={pelo} t={0.1} />
               <Malla position={[0, -0.22, -0.04]} rotation={[0.3, 0, 0]} geo={<coneGeometry args={[0.1, 0.36, 10]} />} color={pelo} t={0.1} />
             </group>
           )}
-          {estilo === 3 && (
+          {estilo === 6 && <Malla position={[0, 0.38, -0.2]} geo={<sphereGeometry args={[0.16, 14, 12]} />} color={pelo} t={0.1} />}
+          {estilo === 5 && (
             <mesh position={[0, 0.04, -0.03]} scale={[1.12, 1.15, 1.1]}>
               <sphereGeometry args={[0.39, 24, 16, Math.PI, Math.PI, 0, Math.PI / 1.35]} />
               <ToonMat color={pelo} side={S} />

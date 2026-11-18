@@ -13,6 +13,7 @@ const memoria: Record<string, number> = {}
 
 export class RepositorioLocal implements RepositorioJuego {
   readonly enLinea = false
+  readonly salas = null
 
   async sesionActual() { return leer<Perfil | null>(K.perfil, null) }
   async adultoSinClub() { return null }
@@ -37,7 +38,8 @@ export class RepositorioLocal implements RepositorioJuego {
     if (p) escribir(K.perfil, { ...p, avatar: a })
   }
 
-  async iniciarReto(reto: string) {
+  async iniciarReto(reto: string, _dificultad?: string) {
+    void _dificultad
     const id = reto + ':' + Date.now()
     memoria[id] = Date.now()
     return id

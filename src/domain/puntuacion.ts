@@ -21,16 +21,23 @@ export interface ResultadoReto {
  * Puntaje máximo 1000: 78 % precisión + 22 % rapidez (la rapidez solo cuenta si hubo precisión),
  * y cada error resta 40. El servidor vuelve a acotar el valor y valida el tiempo.
  */
-export function calcularPuntaje(factores: number[], errores: number, segundos: number, parSeg: number): ResultadoReto {
+export function calcularPuntaje(factores: number[], errores: number, segundos: number, parSeg: number, multiplicador = 1): ResultadoReto {
   const precision = factores.length ? factores.reduce((a, b) => a + b, 0) / factores.length : 0
   const rapidez = segundos <= parSeg ? 1 : Math.max(0, 1 - (segundos - parSeg) / (parSeg * 2))
   const bruto = 780 * precision + 220 * rapidez * precision - 40 * errores
-  const puntaje = Math.max(0, Math.min(1000, Math.round(bruto)))
-  return { puntaje, estrellas: estrellas(puntaje), precision, errores, segundos }
+  const base = Math.max(0, Math.min(1000, bruto))
+  const puntaje = Math.round(base * multiplicador)
+  return { puntaje, estrellas: estrellas(base), precision, errores, segundos }
 }
 
+/** Las estrellas miden la calidad del intento (sobre 1000), sin importar la dificultad. */
 export function estrellas(p: number): 0 | 1 | 2 | 3 {
   return p >= 900 ? 3 : p >= 700 ? 2 : p >= 400 ? 1 : 0
+}
+
+/** Estrellas a partir de un puntaje guardado, que puede venir multiplicado por la dificultad. */
+export function estrellasDeMejor(p: number): 0 | 1 | 2 | 3 {
+  return estrellas(Math.min(1000, p))
 }
 
 export const APROBADO = 400

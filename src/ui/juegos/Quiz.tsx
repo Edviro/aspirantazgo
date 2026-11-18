@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { mezclarPreguntas } from '../../domain/quiz'
+import { DIFICULTADES } from '../../domain/dificultad'
+import { azar } from '../../domain/azar'
+import type { Dificultad } from '../../domain/tipos'
+import { useJuego } from '../estado'
 import { sfx } from '../sonido'
 
-const POR_PREGUNTA = 12
-
-export function Quiz({ onFin }: { onFin: (factores: number[], errores: number) => void }) {
-  const preguntas = useMemo(() => mezclarPreguntas(10), [])
+export function Quiz({ dificultad, semilla, onFin }: { dificultad: Dificultad; semilla: number | null; onFin: (factores: number[], errores: number) => void }) {
+  const reglas = DIFICULTADES[dificultad]
+  const POR_PREGUNTA = reglas.segPorPregunta
+  const preguntas = useMemo(() => mezclarPreguntas(reglas.preguntas, semilla ? azar(semilla) : Math.random), [reglas.preguntas, semilla])
   const [i, setI] = useState(0)
   const [eleg, setEleg] = useState<number | null>(null)
   const [resta, setResta] = useState(POR_PREGUNTA)
@@ -14,6 +18,7 @@ export function Quiz({ onFin }: { onFin: (factores: number[], errores: number) =
   const p = preguntas[i]
 
   const siguiente = () => {
+    useJuego.getState().reportarProgreso((i + 1) / preguntas.length)
     if (i + 1 >= preguntas.length) onFin(factores.current, errores.current)
     else { setI(i + 1); setEleg(null); setResta(POR_PREGUNTA) }
   }

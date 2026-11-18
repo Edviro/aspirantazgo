@@ -4,7 +4,8 @@ export type Rango = 'conquistador' | 'lider' | 'guia_mayor' | 'gm_master' | 'gm_
 export type GrupoEdad = 'menor' | 'adulto'
 export type ClaseId = 'amigo' | 'companero' | 'explorador' | 'pionero' | 'excursionista' | 'guia'
 export type LiderazgoId = 'gm' | 'master' | 'master_avanzado'
-export type PanelId = 'manga_der' | 'manga_izq' | 'pecho' | 'banda'
+export type PanelId = 'manga_der' | 'manga_izq' | 'pecho' | 'banda' | 'bandera' | 'banderin'
+export type Dificultad = 'facil' | 'medio' | 'leyenda'
 
 /** Tipos de pieza del uniforme (insignias, tiras, distintivos, accesorios). */
 export type TipoPieza =
@@ -14,6 +15,8 @@ export type TipoPieza =
   | 'tira_nombre' | 'funcion' | 'bautismo' // bolsillo derecho
   | 'panoleta' | 'correa' // accesorios
   | 'bandera_pais' | 'especialidad' | 'c2_banda' // banda
+  | 'lc_manga' // emblema LC2 / LC3 de Máster en la manga izquierda
+  | 'cuadrante' | 'texto_club' | 'franja_azul' | 'diseno_unidad' | 'texto_unidad' // bandera y banderín
 
 export type VarianteDivisa = 'conquistador' | 'lider' | 'guia_mayor'
 
@@ -27,7 +30,10 @@ export interface Pieza {
   /** Para la divisa: cuántas clases lleva (1–6). */
   nivel?: number
   texto?: string
-  fondo?: 'caqui' | 'blanco'
+  fondo?: 'caqui' | 'blanco' | 'azul'
+  /** Piezas intercambiables (dos cuadrantes azules, varias especialidades) comparten grupo. */
+  grupo?: string
+  vertical?: boolean
   /** Ancho y alto en centímetros reales (según el manual). */
   w: number
   h: number
