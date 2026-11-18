@@ -33,8 +33,8 @@ export const BANCO_UNIFORMES: Pregunta[] = [
   { q: '¿Qué va 1 cm debajo del emblema C2?', opciones: ['La divisa de clase', 'La estrella', 'La tira de cargo', 'El C1'], correcta: 0, porque: 'La divisa de clase va 1 cm debajo del C2.' },
 ]
 
-export function mezclarPreguntas(n: number, rnd = Math.random): Pregunta[] {
-  return [...BANCO_UNIFORMES].sort(() => rnd() - 0.5).slice(0, n).map(p => {
+export function mezclarPreguntas(n: number, rnd = Math.random, banco: Pregunta[] = BANCO_UNIFORMES): Pregunta[] {
+  return [...banco].sort(() => rnd() - 0.5).slice(0, n).map(p => {
     const orden = p.opciones.map((_, i) => i).sort(() => rnd() - 0.5)
     return { ...p, opciones: orden.map(i => p.opciones[i]), correcta: orden.indexOf(p.correcta) }
   })
@@ -68,6 +68,6 @@ export const BANCO_VF: Afirmacion[] = [
   { t: 'La correa lleva una hebilla con el emblema C3.', v: true, porque: 'Correa verde petróleo con hebilla C3.' },
 ]
 
-export function mezclarVF(n: number, rnd = Math.random): Afirmacion[] {
-  return [...BANCO_VF].sort(() => rnd() - 0.5).slice(0, n)
+export function mezclarVF(n: number, rnd = Math.random, banco: Afirmacion[] = BANCO_VF): Afirmacion[] {
+  return [...banco].sort(() => rnd() - 0.5).slice(0, n)
 }

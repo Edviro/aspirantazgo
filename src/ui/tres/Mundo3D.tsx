@@ -9,6 +9,7 @@ import type { Nivel } from '../../domain/niveles'
 import { MUNDOS } from '../../domain/niveles'
 import { Avatar3D } from './Avatar3D'
 import { Malla, ToonMat } from './Toon'
+import { Escenario } from './Escenario'
 
 export type EstadoNodo = 'bloqueado' | 'abierto' | 'hecho'
 
@@ -135,11 +136,11 @@ function Agua() {
   )
 }
 
-function Isla({ r, p = [0, 0, 0] }: { r: number; p?: [number, number, number] }) {
+function Isla({ r, p = [0, 0, 0], pasto = '#58B055' }: { r: number; p?: [number, number, number]; pasto?: string }) {
   return (
     <group position={p}>
       <mesh position={[0, -0.25, 0]}><cylinderGeometry args={[r * 1.08, r * 0.92, 0.5, 48]} /><ToonMat color="#E6CF8E" /></mesh>
-      <Malla position={[0, 0.02, 0]} geo={<cylinderGeometry args={[r, r * 1.02, 0.22, 48]} />} color="#58B055" t={0.012} />
+      <Malla position={[0, 0.02, 0]} geo={<cylinderGeometry args={[r, r * 1.02, 0.22, 48]} />} color={pasto} t={0.012} />
     </group>
   )
 }
@@ -240,14 +241,16 @@ function Camara({ foco }: { foco: [number, number, number] }) {
   return null
 }
 
-export function Mundo3D({ niveles, estados, estrellas, actual, foco, avatar, rango, club, onElegir }: {
-  niveles: Nivel[]; estados: EstadoNodo[]; estrellas: number[]; actual: number; foco: number
-  avatar: AvatarConfig; rango: Rango; club: string; onElegir: (i: number) => void
+export function Mundo3D({ mundo, niveles, estados, estrellas, actual, foco, avatar, rango, club, onElegir, onIrMundo }: {
+  mundo: string; niveles: Nivel[]; estados: EstadoNodo[]; estrellas: number[]; actual: number; foco: number
+  avatar: AvatarConfig; rango: Rango; club: string; onElegir: (i: number) => void; onIrMundo: (id: string) => void
 }) {
+  const aspirantazgo = mundo === 'aspirantazgo'
+  const nombreClub = club === 'Modo práctica' ? 'CLUB CONQUIS' : club
   const n = niveles.length
   const posAvatar = posicionNodo(actual, n)
   const posFoco = useMemo(() => posicionNodo(foco, n), [foco, n])
-  const lejanas = MUNDOS.filter(m => !m.abierto)
+  const lejanas = MUNDOS.filter(m => m.id !== mundo)
   const posLejanas = lejanas.map((_, i) => {
     const a = Math.PI * 1.5 + (i - (lejanas.length - 1) / 2) * 0.48
     return [Math.cos(a) * 16, 0, Math.sin(a) * 16] as [number, number, number]
@@ -265,7 +268,7 @@ export function Mundo3D({ niveles, estados, estrellas, actual, foco, avatar, ran
       <hemisphereLight args={['#BFE3FF', '#3B5B2B', 0.9]} />
       <directionalLight position={[6, 12, 6]} intensity={2.2} />
       <Agua />
-      <Isla r={7.0} />
+      <Isla r={7.0} pasto={aspirantazgo ? '#6DBB5A' : '#58B055'} />
       <Camino n={n} />
       {niveles.map((nv, i) => (
         <Nodo key={nv.id} estado={estados[i]} pos={posicionNodo(i, n)} actual={i === actual} onElegir={() => onElegir(i)} />
@@ -273,11 +276,24 @@ export function Mundo3D({ niveles, estados, estrellas, actual, foco, avatar, ran
       <group position={[posAvatar[0] + 0.6, 0.15, posAvatar[2] + 0.25]}>
         <Avatar3D a={avatar} rango={rango} escala={0.62} animo="saluda" />
       </group>
-      <Fogata p={[0.5, 0.12, 0]} />
-      <Suspense fallback={null}>
-        <Mastil p={[1.5, 0.12, -1.6]} club={club === 'Modo práctica' ? 'CLUB CONQUIS' : club} />
-        <Banderin p={[1.1, 0.12, 1.0]} club={club === 'Modo práctica' ? 'CLUB CONQUIS' : club} />
-      </Suspense>
+      {aspirantazgo ? (
+        <>
+          <Escenario p={[0.6, 0.12, 0.3]} r={0.35} />
+          <Fogata p={[-3.6, 0.12, -1.6]} />
+          <Suspense fallback={null}>
+            <Mastil p={[2.0, 0.12, -2.0]} club={nombreClub} />
+            <Banderin p={[0.6, 0.12, 4.2]} club={nombreClub} />
+          </Suspense>
+        </>
+      ) : (
+        <>
+          <Fogata p={[0.5, 0.12, 0]} />
+          <Suspense fallback={null}>
+            <Mastil p={[1.5, 0.12, -1.6]} club={nombreClub} />
+            <Banderin p={[1.1, 0.12, 1.0]} club={nombreClub} />
+          </Suspense>
+        </>
+      )}
       <Carpa p={[-5.0, 0.12, -2.8]} r={0.6} />
       <Carpa p={[-2.2, 0.12, -5.6]} r={-0.2} c="#1F5FD1" />
       <Carpa p={[5.9, 0.12, -1.0]} r={1.2} c="#1E9A4B" />
@@ -298,8 +314,12 @@ export function Mundo3D({ niveles, estados, estrellas, actual, foco, avatar, ran
           {estados[i] !== 'bloqueado' && <span className="nodo-est">{'★'.repeat(estrellas[i])}{'☆'.repeat(3 - estrellas[i])}</span>}
         </button>
       ))}
-      {lejanas.map((m, i) => (
-        <div key={m.id} ref={el => { refs.current[n + i] = el }} className="isla-etiqueta">🔒 {m.nombre}<small>Próximamente</small></div>
+      {lejanas.map((m, i) => m.abierto ? (
+        <button key={m.id} ref={el => { refs.current[n + i] = el }} className="isla-etiqueta abierta" onClick={() => onIrMundo(m.id)}>
+          {m.nombre}<small>Toca para viajar</small>
+        </button>
+      ) : (
+        <div key={m.id} ref={el => { refs.current[n + i] = el }} className="isla-etiqueta">{m.nombre}<small>Próximamente</small></div>
       ))}
     </div>
     </div>

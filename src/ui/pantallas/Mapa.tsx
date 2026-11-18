@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { MUNDO_UNIFORMES } from '../../domain/niveles'
+import { MUNDOS_JUGABLES } from '../../domain/niveles'
 import { APROBADO, estrellasDeMejor } from '../../domain/puntuacion'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
@@ -13,8 +13,9 @@ const RANGO_TXT: Record<string, string> = {
 }
 
 export default function Mapa() {
-  const { perfil, puntajes, jugar, ir, modo, sonido, toggleSonido, salir, dificultad, setDificultad, abrirSala, repo } = useJuego()
-  const niveles = MUNDO_UNIFORMES.niveles
+  const { perfil, puntajes, jugar, ir, modo, sonido, toggleSonido, salir, dificultad, setDificultad, abrirSala, repo, mundo, setMundo } = useJuego()
+  const mundoActual = MUNDOS_JUGABLES.find(m => m.id === mundo) ?? MUNDOS_JUGABLES[0]
+  const niveles = mundoActual.niveles
   const [sel, setSel] = useState<number | null>(null)
   const [menu, setMenu] = useState(false)
   const [borrar, setBorrar] = useState(false)
@@ -51,7 +52,7 @@ export default function Mapa() {
   return (
     <div className="pantalla mapa">
       <div className="mapa-canvas">
-        <Mundo3D niveles={niveles} estados={estados} estrellas={estrellas} actual={actual} foco={sel ?? actual}
+        <Mundo3D key={mundoActual.id} mundo={mundoActual.id} onIrMundo={id => { setSel(null); setMundo(id) }} niveles={niveles} estados={estados} estrellas={estrellas} actual={actual} foco={sel ?? actual}
           avatar={perfil.avatar} rango={perfil.rango} club={perfil.club.nombre} onElegir={i => setSel(i)} />
       </div>
 
@@ -81,8 +82,14 @@ export default function Mapa() {
       )}
 
       <div className="mapa-titulo">
-        <h1>Isla del Uniforme</h1>
+        <h1>{mundoActual.nombre}</h1>
         <p>{estados.filter(e => e === 'hecho').length} de {niveles.length} niveles superados</p>
+        <div className="islas" role="tablist" aria-label="Islas">
+          {MUNDOS_JUGABLES.map(m => (
+            <button key={m.id} role="tab" aria-selected={m.id === mundoActual.id} className={m.id === mundoActual.id ? 'on' : ''}
+              onClick={() => { setSel(null); setMundo(m.id) }}>{m.nombre.replace('Isla del ', '')}</button>
+          ))}
+        </div>
       </div>
 
       <nav className="mapa-acciones">

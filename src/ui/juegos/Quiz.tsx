@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { mezclarPreguntas } from '../../domain/quiz'
+import { mezclarPreguntas, type Pregunta } from '../../domain/quiz'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { azar } from '../../domain/azar'
 import type { Dificultad } from '../../domain/tipos'
 import { useJuego } from '../estado'
 import { sfx } from '../sonido'
 
-export function Quiz({ dificultad, semilla, onFin }: { dificultad: Dificultad; semilla: number | null; onFin: (factores: number[], errores: number) => void }) {
+export function Quiz({ dificultad, semilla, banco, imagen, segPregunta, onFin }: { dificultad: Dificultad; semilla: number | null; banco?: Pregunta[]; imagen?: string; segPregunta?: number; onFin: (factores: number[], errores: number) => void }) {
   const reglas = DIFICULTADES[dificultad]
-  const POR_PREGUNTA = reglas.segPorPregunta
-  const preguntas = useMemo(() => mezclarPreguntas(reglas.preguntas, semilla ? azar(semilla) : Math.random), [reglas.preguntas, semilla])
+  const POR_PREGUNTA = segPregunta ?? reglas.segPorPregunta
+  const preguntas = useMemo(() => mezclarPreguntas(Math.min(reglas.preguntas, banco?.length ?? 99), semilla ? azar(semilla) : Math.random, banco), [reglas.preguntas, semilla, banco])
   const [i, setI] = useState(0)
   const [eleg, setEleg] = useState<number | null>(null)
   const [resta, setResta] = useState(POR_PREGUNTA)
@@ -43,6 +43,7 @@ export function Quiz({ dificultad, semilla, onFin }: { dificultad: Dificultad; s
         <span>Pregunta {i + 1} de {preguntas.length}</span>
         <div className="quiz-reloj"><div style={{ width: `${(resta / POR_PREGUNTA) * 100}%` }} /></div>
       </div>
+      {imagen && <img className="quiz-imagen" src={`${import.meta.env.BASE_URL}assets/${imagen}.webp`} alt="" />}
       <h2 className="quiz-q" key={i}>{p.q}</h2>
       <div className="quiz-ops">
         {p.opciones.map((o, k) => (

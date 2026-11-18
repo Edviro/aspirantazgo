@@ -1,7 +1,9 @@
 import { bandaCorrecta, banderaCorrecta, banderinCorrecto, perfilDemo, pieza, uniformeCorrecto } from './uniformes'
 import type { Colocacion, PanelId, Pieza, Rango } from './tipos'
+import type { Afirmacion, Pregunta } from './quiz'
+import { BANCO_CLUB, BANCO_EMBLEMA, BANCO_MARANATA, BANCO_PALABRA, PAREJAS_IDEALES, RONDAS_LEY, RONDAS_VOTO, VF_IDEALES, type RondaFrase } from './aspirantazgo'
 
-export type TipoNivel = 'taller' | 'inspector' | 'quiz' | 'vf' | 'lluvia' | 'ordenar'
+export type TipoNivel = 'taller' | 'inspector' | 'quiz' | 'vf' | 'lluvia' | 'ordenar' | 'frase' | 'parejas' | 'ceremonia'
 export type Npc = 'trompeta' | 'lectora' | 'nudo'
 
 export interface Nivel {
@@ -21,6 +23,12 @@ export interface Nivel {
   /** Trampas que se suman solo en dificultad Leyenda. */
   trampasLeyenda?: Pieza[]
   errores?: number
+  /** Contenido propio del nivel (si no, usa el banco del uniforme). */
+  banco?: Pregunta[]
+  vf?: Afirmacion[]
+  rondas?: RondaFrase[]
+  parejas?: { a: string; b: string }[]
+  imagen?: string
 }
 
 const filtrar = (paneles: PanelId[]) => (u: Colocacion[]) => u.filter(c => paneles.includes(c.panel))
@@ -148,10 +156,82 @@ export const MUNDO_UNIFORMES = {
   ] as Nivel[],
 }
 
+export const MUNDO_ASPIRANTAZGO = {
+  id: 'aspirantazgo',
+  nombre: 'Isla del Aspirantazgo',
+  niveles: [
+    {
+      id: 'a01-bienvenida', num: 1, titulo: 'Bienvenido al club', subtitulo: 'Lo primero que debe saber un aspirante',
+      tipo: 'quiz', rango: 'conquistador', paneles: [], parSeg: 60, npc: 'nudo', banco: BANCO_CLUB,
+      intro: '¡Bienvenido a la Isla del Aspirantazgo! Al final del camino te espera tu pañoleta. Empecemos por lo básico del club.',
+      objetivo: () => [],
+    },
+    {
+      id: 'a02-emblema', num: 2, titulo: 'El emblema', subtitulo: 'Qué significa cada parte y cada color',
+      tipo: 'quiz', rango: 'conquistador', paneles: [], parSeg: 60, npc: 'lectora', banco: BANCO_EMBLEMA, imagen: 'emblema-c1',
+      intro: 'Nuestro emblema cuenta una historia: el escudo, la espada y cada color tienen un significado. ¿Los conoces?',
+      objetivo: () => [],
+    },
+    {
+      id: 'a03-maranata', num: 3, titulo: 'Maranata', subtitulo: 'El saludo y la posición para el voto',
+      tipo: 'quiz', rango: 'conquistador', paneles: [], parSeg: 60, npc: 'trompeta', banco: BANCO_MARANATA,
+      intro: 'Antes de decir el voto hay que saber pararse y saludar bien. Todo viene del manual.',
+      objetivo: () => [],
+    },
+    {
+      id: 'a04-voto', num: 4, titulo: 'Arma el voto', subtitulo: 'Toca las partes en el orden correcto',
+      tipo: 'frase', rango: 'conquistador', paneles: [], parSeg: 40, npc: 'lectora', rondas: RONDAS_VOTO,
+      intro: 'El voto es una promesa. Ármalo pieza por pieza y cuidado con las piezas que no son del voto.',
+      objetivo: () => [],
+    },
+    {
+      id: 'a05-ley', num: 5, titulo: 'La Ley del Conquistador', subtitulo: 'Los ocho puntos en orden',
+      tipo: 'frase', rango: 'conquistador', paneles: [], parSeg: 60, npc: 'nudo', rondas: RONDAS_LEY,
+      intro: 'La Ley tiene ocho puntos. Ordénalos del primero al último, y al final, todos juntos.',
+      objetivo: () => [],
+    },
+    {
+      id: 'a06-ideales', num: 6, titulo: 'Lema, blanco y objetivo', subtitulo: 'Une cada ideal con su frase',
+      tipo: 'parejas', rango: 'conquistador', paneles: [], parSeg: 45, npc: 'lectora', parejas: PAREJAS_IDEALES,
+      intro: 'Toca un ideal y luego la frase que le corresponde. Si te equivocas, se separan.',
+      objetivo: () => [],
+    },
+    {
+      id: 'a07-ideales-vf', num: 7, titulo: 'Ideales relámpago', subtitulo: 'Verdadero o falso a toda velocidad',
+      tipo: 'vf', rango: 'conquistador', paneles: [], parSeg: 45, npc: 'trompeta', vf: VF_IDEALES,
+      intro: 'Frases sobre el voto, la ley y los ideales. ¿Verdadero o falso? Haz una racha.',
+      objetivo: () => [],
+    },
+    {
+      id: 'a08-palabra', num: 8, titulo: 'La Palabra', subtitulo: 'Busca el texto en tu Biblia y responde',
+      tipo: 'quiz', rango: 'conquistador', paneles: [], parSeg: 120, npc: 'lectora', banco: BANCO_PALABRA,
+      intro: 'Un Conquistador conoce su Biblia. Busca cada texto, léelo y responde. Puedes pausar para leer con calma en Práctica.',
+      objetivo: () => [],
+    },
+    {
+      id: 'a09-examen', num: 9, titulo: 'Examen del aspirante', subtitulo: 'Todo lo aprendido en una sola prueba',
+      tipo: 'quiz', rango: 'conquistador', paneles: [], parSeg: 90, npc: 'trompeta',
+      banco: [...BANCO_CLUB, ...BANCO_EMBLEMA, ...BANCO_MARANATA, ...BANCO_PALABRA],
+      intro: 'La última prueba antes de la ceremonia. Mezcla de todo. ¡Tú puedes!',
+      objetivo: () => [],
+    },
+    {
+      id: 'a10-ceremonia', num: 10, titulo: 'Ceremonia de la pañoleta', subtitulo: 'Recibe tu pañoleta de Conquistador',
+      tipo: 'ceremonia', rango: 'conquistador', paneles: [], parSeg: 60, npc: 'trompeta',
+      intro: 'Llegó el momento. Ponte de pie, levanta la mano para el voto y recibe tu pañoleta.',
+      objetivo: () => [],
+    },
+  ] as Nivel[],
+}
+
+export const MUNDOS_JUGABLES = [MUNDO_ASPIRANTAZGO, MUNDO_UNIFORMES]
+export const TODOS_LOS_NIVELES: Nivel[] = MUNDOS_JUGABLES.flatMap(m => m.niveles)
+export const mundoDeNivel = (id: string) => MUNDOS_JUGABLES.find(m => m.niveles.some(n => n.id === id)) ?? MUNDO_UNIFORMES
+
 /** Mundos del mapa general. Solo Uniformes está abierto por ahora. */
 export const MUNDOS = [
+  { id: 'aspirantazgo', nombre: 'Isla del Aspirantazgo', abierto: true, color: '#D7242F' },
   { id: 'uniformes', nombre: 'Isla del Uniforme', abierto: true, color: '#F6C21C' },
-  { id: 'aspirantazgo', nombre: 'Aventura del Aspirantazgo', abierto: false, color: '#D7242F' },
   { id: 'regulares', nombre: 'Clases Regulares', abierto: false, color: '#1F5FD1' },
   { id: 'especialidades', nombre: 'Especialidades', abierto: false, color: '#1E9A4B' },
   { id: 'avanzadas', nombre: 'Clases Avanzadas', abierto: false, color: '#7A1F3D' },

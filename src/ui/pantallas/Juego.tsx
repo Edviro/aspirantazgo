@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { MUNDO_UNIFORMES } from '../../domain/niveles'
+import { mundoDeNivel } from '../../domain/niveles'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { useJuego } from '../estado'
 import { Boton, Confeti, Dialogo, Estrellas } from '../componentes/Comunes'
@@ -9,6 +9,9 @@ import { Quiz } from '../juegos/Quiz'
 import { VerdaderoFalso } from '../juegos/VerdaderoFalso'
 import { Lluvia } from '../juegos/Lluvia'
 import { Ordenar } from '../juegos/Ordenar'
+import { Frase } from '../juegos/Frase'
+import { Parejas } from '../juegos/Parejas'
+import { Ceremonia } from '../juegos/Ceremonia'
 import { useReto, type FinReto } from '../juegos/useReto'
 import { sfx } from '../sonido'
 
@@ -37,7 +40,7 @@ export default function Juego() {
   }, [reto])
 
   if (!nivel || !perfil) return null
-  const siguiente = MUNDO_UNIFORMES.niveles.find(n => n.num === nivel.num + 1)
+  const siguiente = mundoDeNivel(nivel.id).niveles.find(n => n.num === nivel.num + 1)
   const apodo = perfil.apodo
   const club = perfil.club.nombre === 'Modo práctica' ? 'CLUB CONQUIS' : perfil.club.nombre
   const reglas = DIFICULTADES[dificultad]
@@ -65,8 +68,11 @@ export default function Juego() {
       <main className="juego-zona" key={ronda}>
         {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} desafio={desafio} dificultad={dificultad} apodo={apodo} club={club} onFin={alTerminar} />}
         {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} apodo={apodo} club={club} {...props} />}
-        {fase !== 'intro' && nivel.tipo === 'quiz' && <Quiz {...props} />}
-        {fase !== 'intro' && nivel.tipo === 'vf' && <VerdaderoFalso {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'quiz' && <Quiz {...props} banco={nivel.banco} imagen={nivel.imagen} segPregunta={nivel.id === 'a08-palabra' ? (desafio ? 40 : 90) : undefined} />}
+        {fase !== 'intro' && nivel.tipo === 'vf' && <VerdaderoFalso {...props} banco={nivel.vf} />}
+        {fase !== 'intro' && nivel.tipo === 'frase' && nivel.rondas && <Frase rondas={nivel.rondas} {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'parejas' && nivel.parejas && <Parejas parejas={nivel.parejas} semilla={semilla} onFin={alTerminar} />}
+        {fase !== 'intro' && nivel.tipo === 'ceremonia' && <Ceremonia onFin={alTerminar} />}
         {fase !== 'intro' && nivel.tipo === 'lluvia' && <Lluvia {...props} />}
         {fase !== 'intro' && nivel.tipo === 'ordenar' && <Ordenar {...props} />}
       </main>

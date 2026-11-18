@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { mezclarVF } from '../../domain/quiz'
+import { mezclarVF, type Afirmacion } from '../../domain/quiz'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { azar } from '../../domain/azar'
 import type { Dificultad } from '../../domain/tipos'
@@ -7,10 +7,10 @@ import { useJuego } from '../estado'
 import { sfx } from '../sonido'
 
 /** Verdadero o falso a ritmo rápido: la racha de aciertos suma más. */
-export function VerdaderoFalso({ dificultad, semilla, onFin }: { dificultad: Dificultad; semilla: number | null; onFin: (f: number[], e: number) => void }) {
+export function VerdaderoFalso({ dificultad, semilla, banco, onFin }: { dificultad: Dificultad; semilla: number | null; banco?: Afirmacion[]; onFin: (f: number[], e: number) => void }) {
   const reglas = DIFICULTADES[dificultad]
   const limite = Math.max(4, Math.round(reglas.segPorPregunta * 0.7))
-  const frases = useMemo(() => mezclarVF(reglas.preguntas + 2, semilla ? azar(semilla) : Math.random), [reglas.preguntas, semilla])
+  const frases = useMemo(() => mezclarVF(Math.min(reglas.preguntas + 2, banco?.length ?? 99), semilla ? azar(semilla) : Math.random, banco), [reglas.preguntas, semilla, banco])
   const [i, setI] = useState(0)
   const [resp, setResp] = useState<null | { ok: boolean }>(null)
   const [resta, setResta] = useState(limite)

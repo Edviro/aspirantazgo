@@ -16,6 +16,8 @@ export interface AvatarConfig {
   piel?: number
   pelo?: number
   colorPelo?: number
+  /** El aspirante la gana en la Ceremonia de la pañoleta. */
+  panoleta?: boolean
 }
 
 export type Alcance = 'jugador' | 'club' | 'ciudad' | 'campo' | 'pais'

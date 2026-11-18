@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { ConexionSala, InicioRonda, JugadorSala, Perfil, ProgresoSala, RepositorioJuego } from '../application/puertos'
 import { guardarModo, repoLocal, repoPara, type Modo } from '../adapters/contenedor'
-import { MUNDO_UNIFORMES, type Nivel } from '../domain/niveles'
+import { TODOS_LOS_NIVELES, type Nivel } from '../domain/niveles'
 import type { Dificultad } from '../domain/tipos'
 
 export type Pantalla = 'intro' | 'acceso' | 'editor' | 'mapa' | 'juego' | 'ranking' | 'legal' | 'director' | 'sala'
@@ -29,6 +29,8 @@ interface Estado {
   semilla: number | null
   sonido: boolean
   sala: EstadoSala | null
+  mundo: string
+  setMundo: (m: string) => void
   ir: (p: Pantalla) => void
   verLegal: (t: Estado['legalTab']) => void
   setSesion: (modo: Modo, perfil: Perfil) => Promise<void>
@@ -59,6 +61,8 @@ export const useJuego = create<Estado>((set, get) => ({
   semilla: null,
   sonido: (() => { try { return localStorage.getItem('asp_sonido') !== '0' } catch { return true } })(),
   sala: null,
+  mundo: (() => { try { return localStorage.getItem('asp_mundo') || 'aspirantazgo' } catch { return 'aspirantazgo' } })(),
+  setMundo: m => { try { localStorage.setItem('asp_mundo', m) } catch { /* */ } set({ mundo: m }) },
   ir: p => set({ pantalla: p }),
   verLegal: t => set({ legalTab: t, pantalla: 'legal' }),
   setSesion: async (modo, perfil) => {
@@ -100,7 +104,7 @@ export const useJuego = create<Estado>((set, get) => ({
         set(s => s.sala ? { sala: { ...s.sala, ronda: r, rondaRecibida: Date.now(), progresos: {} } } : {})
         const s = get()
         if (s.sala?.rol !== 'jugador') return
-        const nivel = MUNDO_UNIFORMES.niveles.find(n => n.id === r.nivelId)
+        const nivel = TODOS_LOS_NIVELES.find(n => n.id === r.nivelId)
         if (nivel) setTimeout(() => get().jugar(nivel, true, r.dificultad, r.semilla), r.cuentaAtras * 1000)
       },
     })

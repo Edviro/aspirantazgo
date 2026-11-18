@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useJuego } from '../estado'
 import { Boton, Cielo, Confeti } from '../componentes/Comunes'
-import { MUNDO_UNIFORMES } from '../../domain/niveles'
+import { MUNDO_ASPIRANTAZGO, MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
 
 /** Sala en vivo: el líder elige el nivel, todos juegan a la vez y el avance se ve en tiempo real. */
 export default function Sala() {
   const { sala, perfil, ir, dejarSala, iniciarRonda } = useJuego()
-  const [nivelId, setNivelId] = useState(MUNDO_UNIFORMES.niveles[1].id)
+  const [nivelId, setNivelId] = useState(MUNDO_ASPIRANTAZGO.niveles[0].id)
   const [dif, setDif] = useState<Dificultad>('medio')
   const [cuenta, setCuenta] = useState<number | null>(null)
   const [copiado, setCopiado] = useState(false)
@@ -39,7 +39,7 @@ export default function Sala() {
   }
 
   const anfitrion = sala.rol === 'anfitrion'
-  const nivelRonda = ronda ? MUNDO_UNIFORMES.niveles.find(n => n.id === ronda.nivelId) : null
+  const nivelRonda = ronda ? TODOS_LOS_NIVELES.find(n => n.id === ronda.nivelId) : null
   const terminaron = tabla.filter(t => t.prog?.puntaje !== undefined).length
   const todosTerminaron = !!ronda && jugadores.length > 0 && terminaron === jugadores.length
   const copiar = async () => { try { await navigator.clipboard.writeText(sala.conexion.codigo); setCopiado(true); setTimeout(() => setCopiado(false), 1400) } catch { /* */ } }
@@ -104,7 +104,11 @@ export default function Sala() {
             <h3>{ronda ? 'Siguiente ronda' : 'Elige el reto'}</h3>
             <label className="campo-select">Nivel
               <select id="sala-nivel" value={nivelId} onChange={e => setNivelId(e.target.value)}>
-                {MUNDO_UNIFORMES.niveles.map(n => <option key={n.id} value={n.id}>{n.num}. {n.titulo}</option>)}
+                {[MUNDO_ASPIRANTAZGO, MUNDO_UNIFORMES].map(m => (
+                  <optgroup key={m.id} label={m.nombre}>
+                    {m.niveles.filter(n => n.tipo !== 'ceremonia').map(n => <option key={n.id} value={n.id}>{n.num}. {n.titulo}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </label>
             <div className="chips dificultad">

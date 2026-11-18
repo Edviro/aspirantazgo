@@ -1,10 +1,15 @@
 # Aspirantazgo
 
-Juego web en 3D para aprender el programa de Conquistadores. Primer mundo: **Isla del Uniforme** (16 niveles).
+Juego web en 3D para aprender el programa de Conquistadores. Primer mundo: **Isla del Uniforme** (26 niveles en 2 islas).
 
 Desarrollado por **Eduardo Villanueva**.
 
 ## Qué incluye
+
+**Isla del Aspirantazgo**, 10 niveles hasta recibir la pañoleta:
+bienvenida al club, significado del emblema, Maranata y posición para el voto, armar el voto, la Ley en orden, unir lema/blanco/objetivo, ideales en verdadero o falso, la Palabra (buscar el texto en la Biblia), examen del aspirante y la **ceremonia 3D**: la pañoleta baja hasta tu personaje y queda puesta en todo el juego.
+Los textos de los ideales están en `src/domain/aspirantazgo.ts`: verifícalos con la versión oficial de tu División.
+Prompts para el arte de esta isla: `PROMPTS_ASPIRANTAZGO.md`.
 
 **Isla del Uniforme**, 16 niveles basados en el Manual de Uniformes de la DSA:
 

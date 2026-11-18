@@ -13,8 +13,8 @@ export const PELOS = ['#1B1410', '#3B2414', '#6B4423', '#A8743F', '#D9B26A', '#7
 const S = THREE.DoubleSide
 
 /** Personaje chibi en estilo "toon" con contorno, inspirado en las ilustraciones del juego. */
-export function Avatar3D({ a, rango = 'conquistador', animo = 'idle', escala = 1 }: {
-  a: AvatarConfig; rango?: Rango; animo?: 'idle' | 'saluda' | 'celebra'; escala?: number
+export function Avatar3D({ a, rango = 'conquistador', animo = 'idle', escala = 1, sinPanoleta = false }: {
+  a: AvatarConfig; rango?: Rango; animo?: 'idle' | 'saluda' | 'celebra' | 'voto'; escala?: number; sinPanoleta?: boolean
 }) {
   const raiz = useRef<THREE.Group>(null)
   const cabeza = useRef<THREE.Group>(null)
@@ -30,12 +30,16 @@ export function Avatar3D({ a, rango = 'conquistador', animo = 'idle', escala = 1
   const camisa = adulto ? '#F4F2EC' : '#D9C49A'
   const verde = '#0E4B45'
   const fase = useMemo(() => Math.random() * 10, [])
+  const conPanoleta = !sinPanoleta && (rango !== 'conquistador' || a.panoleta === true)
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime + fase
     if (raiz.current) raiz.current.position.y = animo === 'celebra' ? Math.abs(Math.sin(t * 5)) * 0.25 : Math.sin(t * 2) * 0.015
     if (cabeza.current) cabeza.current.rotation.z = Math.sin(t * 1.3) * 0.05
-    if (brazoD.current) brazoD.current.rotation.z = animo === 'idle' ? -0.12 + Math.sin(t * 2) * 0.03 : -2.5 + Math.sin(t * (animo === 'celebra' ? 10 : 7)) * 0.35
+    if (brazoD.current) {
+      if (animo === 'voto') { brazoD.current.rotation.z = -2.35; brazoD.current.rotation.x = -0.35 }
+      else { brazoD.current.rotation.x = 0; brazoD.current.rotation.z = animo === 'idle' ? -0.12 + Math.sin(t * 2) * 0.03 : -2.5 + Math.sin(t * (animo === 'celebra' ? 10 : 7)) * 0.35 }
+    }
     if (brazoI.current) brazoI.current.rotation.z = animo === 'celebra' ? 2.5 + Math.sin(t * 10 + 1) * 0.35 : 0.12 - Math.sin(t * 2) * 0.03
     if (ojos.current) ojos.current.scale.y = (t % 4.2) < 0.12 ? 0.1 : 1
   })
@@ -74,13 +78,13 @@ export function Avatar3D({ a, rango = 'conquistador', animo = 'idle', escala = 1
           <mesh key={c} position={[0.1 + i * 0.05, 1.255, 0.232]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.02, 0.02, 0.01, 10]} /><meshBasicMaterial color={c} /></mesh>
         ))}
         <mesh position={[-0.15, 1.3, 0.228]}><boxGeometry args={[0.15, 0.03, 0.005]} /><meshBasicMaterial color="#0E4B45" /></mesh>
-        {/* Pañoleta */}
-        <group position={[0, 1.43, 0.05]}>
+        {/* Pañoleta (el aspirante la recibe en la ceremonia) */}
+        {conPanoleta && <group position={[0, 1.43, 0.05]}>
           <Malla rotation={[Math.PI / 2.2, 0, 0]} geo={<torusGeometry args={[0.2, 0.05, 8, 24]} />} color="#FFC20E" t={0.05} />
           {gm && <mesh rotation={[Math.PI / 2.2, 0, 0]} position={[0, 0.02, 0]}><torusGeometry args={[0.2, 0.054, 6, 24, Math.PI]} /><meshBasicMaterial color="#D7242F" /></mesh>}
           <Malla position={[0, -0.21, 0.21]} rotation={[0.25, 0, Math.PI]} geo={<coneGeometry args={[0.09, 0.32, 3]} />} color="#F6B800" t={0.08} />
           <mesh position={[0, -0.05, 0.225]}><boxGeometry args={[0.07, 0.07, 0.04]} /><ToonMat color="#C9A227" /></mesh>
-        </group>
+        </group>}
         {/* Brazos: el derecho del personaje queda en -x */}
         {[{ r: brazoD, x: -0.37, lado: -1 }, { r: brazoI, x: 0.37, lado: 1 }].map(({ r, x, lado }) => (
           <group key={x} ref={r} position={[x, 1.39, 0]}>
@@ -142,6 +146,17 @@ export function Avatar3D({ a, rango = 'conquistador', animo = 'idle', escala = 1
           )}
         </group>
       </group>
+    </group>
+  )
+}
+
+/** Pañoleta suelta (para la ceremonia y el monumento de la isla). */
+export function Panoleta3D({ escala = 1 }: { escala?: number }) {
+  return (
+    <group scale={escala}>
+      <Malla rotation={[Math.PI / 2.2, 0, 0]} geo={<torusGeometry args={[0.2, 0.05, 8, 24]} />} color="#FFC20E" t={0.05} />
+      <Malla position={[0, -0.21, 0.21]} rotation={[0.25, 0, Math.PI]} geo={<coneGeometry args={[0.09, 0.32, 3]} />} color="#F6B800" t={0.08} />
+      <mesh position={[0, -0.05, 0.225]}><boxGeometry args={[0.07, 0.07, 0.04]} /><ToonMat color="#C9A227" /></mesh>
     </group>
   )
 }
