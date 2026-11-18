@@ -261,17 +261,13 @@ export function PiezaSVG({ p }: { p: Pieza }) {
         </g>
       )
     case 'especialidad': {
-      const n = p.nivel ?? 0
-      if (n === 0) return <image href={`${import.meta.env.BASE_URL}assets/esp-orientacion.webp`} x={-1.7} y={-1.6} width={3.4} height={3.2} />
-      const colores = ['#1E9A4B', '#1F5FD1', '#E07B00', '#7A1F3D', '#D7242F']
-      const c = colores[n % colores.length]
+      // Sin ícono a propósito: solo el color de la categoría hasta tener las especialidades oficiales.
+      const colores = ['#1E9A4B', '#1F5FD1', '#E07B00', '#7A1F3D', '#D7242F', '#2BA6B5', '#8A5A2B', '#6B3FA0']
+      const c = colores[(p.nivel ?? 0) % colores.length]
       return (
         <g>
-          <circle r={1.6} fill="#fff" stroke={c} strokeWidth={0.32} />
-          <circle r={1.25} fill={c} opacity={0.12} />
-          {n % 3 === 1 && <path d="M0,-0.9 Q0.9,-0.2 0,0.9 Q-0.9,-0.2 0,-0.9 Z M0,-0.6 L0,0.7" fill={c} stroke="#fff" strokeWidth={0.06} />}
-          {n % 3 === 2 && <path d="M-0.9,0.6 L0,-0.8 L0.9,0.6 Z M-0.4,0.6 L0,-0.1 L0.4,0.6" fill={c} stroke="#fff" strokeWidth={0.06} />}
-          {n % 3 === 0 && <g><circle r={0.75} fill="none" stroke={c} strokeWidth={0.22} /><path d="M-0.3,0.35 Q0,-0.6 0.35,0.2" fill="none" stroke={c} strokeWidth={0.18} /></g>}
+          <circle r={1.6} fill={c} stroke="#E8B10C" strokeWidth={0.22} />
+          <circle r={1.32} fill="none" stroke="#ffffff" strokeOpacity={0.35} strokeWidth={0.06} strokeDasharray="0.18 0.14" />
         </g>
       )
     }

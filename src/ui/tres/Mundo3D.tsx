@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
-import { Billboard, OrbitControls, Sparkles } from '@react-three/drei'
+import { OrbitControls, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitImpl } from 'three-stdlib'
 import type { AvatarConfig } from '../../application/puertos'
@@ -123,19 +123,6 @@ function Banderin({ p, club }: { p: [number, number, number]; club: string }) {
       <mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.025, 0.03, 1.8, 8]} /><ToonMat color="#8A5A2B" /></mesh>
       <group position={[0.02, 1.52, 0]}><Tela tex={tex} w={0.55} h={0.36} /></group>
     </group>
-  )
-}
-
-/** Personajes del club en cartón recortado: tus ilustraciones dentro del mundo 3D. */
-function Personaje({ src, p, alto = 1.25 }: { src: string; p: [number, number, number]; alto?: number }) {
-  const tex = useLoader(THREE.TextureLoader, `${BASE}assets/${src}.webp`)
-  tex.colorSpace = THREE.SRGBColorSpace
-  const img = tex.image as HTMLImageElement
-  const ancho = alto * (img.width / img.height)
-  return (
-    <Billboard position={[p[0], p[1] + alto / 2, p[2]]} lockX lockZ>
-      <mesh><planeGeometry args={[ancho, alto]} /><meshBasicMaterial map={tex} transparent alphaTest={0.4} side={THREE.DoubleSide} /></mesh>
-    </Billboard>
   )
 }
 
@@ -262,8 +249,8 @@ export function Mundo3D({ niveles, estados, estrellas, actual, foco, avatar, ran
   const posFoco = useMemo(() => posicionNodo(foco, n), [foco, n])
   const lejanas = MUNDOS.filter(m => !m.abierto)
   const posLejanas = lejanas.map((_, i) => {
-    const a = Math.PI * 1.5 + (i - (lejanas.length - 1) / 2) * 0.55
-    return [Math.cos(a) * 15, 0, Math.sin(a) * 15] as [number, number, number]
+    const a = Math.PI * 1.5 + (i - (lejanas.length - 1) / 2) * 0.48
+    return [Math.cos(a) * 16, 0, Math.sin(a) * 16] as [number, number, number]
   })
   const puntos = useMemo(() => [
     ...niveles.map((_, i) => { const p = posicionNodo(i, n); return [p[0], 1.05, p[2]] as [number, number, number] }),
@@ -290,9 +277,6 @@ export function Mundo3D({ niveles, estados, estrellas, actual, foco, avatar, ran
       <Suspense fallback={null}>
         <Mastil p={[1.5, 0.12, -1.6]} club={club === 'Modo práctica' ? 'CLUB CONQUIS' : club} />
         <Banderin p={[1.1, 0.12, 1.0]} club={club === 'Modo práctica' ? 'CLUB CONQUIS' : club} />
-        <Personaje src="npc-trompeta" p={[1.4, 0.12, -0.4]} />
-        <Personaje src="npc-lectora" p={[-0.4, 0.12, 0.9]} alto={1.3} />
-        <Personaje src="npc-nudo" p={[-5.6, 0.12, -1.4]} />
       </Suspense>
       <Carpa p={[-5.0, 0.12, -2.8]} r={0.6} />
       <Carpa p={[-2.2, 0.12, -5.6]} r={-0.2} c="#1F5FD1" />

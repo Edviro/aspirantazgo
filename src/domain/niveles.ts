@@ -155,4 +155,6 @@ export const MUNDOS = [
   { id: 'regulares', nombre: 'Clases Regulares', abierto: false, color: '#1F5FD1' },
   { id: 'especialidades', nombre: 'Especialidades', abierto: false, color: '#1E9A4B' },
   { id: 'avanzadas', nombre: 'Clases Avanzadas', abierto: false, color: '#7A1F3D' },
+  { id: 'historia', nombre: 'Historia', abierto: false, color: '#9AA0A6' },
+  { id: 'ideales', nombre: 'Ideales', abierto: false, color: '#F6C21C' },
 ]

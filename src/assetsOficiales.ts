@@ -17,7 +17,7 @@ export function claveOficial(p: Pieza): string | null {
     case 'bautismo': return 'bautismo'
     case 'boton_clase': return 'boton-' + p.clase
     case 'barra_avanzada': return 'avanzada-' + p.clase
-    case 'boton_liderazgo': return p.liderazgo === 'gm' ? 'boton-gm' : p.liderazgo === 'master' ? 'boton-master' : 'boton-master-avanzado'
+    case 'boton_liderazgo': return p.liderazgo === 'gm' ? 'pin-gm' : p.liderazgo === 'master' ? 'pin-master' : 'pin-master-avanzado'
     case 'excelencia': return 'excelencia'
     case 'divisa': return p.divisa === 'guia_mayor' ? 'divisa-gm' : p.divisa === 'lider' ? 'divisa-lider' : 'divisa-conquistador-' + (p.nivel ?? 1)
     case 'panoleta': return p.liderazgo === 'gm' ? 'panoleta-gm' : 'panoleta-conquistador'
