@@ -53,8 +53,8 @@ function useMovil() {
   return m
 }
 
-export function Taller({ nivel, slots, blanca, desafio, dificultad, onFin }: {
-  nivel: Nivel; slots: Colocacion[]; blanca: boolean; desafio: boolean; dificultad: Dificultad; onFin: (factores: number[], errores: number) => void
+export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin }: {
+  nivel: Nivel; slots: Colocacion[]; blanca: boolean; desafio: boolean; dificultad: Dificultad; caso?: string[]; onFin: (factores: number[], errores: number) => void
 }) {
   const reglas = DIFICULTADES[dificultad]
   const pistas = !desafio || reglas.pistas
@@ -89,6 +89,7 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, onFin }: {
   const [sel, setSel] = useState<ItemBandeja | null>(null)
   const [guia, setGuia] = useState<{ panel: PanelId; top: number; slot: number | null } | null>(null)
   const [sacudir, setSacudir] = useState<'mal' | 'golpe' | null>(null)
+  const [verCaso, setVerCaso] = useState(!desafio)
   const movil = useMovil()
   const [activo, setActivo] = useState<PanelId>(nivel.paneles.includes('pecho') ? 'pecho' : nivel.paneles[0])
   const visibles = movil && nivel.paneles.length > 1 ? [activo] : nivel.paneles
@@ -147,11 +148,10 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, onFin }: {
       return { tipo: 'precision' as const, slot: cerca.i, err, top: y - s.pieza.h / 2 }
     }
     if (FILA.has(s.pieza.tipo)) {
-      // En una fila de botones gana el lugar más cercano entre TODOS los de esa fila.
-      const fila = slots.map((o, i) => ({ o, i })).filter(({ o }) => o.panel === panel && o.pieza.tipo === s.pieza.tipo)
-      const masCerca = fila.reduce((a, b) => dist(x, y, a.o.x, a.o.y) <= dist(x, y, b.o.x, b.o.y) ? a : b)
-      const ok = masCerca.i === cerca.i && dist(x, y, s.x, s.y) <= 2.4 * tol
-      return { tipo: ok ? 'ok' as const : 'posicion' as const, slot: cerca.i, regla: s.regla }
+      // Cada botón tiene su propio casillero. Lo encajamos en SU sitio aunque lo sueltes cerca,
+      // no exactamente encima: así "compañero" entra al costado de "amigo" sin pelear.
+      const cercaFila = dist(x, y, s.x, s.y) <= Math.max(s.pieza.w, s.pieza.h) * 1.3 + 3.2 * tol
+      return { tipo: cercaFila ? 'ok' as const : 'posicion' as const, slot: cerca.i, regla: s.regla }
     }
     const dx = Math.max(0, Math.abs(x - s.x) - s.pieza.w / 2)
     const dy = Math.max(0, Math.abs(y - s.y) - s.pieza.h / 2)
@@ -262,8 +262,19 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, onFin }: {
     <div className={`taller ${sacudir === 'mal' ? 'sacudir' : ''} ${sacudir === 'golpe' ? 'golpe' : ''}`}>
       <div className="taller-barra">
         <div className="taller-progreso" aria-label={`${hechos} de ${total} piezas`}><div style={{ width: `${(hechos / total) * 100}%` }} /></div>
+        {caso && caso.length > 0 && (
+          <button className={`caso-chip ${verCaso ? 'abierto' : ''}`} onClick={() => setVerCaso(v => !v)} aria-expanded={verCaso}>
+            🎯 El caso {verCaso ? '▲' : '▼'}
+          </button>
+        )}
         <div className="marcador"><b>{puntos}</b> pts{combo >= 2 && <span className="combo">x{combo}</span>}</div>
       </div>
+      {caso && verCaso && (
+        <div className="caso-flotante" role="status">
+          <ul>{caso.map(l => <li key={l}>{l}</li>)}</ul>
+          {!desafio && <p className="caso-tip">Modo práctica: cada casillero te muestra qué pieza va ahí. Arrástrala y suéltala cerca.</p>}
+        </div>
+      )}
 
       {movil && nivel.paneles.length > 1 && (
         <div className="tabs-panel" role="tablist">
@@ -280,12 +291,25 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, onFin }: {
 
       <Tablero paneles={visibles} onPanelClick={clicPanel} render={p => (
         <>
-          <PanelFondo panel={p} blanca={blanca} regla={conRegla(p)} numeros={false} />
-          {pistas && slots.map((s, i) => s.panel !== p || ocupados.has(i) ? null : (
-            <g key={'h' + i} transform={`translate(${s.x},${s.y})`} className={`pista ${guia?.slot === i ? 'iman' : ''}`} data-grupo={grupoDe(s.pieza)}>
-              <rect x={-s.pieza.w / 2} y={-s.pieza.h / 2} width={s.pieza.w} height={s.pieza.h} rx={Math.min(0.4, s.pieza.w * 0.05)} />
-            </g>
-          ))}
+          <PanelFondo panel={p} blanca={blanca} regla={false} numeros={false} />
+          {pistas && (() => {
+            // Casilleros guía ("imán"). En práctica cada uno muestra, en fantasma, QUÉ pieza va ahí.
+            const usados = new Set<string>()
+            return slots.map((s, i) => {
+              if (s.panel !== p || ocupados.has(i)) return null
+              let hint: ItemBandeja | undefined
+              if (!desafio) {
+                hint = pendientes.find(it => it.real && grupoDe(it.pieza) === grupoDe(s.pieza) && !usados.has(it.id))
+                if (hint) usados.add(hint.id)
+              }
+              return (
+                <g key={'h' + i} transform={`translate(${s.x},${s.y})`} className={`pista ${guia?.slot === i ? 'iman' : ''}`} data-grupo={grupoDe(s.pieza)}>
+                  <rect x={-s.pieza.w / 2} y={-s.pieza.h / 2} width={s.pieza.w} height={s.pieza.h} rx={Math.min(0.4, s.pieza.w * 0.05)} />
+                  {hint && <g className="pista-hint" opacity={0.3}><PiezaSVG p={hint.pieza} /></g>}
+                </g>
+              )
+            })
+          })()}
           {items.filter(i => colocadas[i.id] && slots[colocadas[i.id].slot].panel === p).sort((a, b) => colocadas[a.id].slot - colocadas[b.id].slot).map(i => {
             const c = colocadas[i.id]
             const s = slots[c.slot]

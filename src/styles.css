@@ -539,3 +539,12 @@ a { color: var(--oro); cursor: pointer; text-decoration: underline; text-underli
   .editor-escena { flex: 0 0 38dvh; }
   .editor-panel { max-height: 62dvh; }
 }
+
+/* ---------- Taller: recordatorio del caso y pista de enseñanza ---------- */
+.caso-chip { border: 2px solid var(--oro); background: rgba(255,194,14,.12); color: var(--oro); border-radius: 99px; padding: 5px 12px; font-weight: 900; font-size: .82rem; white-space: nowrap; }
+.caso-chip.abierto { background: var(--oro); color: #4A2A00; }
+.caso-flotante { margin: 6px 10px 0; background: rgba(13,22,46,.92); border: 2px solid var(--oro); border-radius: 14px; padding: 10px 14px; box-shadow: var(--sombra); }
+.caso-flotante ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.caso-flotante li { color: var(--crema); font-size: .86rem; font-weight: 700; }
+.caso-tip { margin: 8px 0 0; color: var(--suave); font-size: .78rem; }
+.pista-hint { pointer-events: none; }

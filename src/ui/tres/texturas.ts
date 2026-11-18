@@ -56,12 +56,13 @@ export async function texturaPanel(panel: PanelId, piezas: Colocacion[], pxPorCm
   return cache.get(clave)!
 }
 
-/** Una imagen suelta (hebilla, sujetador) como textura. */
-export async function texturaAsset(clave: string, px = 256): Promise<THREE.Texture> {
+/** Una imagen suelta (hebilla, sujetador) como textura. flip=true la voltea 180° (UV al revés del modelo). */
+export async function texturaAsset(clave: string, px = 256, flip = false): Promise<THREE.Texture> {
   await precargarOficiales()
-  const k = 'asset:' + clave
+  const k = 'asset:' + clave + (flip ? ':flip' : '')
   if (!cache.has(k)) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${px}" height="${px}" viewBox="0 0 1 1"><image href="${urlAsset(clave)}" x="0" y="0" width="1" height="1" preserveAspectRatio="xMidYMid meet"/></svg>`
+    const t = flip ? ' transform="rotate(180 0.5 0.5)"' : ''
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${px}" height="${px}" viewBox="0 0 1 1"><image href="${urlAsset(clave)}" x="0" y="0" width="1" height="1" preserveAspectRatio="xMidYMid meet"${t}/></svg>`
     cache.set(k, svgATextura(svg, px, px))
   }
   return cache.get(k)!

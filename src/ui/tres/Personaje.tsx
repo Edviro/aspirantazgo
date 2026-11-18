@@ -105,7 +105,9 @@ export function Personaje({ a, rango = 'conquistador', apodo = '', club = '', an
     texturaPanel('manga_der', piezas, 24).then(t => poner('Parche_Manga_D', t))
     texturaPanel('manga_izq', piezas, 24).then(t => poner('Parche_Manga_I', t))
     texturaAsset('hebilla', 256).then(t => poner('Parche_Hebilla', t))
-    texturaAsset('c3', 128).then(t => { poner('Parche_Sujetador', t); poner('Parche_SujetadorGM', t) })
+    // Sujetador (canuto de la pañoleta): Conquistador lleva C3, Guía Mayor lleva LC1. Va volteado (UV al revés).
+    texturaAsset('c3', 128, true).then(t => poner('Parche_Sujetador', t))
+    texturaAsset(esGuiaMayor(perfilU.rango) ? 'pin-gm' : 'c3', 128, true).then(t => poner('Parche_SujetadorGM', t))
     if (perfilU.galon && perfilU.galon !== 'ninguno') texturaGalon(perfilU.galon).then(t => { poner('Parche_Galon_D', t); poner('Parche_Galon_I', t) })
     return () => { vivo = false }
   }, [raiz, perfilU])

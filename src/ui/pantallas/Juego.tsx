@@ -73,7 +73,7 @@ export default function Juego() {
       </header>
 
       <main className="juego-zona" key={ronda}>
-        {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} slots={partida!.slots} blanca={esAdulto(partida!.caso?.rango ?? nivel.rango)} desafio={desafio} dificultad={dificultad} onFin={alTerminar} />}
+        {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} slots={partida!.slots} blanca={esAdulto(partida!.caso?.rango ?? nivel.rango)} desafio={desafio} dificultad={dificultad} caso={partida!.caso ? describirCaso(partida!.caso) : undefined} onFin={alTerminar} />}
         {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} base={partida!.slots} rango={partida!.caso?.rango ?? nivel.rango} {...props} />}
         {fase !== 'intro' && nivel.tipo === 'quiz' && <Quiz {...props} banco={nivel.banco} imagen={nivel.imagen} segPregunta={nivel.id === 'a08-palabra' ? (desafio ? 40 : 90) : undefined} />}
         {fase !== 'intro' && nivel.tipo === 'vf' && <VerdaderoFalso {...props} banco={nivel.vf} />}

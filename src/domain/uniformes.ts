@@ -102,12 +102,17 @@ export function uniformeCorrecto(u: PerfilUniforme): Colocacion[] {
     const c2 = pieza.c2(fondo)
     add(c2, 'manga_izq', CX_MANGA, centro(8, c2), 'precision', 'Emblema C2: 1 cm debajo del emblema del Campo.')
   }
-  const variante = gm ? 'guia_mayor' : adulto ? 'lider' : 'conquistador'
-  const dv = pieza.divisa(variante, Math.max(1, u.clasesRegulares.length))
-  add(dv, 'manga_izq', CX_MANGA, centro(14, dv), 'precision',
-    gm ? 'Divisa de Guía Mayor (fondo blanco con estrella): 1 cm debajo del C2.'
-      : adulto ? 'Divisa de clases en fondo blanco, sin estrella (líder que no es Guía Mayor): 1 cm debajo del C2.'
-        : 'Divisa de clases (fondo caqui): 1 cm debajo del C2.')
+  // Manual: en conquistadores la divisa puede ser parcial (de Amigo a la clase alcanzada).
+  // En líderes/Guías Mayores la divisa va completa y SOLO si tiene las seis clases: no se parte.
+  const divisaVisible = adulto ? u.clasesRegulares.length >= 6 : u.clasesRegulares.length >= 1
+  if (divisaVisible) {
+    const variante = gm ? 'guia_mayor' : adulto ? 'lider' : 'conquistador'
+    const dv = pieza.divisa(variante, Math.max(1, u.clasesRegulares.length))
+    add(dv, 'manga_izq', CX_MANGA, centro(14, dv), 'precision',
+      gm ? 'Divisa de Guía Mayor (fondo blanco con estrella): 1 cm debajo del C2.'
+        : adulto ? 'Divisa de clases en fondo blanco, con las seis clases (líder que no es Guía Mayor): 1 cm debajo del C2.'
+          : 'Divisa de clases (fondo caqui): 1 cm debajo del C2.')
+  }
 
   // ---- Pecho: bolsillo izquierdo (derecha de la pantalla) ----
   const cxIzq = BOLSILLO.izq.x + BOLSILLO.izq.w / 2

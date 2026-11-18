@@ -14,7 +14,8 @@ export function uniformeDeJugador(rango: Rango, a: AvatarConfig, apodo: string, 
     clasesRegulares: gm ? [...ORDEN_CLASES] : regulares,
     clasesAvanzadas: avanzadasValidas(gm ? [...ORDEN_CLASES] : regulares, (u.avanzadas ?? []) as ClaseId[]),
     excelencia: !!u.excelencia,
-    bautismo: u.bautismo ?? true,
+    // Manual: todo líder de 16 a más (y todo Guía Mayor) es bautizado; para menores es opcional.
+    bautismo: esAdulto(rango) ? true : (u.bautismo ?? true),
     cargo: esAdulto(rango) ? (u.cargo || (rango === 'lider' ? 'CONSEJERO' : 'DIRECTOR')) : undefined,
     funcion: !esAdulto(rango) && u.cargo ? u.cargo : undefined,
     estrellaAnios: esAdulto(rango) ? Math.max(1, u.anios ?? 1) : undefined,
@@ -24,5 +25,5 @@ export function uniformeDeJugador(rango: Rango, a: AvatarConfig, apodo: string, 
   }
 }
 
-/** El torzal solo lo usan directores y Guías Mayores. */
-export const llevaTorzal = (p: PerfilUniforme) => esGuiaMayor(p.rango) || /^DIR/.test((p.cargo ?? '').toUpperCase()) || (p.galon && p.galon !== 'ninguno')
+/** El torzal (Perú: blanco y rojo) lo usan los líderes/directivos de 16 a más; los conquistadores no. */
+export const llevaTorzal = (p: PerfilUniforme) => esAdulto(p.rango)
