@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { ContactShadows, OrbitControls } from '@react-three/drei'
 import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
-import { Jugador3D, PELOS, PIELES } from '../tres/Personaje'
+import { PixelAvatar } from '../pixel/PixelAvatar'
+import { PELOS, PIELES } from '../pixel/dibujo'
 import type { AvatarConfig } from '../../application/puertos'
 import { ORDEN_CLASES, esAdulto, esGuiaMayor, type ClaseId, type Rango } from '../../domain/tipos'
 import { FUNCIONES, NOMBRE_CLASE } from '../../domain/uniformes'
@@ -69,14 +68,7 @@ export default function Editor() {
     <div className="pantalla editor">
       <Cielo />
       <div className="editor-escena">
-        <Canvas dpr={[1, 2]} camera={{ position: [0, 1.25, 4.4], fov: 34 }}>
-          <ambientLight intensity={1.2} />
-          <directionalLight position={[3, 5, 4]} intensity={2.4} />
-          <hemisphereLight args={['#DDEEFF', '#334', 0.6]} />
-          <group position={[0, -0.05, 0]}><Jugador3D a={a} rango={rango} apodo={perfil.apodo} club={perfil.club.nombre} animo="saluda" /></group>
-          <ContactShadows position={[0, 0, 0]} opacity={0.5} scale={4} blur={2.4} far={2} />
-          <OrbitControls enablePan={false} enableZoom={false} target={[0, 1.05, 0]} minPolarAngle={1.1} maxPolarAngle={1.7} />
-        </Canvas>
+        <div className="pixel-tarima"><PixelAvatar a={a} rango={rango} animo="saluda" alto={240} /></div>
         <div className="editor-nombre"><b>{a.nombreTira || perfil.apodo}</b><small>{perfil.club.nombre}{a.unidad ? `, unidad ${a.unidad}` : ''}</small></div>
       </div>
       <div className="editor-panel pop">

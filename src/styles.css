@@ -554,3 +554,44 @@ a { color: var(--oro); cursor: pointer; text-decoration: underline; text-underli
 /* Imagen de la pieza en la trivia */
 .quiz-pieza { display: flex; justify-content: center; margin: 4px 0 2px; }
 .quiz-pieza svg { background: rgba(255,255,255,.06); border-radius: 12px; padding: 8px; }
+
+/* ===================== PIXEL ART ===================== */
+.pixel-tarima { display: flex; justify-content: center; align-items: flex-end; height: 100%; filter: drop-shadow(0 10px 14px rgba(0,0,0,.45)); }
+
+/* --- Mapa 2D pixel --- */
+.mapa-pixel { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+  background: linear-gradient(#2E7FB0, #1F5E86 40%, #2E7FB0); }
+.mapa-lienzo { position: relative; width: 100%; max-width: 560px; margin: 0 auto;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 11px, rgba(0,0,0,.04) 11px 12px),
+    repeating-linear-gradient(90deg, transparent 0 11px, rgba(0,0,0,.04) 11px 12px),
+    radial-gradient(120% 60% at 50% 0%, #7FC45C, #58B055 60%, #3E9346);
+  box-shadow: 0 0 0 6px #E6CF8E, 0 0 60px rgba(0,0,0,.4); border-radius: 0 0 40% 40%/0 0 4% 4%; }
+.mapa-camino { position: absolute; inset: 0; width: 100%; height: 100%; }
+.nodo-pixel { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 2; }
+.nodo-btn { image-rendering: pixelated; width: 52px; height: 52px; border-radius: 10px; border: 0;
+  box-shadow: inset 0 0 0 4px rgba(0,0,0,.18), 0 6px 0 #0007; font: 900 1.3rem/1 var(--titulo), system-ui; color: #4A2A00;
+  background: #FFD54A; cursor: pointer; }
+.nodo-pixel.hecho .nodo-btn { background: #7BD16B; color: #123; }
+.nodo-pixel.bloqueado .nodo-btn { background: #9AA3AE; color: #e9edf2; box-shadow: inset 0 0 0 4px rgba(0,0,0,.2), 0 5px 0 #0006; }
+.nodo-pixel.actual .nodo-btn { background: #FFC20E; box-shadow: inset 0 0 0 4px #fff6, 0 0 0 4px #FFC20E, 0 6px 0 #B87400; animation: latePx 1.1s ease-in-out infinite; }
+@keyframes latePx { 50% { transform: translateY(-3px); } }
+.nodo-estrellas { margin-top: 2px; font-size: .7rem; color: #FFD54A; text-shadow: 0 1px 0 #0009; letter-spacing: -1px; }
+.nodo-avatar { position: absolute; bottom: 48px; pointer-events: none; filter: drop-shadow(0 6px 6px rgba(0,0,0,.4)); }
+.deco { position: absolute; width: 26px; height: 32px; transform: translate(-50%, -50%); image-rendering: pixelated; }
+.deco::before, .deco::after { content: ''; position: absolute; left: 50%; transform: translateX(-50%); }
+.deco-0::before, .deco-2::before { bottom: 0; width: 6px; height: 12px; background: #6B4423; }
+.deco-0::after { bottom: 9px; width: 24px; height: 22px; background: #1E7A3C; box-shadow: 0 -8px 0 -3px #2A9A4E; border-radius: 3px; }
+.deco-2::after { bottom: 9px; width: 22px; height: 24px; background: #2A9A4E; border-radius: 50% 50% 4px 4px; }
+.deco-1::before { bottom: 0; width: 28px; height: 20px; background: #D7242F; clip-path: polygon(50% 0,100% 100%,0 100%); }
+.deco-1::after { bottom: 0; width: 7px; height: 9px; background: #2a1a10; }
+.deco-3::before { bottom: 0; width: 20px; height: 14px; background: #9AA3AE; border-radius: 6px 6px 3px 3px; }
+.deco-3::after { bottom: 10px; width: 10px; height: 8px; background: #B8C0CA; border-radius: 50%; }
+
+/* --- Podio pixel --- */
+.podio-pixel { display: flex; justify-content: center; align-items: flex-end; gap: 10px; height: 100%; padding: 8px 0; }
+.podio-lugar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.podio-lugar canvas { filter: drop-shadow(0 6px 6px rgba(0,0,0,.4)); }
+.podio-bloque { width: 76px; border-radius: 8px 8px 0 0; box-shadow: inset 0 0 0 3px rgba(255,255,255,.25), 0 5px 0 rgba(0,0,0,.35); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 4px; margin-top: 2px; }
+.podio-medalla { font-size: 1.4rem; }
+.podio-nombre { color: #3a2400; font-weight: 900; font-size: .72rem; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

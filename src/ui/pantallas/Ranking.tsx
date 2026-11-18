@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { Sparkles } from '@react-three/drei'
-import { Malla } from '../tres/Toon'
 import { useJuego } from '../estado'
 import { Cielo } from '../componentes/Comunes'
-import { Jugador3D } from '../tres/Personaje'
+import { PixelAvatar } from '../pixel/PixelAvatar'
 import type { Alcance, FilaRanking } from '../../application/puertos'
 import { mensajeError } from '../../application/errores'
 
@@ -12,21 +9,19 @@ const ALCANCES: [Alcance, string][] = [['jugador', 'Jugadores'], ['club', 'Clube
 const BANDERA: Record<string, string> = { PE: '🇵🇪', AR: '🇦🇷', BO: '🇧🇴', BR: '🇧🇷', CL: '🇨🇱', CO: '🇨🇴', EC: '🇪🇨', PY: '🇵🇾', UY: '🇺🇾', VE: '🇻🇪', MX: '🇲🇽', US: '🇺🇸', ES: '🇪🇸' }
 
 function Podio({ top }: { top: FilaRanking[] }) {
-  const lugares = [{ i: 1, x: -1.25, h: 0.55, c: '#C0C7D1' }, { i: 0, x: 0, h: 0.85, c: '#FFC20E' }, { i: 2, x: 1.25, h: 0.38, c: '#CD7F32' }]
+  const lugares = [{ i: 1, alto: 54, c: '#C0C7D1', medalla: '🥈' }, { i: 0, alto: 86, c: '#FFC20E', medalla: '🥇' }, { i: 2, alto: 38, c: '#CD7F32', medalla: '🥉' }]
   return (
-    <Canvas dpr={[1, 1.75]} camera={{ position: [0, 1.4, 3.9], fov: 38 }}>
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[2, 6, 4]} intensity={2.4} />
-      <group position={[0, -0.9, 0]}>
-        {lugares.map(l => (
-          <group key={l.i} position={[l.x, 0, 0]}>
-            <Malla position={[0, l.h / 2, 0]} geo={<boxGeometry args={[1.1, l.h, 0.9]} />} color={l.c} t={0.03} />
-            {top[l.i] && <group position={[0, l.h, 0]}><Jugador3D a={top[l.i].avatar ?? {}} rango={top[l.i].rango ?? 'conquistador'} apodo={top[l.i].nombre} club={top[l.i].detalle ?? ''} animo={l.i === 0 ? 'celebra' : 'saluda'} escala={0.62} /></group>}
-          </group>
-        ))}
-      </group>
-      <Sparkles count={50} scale={[5, 3, 2]} position={[0, 1, 0]} size={4} speed={0.5} color="#FFE07A" />
-    </Canvas>
+    <div className="podio-pixel">
+      {lugares.map(l => (
+        <div key={l.i} className="podio-lugar">
+          {top[l.i] && <PixelAvatar a={top[l.i].avatar ?? {}} rango={top[l.i].rango ?? 'conquistador'} animo={l.i === 0 ? 'celebra' : 'saluda'} alto={96} />}
+          <div className="podio-bloque" style={{ height: l.alto, background: l.c }}>
+            <span className="podio-medalla">{l.medalla}</span>
+            {top[l.i] && <small className="podio-nombre">{top[l.i].nombre}</small>}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

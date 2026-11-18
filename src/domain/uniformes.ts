@@ -237,13 +237,16 @@ export function avanzadasValidas(regulares: ClaseId[], avanzadas: ClaseId[]): Cl
 export function perfilAleatorio(rango: Rango, rnd: () => number, nombre = 'TU APODO', club = 'TU CLUB'): PerfilUniforme {
   const entre = (a: number, b: number) => a + Math.floor(rnd() * (b - a + 1))
   const conquis = rango === 'conquistador'
+  // Máster y Máster Avanzado salen con las 12 clases (6 regulares + 6 avanzadas).
+  const esMaster = rango === 'gm_master' || rango === 'gm_master_avanzado'
   const nReg = conquis ? entre(1, 6) : rango === 'lider' ? entre(3, 6) : 6
   const regulares = ORDEN_CLASES.slice(0, nReg)
-  const nAv = conquis ? (rnd() < 0.35 ? 0 : entre(1, nReg)) : rango === 'lider' ? entre(0, nReg) : entre(rango === 'gm_master_avanzado' ? 3 : 0, 6)
+  const nAv = esMaster ? 6 : conquis ? (rnd() < 0.35 ? 0 : entre(1, nReg)) : rango === 'lider' ? entre(0, nReg) : entre(0, 6)
   const avanzadas = avanzadasValidas(regulares, ORDEN_CLASES.slice(0, nAv))
   return {
     rango, clasesRegulares: regulares, clasesAvanzadas: avanzadas,
-    excelencia: rnd() < 0.4, bautismo: rnd() < 0.75,
+    // Todo adulto (líder de 16+, Guía Mayor, Máster, Máster Avanzado) es bautizado.
+    excelencia: rnd() < 0.4, bautismo: conquis ? rnd() < 0.75 : true,
     funcion: conquis && rnd() < 0.6 ? FUNCIONES[entre(0, FUNCIONES.length - 1)] : undefined,
     cargo: conquis ? undefined : CARGOS[entre(0, CARGOS.length - 1)],
     estrellaAnios: conquis ? undefined : entre(1, 12),

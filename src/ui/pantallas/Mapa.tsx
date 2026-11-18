@@ -6,7 +6,7 @@ import type { Dificultad } from '../../domain/tipos'
 import { mensajeError } from '../../application/errores'
 import { useJuego } from '../estado'
 import { Boton, Estrellas } from '../componentes/Comunes'
-import { Mundo3D, type EstadoNodo } from '../tres/Mundo3D'
+import { MapaPixel, type EstadoNodo } from '../pixel/MapaPixel'
 
 const RANGO_TXT: Record<string, string> = {
   conquistador: 'Conquistador', lider: 'Líder', guia_mayor: 'Guía Mayor', gm_master: 'GM Máster', gm_master_avanzado: 'GM Máster Avanzado',
@@ -52,8 +52,8 @@ export default function Mapa() {
   return (
     <div className="pantalla mapa">
       <div className="mapa-canvas">
-        <Mundo3D key={mundoActual.id} mundo={mundoActual.id} onIrMundo={id => { setSel(null); setMundo(id) }} niveles={niveles} estados={estados} estrellas={estrellas} actual={actual} foco={sel ?? actual}
-          avatar={perfil.avatar} rango={perfil.rango} club={perfil.club.nombre} apodo={perfil.apodo} onElegir={i => setSel(i)} />
+        <MapaPixel key={mundoActual.id} niveles={niveles} estados={estados} estrellas={estrellas} actual={actual}
+          avatar={perfil.avatar} rango={perfil.rango} onElegir={i => setSel(i)} />
       </div>
 
       <header className="hud">
