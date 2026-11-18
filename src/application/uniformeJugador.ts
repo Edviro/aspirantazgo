@@ -3,6 +3,18 @@ import type { ClaseId, Galon, PerfilUniforme, Rango } from '../domain/tipos'
 import { ORDEN_CLASES, esAdulto, esGuiaMayor } from '../domain/tipos'
 import { avanzadasValidas } from '../domain/uniformes'
 
+/** Cargos directivos que llevan galón, y el galón que les corresponde (Manual de Uniformes). */
+export const CARGO_GALON: Record<string, Galon> = {
+  'DIRECTOR': 'director',        // emblema C5 plateado
+  'DISTRITAL': 'distrital',      // una tira plateada
+  'REGIONAL': 'regional',        // dos tiras plateadas
+  'DEPARTAMENTAL': 'departamental', // dos tiras doradas (Asociación/Misión)
+}
+/** Cargos que puede elegir un adulto (club y campo). Solo algunos llevan galón. */
+export const CARGOS_ADULTO = ['CONSEJERO', 'INSTRUCTOR', 'SECRETARIO', 'TESORERO', 'CAPELLÁN', 'DIRECTOR', 'DIR. ASOCIADO', 'DISTRITAL', 'REGIONAL', 'DEPARTAMENTAL']
+/** El galón sale del cargo, no se elige aparte. */
+export const galonDeCargo = (cargo?: string): Galon => CARGO_GALON[(cargo ?? '').toUpperCase()] ?? 'ninguno'
+
 /** El uniforme que viste el personaje de un jugador, según su rango y lo que configuró. */
 export function uniformeDeJugador(rango: Rango, a: AvatarConfig, apodo: string, club: string): PerfilUniforme {
   const u = a.uniforme ?? {}
@@ -21,7 +33,8 @@ export function uniformeDeJugador(rango: Rango, a: AvatarConfig, apodo: string, 
     estrellaAnios: esAdulto(rango) ? Math.max(1, u.anios ?? 1) : undefined,
     nombre: a.nombreTira || apodo,
     club: club === 'Modo práctica' ? 'CLUB CONQUIS' : club,
-    galon: (u.galon ?? 'ninguno') as Galon,
+    // El galón se deriva del cargo directivo; no se elige por separado.
+    galon: esAdulto(rango) ? galonDeCargo(u.cargo) : 'ninguno',
   }
 }
 

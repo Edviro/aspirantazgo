@@ -5,8 +5,9 @@ import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
 import { Jugador3D, PELOS, PIELES } from '../tres/Personaje'
 import type { AvatarConfig } from '../../application/puertos'
-import { ORDEN_CLASES, esAdulto, esGuiaMayor, type ClaseId, type Galon, type Rango } from '../../domain/tipos'
-import { CARGOS, FUNCIONES, NOMBRE_CLASE } from '../../domain/uniformes'
+import { ORDEN_CLASES, esAdulto, esGuiaMayor, type ClaseId, type Rango } from '../../domain/tipos'
+import { FUNCIONES, NOMBRE_CLASE } from '../../domain/uniformes'
+import { CARGOS_ADULTO, galonDeCargo } from '../../application/uniformeJugador'
 
 const PEINADOS = {
   m: [{ v: 0, n: 'Corto' }, { v: 1, n: 'Puntas' }, { v: 2, n: 'Rapado' }],
@@ -15,7 +16,6 @@ const PEINADOS = {
 const RANGOS: [Rango, string][] = [
   ['conquistador', 'Conquistador'], ['lider', 'Líder'], ['guia_mayor', 'Guía Mayor'], ['gm_master', 'GM Máster'], ['gm_master_avanzado', 'GM Máster Avanzado'],
 ]
-const GALONES: [Galon, string][] = [['ninguno', 'Ninguno'], ['director', 'Director de club'], ['distrital', 'Distrital'], ['regional', 'Regional'], ['departamental', 'Departamental']]
 /** Solo letras, números y espacios: nada de datos de contacto. */
 const limpiar = (s: string) => s.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü ]/g, '').slice(0, 14).toUpperCase()
 
@@ -135,23 +135,24 @@ export default function Editor() {
               <span>{adulto ? 'Cargo' : 'Función en la unidad'}</span>
               <div className="chips">
                 {!adulto && <button className={!u.cargo ? 'on' : ''} onClick={() => setU({ cargo: undefined })}>Ninguna</button>}
-                {(adulto ? CARGOS : FUNCIONES).map(c => <button key={c} className={(u.cargo ?? (adulto ? (rango === 'lider' ? 'CONSEJERO' : 'DIRECTOR') : '')) === c ? 'on' : ''} onClick={() => setU({ cargo: c })}>{c.charAt(0) + c.slice(1).toLowerCase()}</button>)}
+                {(adulto ? CARGOS_ADULTO : FUNCIONES).map(c => <button key={c} className={(u.cargo ?? (adulto ? (rango === 'lider' ? 'CONSEJERO' : 'DIRECTOR') : '')) === c ? 'on' : ''} onClick={() => setU({ cargo: c })}>{c.charAt(0) + c.slice(1).toLowerCase()}</button>)}
               </div>
+              {adulto && galonDeCargo(u.cargo ?? (rango === 'lider' ? 'CONSEJERO' : 'DIRECTOR')) !== 'ninguno' && (
+                <small className="nota">Con este cargo llevas galón en el hombro (se coloca solo, según el manual).</small>
+              )}
             </div>
-            {adulto && (<>
+            {adulto && (
               <div className="opcion">
                 <span>Años de servicio (estrella)</span>
                 <div className="chips">{[1, 2, 3, 4, 5, 10, 15, 20].map(n => <button key={n} className={(u.anios ?? 1) === n ? 'on' : ''} onClick={() => setU({ anios: n })}>{n}</button>)}</div>
               </div>
-              <div className="opcion">
-                <span>Galón en el hombro</span>
-                <div className="chips">{GALONES.map(([g, n]) => <button key={g} className={(u.galon ?? 'ninguno') === g ? 'on' : ''} onClick={() => setU({ galon: g })}>{n}</button>)}</div>
-              </div>
-            </>)}
+            )}
             <div className="opcion">
               <span>Otros distintivos</span>
               <div className="chips">
-                <button className={u.bautismo !== false ? 'on' : ''} onClick={() => setU({ bautismo: u.bautismo === false })}>Bautismo</button>
+                {adulto
+                  ? <button className="on" disabled title="Todo líder de 16 a más es bautizado">Bautizado ✓</button>
+                  : <button className={u.bautismo !== false ? 'on' : ''} onClick={() => setU({ bautismo: u.bautismo === false })}>Bautismo</button>}
                 <button className={u.excelencia ? 'on' : ''} onClick={() => setU({ excelencia: !u.excelencia })}>Barra de excelencia</button>
                 {rango === 'conquistador' && <button className={a.panoleta !== false ? 'on' : ''} onClick={() => setA({ ...a, panoleta: a.panoleta === false })}>Pañoleta</button>}
               </div>

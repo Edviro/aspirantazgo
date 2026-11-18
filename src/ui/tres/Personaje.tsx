@@ -50,7 +50,8 @@ export function Personaje({ a, rango = 'conquistador', apodo = '', club = '', an
         m.material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })
         m.renderOrder = 2
       } else {
-        const mat = new THREE.MeshToonMaterial({ color: original.color.clone(), gradientMap: gradMap() })
+        // DoubleSide: las mangas y la falda son tubos abiertos; sin esto el interior se ve NEGRO al mover el brazo.
+        const mat = new THREE.MeshToonMaterial({ color: original.color.clone(), gradientMap: gradMap(), side: THREE.DoubleSide })
         mat.name = nombre
         if (nombre === 'Oro' || nombre === 'Plata') mat.emissive = original.color.clone().multiplyScalar(0.15)
         m.material = mat
