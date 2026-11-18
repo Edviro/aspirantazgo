@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useJuego } from '../estado'
-import { Boton, Cielo } from '../componentes/Comunes'
+import { Boton } from '../componentes/Comunes'
+import { Campamento } from '../pixel/Campamento'
 import { PixelAvatar } from '../pixel/PixelAvatar'
 import { PELOS, PIELES } from '../pixel/dibujo'
 import type { AvatarConfig } from '../../application/puertos'
@@ -15,6 +16,22 @@ const PEINADOS = {
 const RANGOS: [Rango, string][] = [
   ['conquistador', 'Conquistador'], ['lider', 'Líder'], ['guia_mayor', 'Guía Mayor'], ['gm_master', 'GM Máster'], ['gm_master_avanzado', 'GM Máster Avanzado'],
 ]
+/** Alto del personaje en múltiplos de 64 px (escala entera: el pixel art se ve nítido). */
+function altoAvatar() {
+  const w = window.innerWidth, h = window.innerHeight
+  if (w > h && w >= 640) return h >= 860 ? 448 : h >= 700 ? 384 : h >= 560 ? 320 : h >= 440 ? 256 : 192
+  return Math.max(128, Math.min(256, Math.floor((h * 0.4 - 40) / 64) * 64))
+}
+function useAltoAvatar() {
+  const [alto, setAlto] = useState(altoAvatar)
+  useEffect(() => {
+    const f = () => setAlto(altoAvatar())
+    window.addEventListener('resize', f)
+    return () => window.removeEventListener('resize', f)
+  }, [])
+  return alto
+}
+
 /** Solo letras, números y espacios: nada de datos de contacto. */
 const limpiar = (s: string) => s.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü ]/g, '').slice(0, 14).toUpperCase()
 
@@ -27,6 +44,7 @@ export default function Editor() {
   })
   const [rango, setRango] = useState<Rango>(perfil?.rango ?? 'conquistador')
   const [pestana, setPestana] = useState<'look' | 'uniforme'>('look')
+  const alto = useAltoAvatar()
   const [guardando, setGuardando] = useState(false)
   const [aviso, setAviso] = useState('')
   if (!perfil) return null
@@ -66,10 +84,10 @@ export default function Editor() {
 
   return (
     <div className="pantalla editor">
-      <Cielo />
       <div className="editor-escena">
-        <div className="pixel-tarima"><PixelAvatar a={a} rango={rango} animo="saluda" alto={240} /></div>
+        <Campamento />
         <div className="editor-nombre"><b>{a.nombreTira || perfil.apodo}</b><small>{perfil.club.nombre}{a.unidad ? `, unidad ${a.unidad}` : ''}</small></div>
+        <div className="pixel-tarima"><PixelAvatar a={a} rango={rango} animo="saluda" alto={alto} /></div>
       </div>
       <div className="editor-panel pop">
         <div className="tabs-editor" role="tablist">

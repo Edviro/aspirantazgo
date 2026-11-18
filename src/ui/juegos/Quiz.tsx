@@ -31,7 +31,9 @@ export function Quiz({ dificultad, semilla, banco, imagen, segPregunta, onFin }:
     else { factores.current.push(0); sfx.mal() }
   }
 
+  const pausado = useJuego(st => st.pausado)
   useEffect(() => {
+    if (pausado) return
     if (eleg !== null) return
     if (resta <= 0) { responder(-1); return }
     const t = setTimeout(() => setResta(r => r - 1), 1000)

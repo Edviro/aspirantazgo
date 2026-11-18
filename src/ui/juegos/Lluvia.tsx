@@ -5,6 +5,7 @@ import { perfilDemo, pieza, uniformeCorrecto } from '../../domain/uniformes'
 import type { Dificultad, Pieza } from '../../domain/tipos'
 import { PiezaIcono } from '../componentes/Insignias'
 import { useJuego } from '../estado'
+import { ahora, estaPausado } from '../reloj'
 import { sfx } from '../sonido'
 
 type Cat = 'manga_der' | 'manga_izq' | 'bolsillo_der' | 'bolsillo_izq' | 'no_conquis'
@@ -64,9 +65,9 @@ export function Lluvia({ dificultad, semilla, onFin }: { dificultad: Dificultad;
 
   // Reloj del juego
   useEffect(() => {
-    const inicio = performance.now()
+    const inicio = ahora()
     const reloj = setInterval(() => {
-      const seg = (performance.now() - inicio) / 1000
+      const seg = (ahora() - inicio) / 1000
       setT(Math.floor(seg))
       useJuego.getState().reportarProgreso(Math.min(1, seg / DURACION))
       if (seg >= DURACION && !fin.current) {
@@ -81,20 +82,20 @@ export function Lluvia({ dificultad, semilla, onFin }: { dificultad: Dificultad;
   // Generador: la caída la hace el CSS (fluida aunque el celular esté ocupado)
   useEffect(() => {
     const gen = setInterval(() => {
-      if (fin.current) return
+      if (fin.current || estaPausado()) return
       const objetivo = rnd() < 0.45
       const cat = consignaRef.current
       const pool = piezas.filter(x => (objetivo ? x.cat === cat : x.cat !== cat))
       const elegido = pool[Math.floor(rnd() * pool.length)]
       if (!elegido) return
-      const nuevo: Cayendo = { id: sig.current++, p: elegido.p, cat: elegido.cat, x: 0.1 + rnd() * 0.8, t0: performance.now(), dur: (4600 + rnd() * 1400) / vel, estado: 'cae' }
-      setLista(l => [...l.filter(x => x.estado === 'cae' || performance.now() - x.t0 < x.dur + 600), nuevo])
+      const nuevo: Cayendo = { id: sig.current++, p: elegido.p, cat: elegido.cat, x: 0.1 + rnd() * 0.8, t0: ahora(), dur: (4600 + rnd() * 1400) / vel, estado: 'cae' }
+      setLista(l => [...l.filter(x => x.estado === 'cae' || ahora() - x.t0 < x.dur + 600), nuevo])
     }, 820 / vel)
     return () => clearInterval(gen)
   }, [piezas, rnd, vel])
 
   const marcar = (it: Cayendo, estado: Cayendo['estado']) => {
-    const y = Math.min(1, (performance.now() - it.t0) / it.dur) * (alto + 120)
+    const y = Math.min(1, (ahora() - it.t0) / it.dur) * (alto + 120)
     setLista(l => l.map(x => (x.id === it.id ? { ...x, estado, y } : x)))
   }
 

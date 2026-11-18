@@ -5,6 +5,7 @@ import type { Nivel } from '../../domain/niveles'
 import type { Dificultad } from '../../domain/tipos'
 import type { ResultadoServidor } from '../../application/puertos'
 import { useJuego } from '../estado'
+import { ahora, reanudar } from '../reloj'
 
 export interface FinReto { resultado: ResultadoReto; servidor: ResultadoServidor | null; aviso?: string }
 
@@ -19,12 +20,13 @@ export function useReto(nivel: Nivel, desafio: boolean, dificultad: Dificultad) 
   const reglas = DIFICULTADES[dificultad]
 
   const iniciar = useCallback(() => {
-    t0.current = performance.now()
+    reanudar()
+    t0.current = ahora()
     intento.current = desafio ? repo.iniciarReto(nivel.id, dificultad).catch(() => null) : Promise.resolve(null)
     useJuego.getState().reportarProgreso(0)
   }, [desafio, nivel.id, repo, dificultad])
 
-  const segundos = () => (performance.now() - t0.current) / 1000
+  const segundos = () => (ahora() - t0.current) / 1000
 
   const terminar = useCallback(async (factores: number[], errores: number): Promise<FinReto> => {
     const seg = segundos()

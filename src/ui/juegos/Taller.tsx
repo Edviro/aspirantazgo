@@ -53,6 +53,14 @@ function useMovil() {
   return m
 }
 
+const ONOMATOPEYAS = ['¡ZAS!', '¡CLIC!', '¡PUM!', '¡BIEN!', '¡TOMA!', '¡CLAC!']
+/** Estrella de cómic de 14 puntas (irregular a propósito, como dibujada a mano). */
+const RAYOS = Array.from({ length: 28 }, (_, k) => {
+  const a = (k / 28) * Math.PI * 2
+  const r = k % 2 ? 24 + ((k * 7) % 5) : 44 + ((k * 13) % 7)
+  return `${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`
+}).join(' ')
+
 export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin }: {
   nivel: Nivel; slots: Colocacion[]; blanca: boolean; desafio: boolean; dificultad: Dificultad; caso?: string[]; onFin: (factores: number[], errores: number) => void
 }) {
@@ -84,12 +92,15 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
   const [combo, setCombo] = useState(0)
   const [puntos, setPuntos] = useState(0)
   const [flotantes, setFlotantes] = useState<Flotante[]>([])
+  const [zas, setZas] = useState<{ id: number; x: number; y: number; t: string; r: number } | null>(null)
   const [toast, setToast] = useState<{ t: string; k: 'bien' | 'mal' | 'info'; n: number } | null>(null)
   const [drag, setDrag] = useState<Arrastre | null>(null)
   const [sel, setSel] = useState<ItemBandeja | null>(null)
   const [guia, setGuia] = useState<{ panel: PanelId; top: number; slot: number | null } | null>(null)
   const [sacudir, setSacudir] = useState<'mal' | 'golpe' | null>(null)
   const [verCaso, setVerCaso] = useState(!desafio)
+  // El caso se muestra al empezar y se guarda solo a los 7 s: siempre queda a un toque en "El caso".
+  useEffect(() => { if (desafio) return; const t = setTimeout(() => setVerCaso(false), 7000); return () => clearTimeout(t) }, [desafio])
   const movil = useMovil()
   const [activo, setActivo] = useState<PanelId>(nivel.paneles.includes('pecho') ? 'pecho' : nivel.paneles[0])
   const visibles = movil && nivel.paneles.length > 1 ? [activo] : nivel.paneles
@@ -168,7 +179,7 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
       setDescartadas(s => new Set(s).add(it.id))
       sfx.bien()
       avisar('¡Bien visto! Esa pieza no va aquí.', 'bien')
-    } else fallo(it, `¡Esa sí va! ${slots.find(s => grupoDe(s.pieza) === grupoDe(it.pieza))?.regla ?? ''}`)
+    } else fallo(it, desafio ? '¡Esa sí va en este uniforme!' : `¡Esa sí va! ${slots.find(s => grupoDe(s.pieza) === grupoDe(it.pieza))?.regla ?? ''}`)
   }, [acierto, fallo, slots])
 
   const soltar = useCallback((it: ItemBandeja, cx: number, cy: number) => {
@@ -181,11 +192,15 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
       return
     }
     const r = resolver(it, pt.panel, pt.x, pt.y)
-    if (r.tipo === 'otroPanel') { fallo(it, `No va en ${NOMBRE_PANEL[pt.panel].toLowerCase()}. ${r.regla}`); return }
-    if (r.tipo === 'posicion') { fallo(it, FILA.has(it.pieza.tipo) ? `Va en otra posición. ${r.regla}` : 'Suéltala sobre su cuadrito amarillo.'); return }
+    // En desafío no se dan medidas: solo en el modo aprendizaje.
+    if (r.tipo === 'otroPanel') { fallo(it, desafio ? `No va en ${NOMBRE_PANEL[pt.panel].toLowerCase()}.` : `No va en ${NOMBRE_PANEL[pt.panel].toLowerCase()}. ${r.regla}`); return }
+    if (r.tipo === 'posicion') { fallo(it, FILA.has(it.pieza.tipo) ? (desafio ? 'Va en otra posición de la fila.' : `Va en otra posición. ${r.regla}`) : 'Suéltala sobre su cuadrito amarillo.'); return }
     const s = slots[r.slot]
     // La pieza se acomoda sola en su lugar exacto (cae en el centro de su cuadrito).
     acierto(it, 1)
+    const id = ++contador.current
+    setZas({ id, x: cx, y: cy, t: ONOMATOPEYAS[id % ONOMATOPEYAS.length], r: (id % 2 ? -1 : 1) * (6 + (id % 3) * 3) })
+    setTimeout(() => setZas(z => (z?.id === id ? null : z)), 700)
     setColocadas(c => ({ ...c, [it.id]: { slot: r.slot, x: s.x, y: s.y, calidad: 'perfecto', n: Date.now(), desde: escalaDrag(it.pieza) } }))
     sfx.bien()
     if (!desafio) avisar(s.regla, 'bien')
@@ -253,18 +268,21 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
       <div className="taller-barra">
         <div className="taller-progreso" aria-label={`${hechos} de ${total} piezas`}><div style={{ width: `${(hechos / total) * 100}%` }} /></div>
         {caso && caso.length > 0 && (
-          <button className={`caso-chip ${verCaso ? 'abierto' : ''}`} onClick={() => setVerCaso(v => !v)} aria-expanded={verCaso}>
-            🎯 El caso {verCaso ? '▲' : '▼'}
-          </button>
+          <div className="caso-ancla">
+            <button className={`caso-chip ${verCaso ? 'abierto' : ''}`} onClick={() => setVerCaso(v => !v)} aria-expanded={verCaso}>
+              El caso {verCaso ? '▲' : '▼'}
+            </button>
+            {verCaso && (
+              <div className="caso-flotante" role="status">
+                <button className="caso-cerrar" onClick={() => setVerCaso(false)} aria-label="Cerrar el caso">×</button>
+                <ul>{caso.map(l => <li key={l}>{l}</li>)}</ul>
+                {!desafio && <p className="caso-tip">Cada cuadrito amarillo te muestra qué pieza va ahí. Arrástrala y suéltala encima.</p>}
+              </div>
+            )}
+          </div>
         )}
         <div className="marcador"><b>{puntos}</b> pts{combo >= 2 && <span className="combo">x{combo}</span>}</div>
       </div>
-      {caso && verCaso && (
-        <div className="caso-flotante" role="status">
-          <ul>{caso.map(l => <li key={l}>{l}</li>)}</ul>
-          {!desafio && <p className="caso-tip">Modo práctica: cada casillero te muestra qué pieza va ahí. Arrástrala y suéltala cerca.</p>}
-        </div>
-      )}
 
       {movil && nivel.paneles.length > 1 && (
         <div className="tabs-panel" role="tablist">
@@ -348,6 +366,13 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
           })()}
         </>
       )} />
+
+      {zas && (
+        <div className="zas" key={zas.id} style={{ left: zas.x, top: zas.y, ['--rot' as string]: `${zas.r}deg` }} aria-hidden>
+          <svg viewBox="-50 -50 100 100"><polygon points={RAYOS} /></svg>
+          <b>{zas.t}</b>
+        </div>
+      )}
 
       <div className="flotantes" aria-hidden>
         {flotantes.map(f => <span key={f.id} className={`flotante ${f.tipo}`}>{f.texto}</span>)}

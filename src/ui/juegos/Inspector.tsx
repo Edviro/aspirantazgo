@@ -41,6 +41,7 @@ export function Inspector({ nivel, base, rango, dificultad, semilla, onFin }: {
   vivo.current = { hallados, fallos }
   useEffect(() => {
     const t = setInterval(() => setResta(r => {
+      if (useJuego.getState().pausado) return r
       if (r <= 1) { clearInterval(t); terminar(vivo.current.hallados, vivo.current.fallos); return 0 }
       return r - 1
     }), 1000)

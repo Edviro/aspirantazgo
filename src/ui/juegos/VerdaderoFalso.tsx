@@ -35,7 +35,9 @@ export function VerdaderoFalso({ dificultad, semilla, banco, onFin }: { dificult
     setTimeout(avanzar, ok ? 900 : 2200)
   }
 
+  const pausado = useJuego(st => st.pausado)
   useEffect(() => {
+    if (pausado) return
     if (resp) return
     if (resta <= 0) { responder(null); return }
     const t = setTimeout(() => setResta(r => r - 1), 1000)

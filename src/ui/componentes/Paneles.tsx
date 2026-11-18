@@ -32,7 +32,7 @@ function Tela({ id, color }: { id: string; color: string }) {
         <rect width={0.6} height={0.12} fill="#000" opacity={0.035} />
       </pattern>
       <linearGradient id={id + 'g'} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="#fff" stopOpacity={0.18} />
+        <stop offset="0" stopColor="#fff" stopOpacity={0.1} />
         <stop offset="0.6" stopColor="#fff" stopOpacity={0} />
         <stop offset="1" stopColor="#000" stopOpacity={0.12} />
       </linearGradient>
@@ -60,7 +60,7 @@ export function Regla({ alto, numeros = true }: { alto: number; numeros?: boolea
 }
 
 export function PanelFondo({ panel, blanca, regla, numeros = true }: { panel: PanelId; blanca: boolean; regla: boolean; numeros?: boolean }) {
-  const tela = blanca ? '#F3F1EA' : '#D9C49A'
+  const tela = blanca ? '#F4F2EC' : '#C9AE78'
   const id = 'tela-' + panel + (blanca ? 'b' : 'c')
   const { w, h } = PANEL[panel]
 
@@ -69,8 +69,8 @@ export function PanelFondo({ panel, blanca, regla, numeros = true }: { panel: Pa
     return (
       <g>
         <Tela id={id} color={tela} />
-        <path d={forma} fill={`url(#${id})`} stroke="#00000033" strokeWidth={0.12} />
-        <path d={forma} fill={`url(#${id}g)`} />
+        <path d={forma} fill={`url(#${id})`} />
+        <path d={forma} fill={`url(#${id}g)`} stroke="#1E140C" strokeWidth={0.22} strokeLinejoin="round" />
         <path d={`M0.35,${h - 2.6} L${w - 0.35},${h - 2.6}`} {...costura} />
         <path d={`M0.35,${h - 0.35} L${w - 0.35},${h - 0.35}`} {...costura} />
         <line x1={w / 2 - 3} x2={w / 2 + 3} y1={0} y2={0} stroke="#C2410C" strokeWidth={0.1} strokeDasharray="0.4 0.25" />
@@ -133,9 +133,9 @@ export function PanelFondo({ panel, blanca, regla, numeros = true }: { panel: Pa
   return (
     <g>
       <Tela id={id} color={tela} />
-      <path d={`M2,42 L2,6 Q2,2.5 6,1.6 L18,0 Q25,4.5 32,0 L44,1.6 Q48,2.5 48,6 L48,42 Z`} fill={`url(#${id})`} stroke="#00000030" strokeWidth={0.12} />
-      <path d={`M2,42 L2,6 Q2,2.5 6,1.6 L18,0 Q25,4.5 32,0 L44,1.6 Q48,2.5 48,6 L48,42 Z`} fill={`url(#${id}g)`} />
-      <path d="M18,0 L22,6.5 L25,4.2 L28,6.5 L32,0" fill={tela} stroke="#00000038" strokeWidth={0.12} strokeLinejoin="round" />
+      <path d={`M2,42 L2,6 Q2,2.5 6,1.6 L18,0 Q25,4.5 32,0 L44,1.6 Q48,2.5 48,6 L48,42 Z`} fill={`url(#${id})`} />
+      <path d={`M2,42 L2,6 Q2,2.5 6,1.6 L18,0 Q25,4.5 32,0 L44,1.6 Q48,2.5 48,6 L48,42 Z`} fill={`url(#${id}g)`} stroke="#1E140C" strokeWidth={0.26} strokeLinejoin="round" />
+      <path d="M18,0 L22,6.5 L25,4.2 L28,6.5 L32,0" fill={tela} stroke="#1E140C" strokeWidth={0.18} strokeLinejoin="round" />
       <line x1={25} x2={25} y1={4.4} y2={42} stroke="#00000028" strokeWidth={0.1} />
       {[10, 17, 24, 31].map(y => <circle key={y} cx={25.7} cy={y + 2} r={0.32} fill="#ffffffaa" stroke="#00000030" strokeWidth={0.05} />)}
       {bol(BOLSILLO.der.x)}

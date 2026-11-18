@@ -25,11 +25,11 @@ export const pieza = {
   tiraClub: (club: string): Pieza => ({ key: 'tira_club', tipo: 'tira_club', texto: club, w: 10, h: 5 }),
   tiraCargo: (cargo: string): Pieza => ({ key: 'tira_cargo', tipo: 'tira_cargo', texto: cargo, w: 7.5, h: 2 }),
   c1: (): Pieza => ({ key: 'c1', tipo: 'c1', w: 7.2, h: 7.5 }),
-  estrella: (n = 1): Pieza => ({ key: 'estrella', tipo: 'estrella', nivel: n, w: 3.2, h: 3.04 }),
+  estrella: (n = 1): Pieza => ({ key: 'estrella', tipo: 'estrella', nivel: n, w: 3.16, h: 3 }),
   campo: (): Pieza => ({ key: 'campo', tipo: 'campo', w: 7.5, h: 5.5 }),
   c2: (fondo: 'caqui' | 'blanco'): Pieza => ({ key: 'c2_' + fondo, tipo: 'c2', fondo, w: 6.4, h: 5 }),
   divisa: (v: 'conquistador' | 'lider' | 'guia_mayor', nivel: number): Pieza => ({
-    key: `divisa_${v}_${nivel}`, tipo: 'divisa', divisa: v, nivel, w: 4, h: v === 'guia_mayor' ? 7.17 : 4.6,
+    key: `divisa_${v}_${nivel}`, tipo: 'divisa', divisa: v, nivel, w: v === 'guia_mayor' ? 4.74 : 4, h: v === 'guia_mayor' ? 8.5 : 4.6,
   }),
   boton: (clase: ClaseId): Pieza => ({ key: 'boton_' + clase, tipo: 'boton_clase', clase, w: 1.64, h: 1.64 }),
   avanzada: (clase: ClaseId): Pieza => ({ key: 'avanzada_' + clase, tipo: 'barra_avanzada', clase, w: 2.42, h: 0.82 }),

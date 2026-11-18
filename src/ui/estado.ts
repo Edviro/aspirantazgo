@@ -29,6 +29,8 @@ interface Estado {
   semilla: number | null
   sonido: boolean
   sala: EstadoSala | null
+  /** El nivel en curso está en pausa (ver ui/reloj.ts). */
+  pausado: boolean
   mundo: string
   setMundo: (m: string) => void
   ir: (p: Pantalla) => void
@@ -50,6 +52,7 @@ const leerDif = (): Dificultad => { try { return (localStorage.getItem('asp_dif'
 
 export const useJuego = create<Estado>((set, get) => ({
   pantalla: 'intro',
+  pausado: false,
   legalTab: 'privacidad',
   repo: repoLocal,
   modo: null,

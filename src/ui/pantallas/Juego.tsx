@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mundoDeNivel, prepararNivel } from '../../domain/niveles'
 import { describirCaso } from '../../domain/uniformes'
+import { COMO_SE_JUEGA } from '../comoSeJuega'
+import { pausar, reanudar } from '../reloj'
 import { azar } from '../../domain/azar'
 import { esAdulto } from '../../domain/tipos'
 import { DIFICULTADES } from '../../domain/dificultad'
@@ -26,6 +28,14 @@ export default function Juego() {
   const [ronda, setRonda] = useState(0)
   const [reloj, setReloj] = useState(0)
   const reto = useReto(nivel!, desafio, dificultad)
+  const pausado = useJuego(s => s.pausado)
+  useEffect(() => () => reanudar(), [])
+  useEffect(() => {
+    if (fase !== 'jugando' || enSala) return
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') (useJuego.getState().pausado ? reanudar : pausar)() }
+    window.addEventListener('keydown', tecla)
+    return () => window.removeEventListener('keydown', tecla)
+  }, [fase, enSala])
   const apodo = perfil ? (perfil.avatar.nombreTira || perfil.apodo) : ''
   const club = !perfil || perfil.club.nombre === 'Modo práctica' ? 'CLUB CONQUIS' : perfil.club.nombre
   const unidad = perfil?.avatar.unidad || 'HALCONES'
@@ -42,6 +52,7 @@ export default function Juego() {
   }, [fase, reto])
 
   const alTerminar = useCallback(async (factores: number[], errores: number) => {
+    reanudar()
     const r = await reto.terminar(factores, errores)
     setFin(r)
     setFase('fin')
@@ -53,7 +64,8 @@ export default function Juego() {
   const reglas = DIFICULTADES[dificultad]
 
   const empezar = () => { reto.iniciar(); setFase('jugando'); sfx.trompeta() }
-  const repetir = () => { setFin(null); setRonda(r => r + 1); setFase('intro'); setReloj(0) }
+  const repetir = () => { reanudar(); setFin(null); setRonda(r => r + 1); setFase('intro'); setReloj(0) }
+  const como = COMO_SE_JUEGA[nivel.tipo]
   const props = { dificultad, semilla, onFin: alTerminar }
 
   return (
@@ -70,9 +82,14 @@ export default function Juego() {
           <strong>{nivel.titulo}</strong>
         </div>
         <div className="juego-reloj">{Math.floor(reloj / 60)}:{String(reloj % 60).padStart(2, '0')}</div>
+        {fase === 'jugando' && !enSala && (
+          <button className="icono btn-pausa" onClick={pausar} aria-label="Pausar">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" /><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" /></svg>
+          </button>
+        )}
       </header>
 
-      <main className="juego-zona" key={ronda}>
+      <main className={`juego-zona ${pausado ? 'pausado' : ''}`} key={ronda} aria-hidden={pausado || undefined}>
         {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} slots={partida!.slots} blanca={esAdulto(partida!.caso?.rango ?? nivel.rango)} desafio={desafio} dificultad={dificultad} caso={partida!.caso ? describirCaso(partida!.caso) : undefined} onFin={alTerminar} />}
         {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} base={partida!.slots} rango={partida!.caso?.rango ?? nivel.rango} {...props} />}
         {fase !== 'intro' && nivel.tipo === 'quiz' && <Quiz {...props} banco={nivel.banco} imagen={nivel.imagen} segPregunta={nivel.id === 'a08-palabra' ? (desafio ? 40 : 90) : undefined} />}
@@ -88,16 +105,34 @@ export default function Juego() {
         <Dialogo npc={nivel.npc} titulo={nivel.titulo} accion={desafio ? '¡Al desafío!' : '¡A practicar!'} onAccion={empezar}
           secundaria="Volver" onSecundaria={() => ir('mapa')}>
           <p>{nivel.intro}</p>
+          <div className="como-juega">
+            <b><span aria-hidden>{como.icono}</span> Cómo se juega</b>
+            <ol>{como.pasos.map(p => <li key={p}>{p}</li>)}</ol>
+          </div>
           {partida?.caso && (
             <div className="caso">
               <b>Caso de hoy</b>
               <ul>{describirCaso(partida.caso).map(l => <li key={l}>{l}</li>)}</ul>
             </div>
           )}
-          {nivel.tipo === 'taller' && <p className="nota">Arrastra cada pieza o tócala y luego toca su lugar. {desafio && !reglas.pistas ? 'Sin pistas: cuentan la precisión, el tiempo y los errores.' : 'Verás dónde va cada pieza y la regla del manual.'}</p>}
+          {nivel.tipo === 'taller' && <p className="nota">{desafio ? 'Desafío: sin medidas ni pistas de qué va dónde. Cuentan los aciertos, el tiempo y los errores.' : 'Práctica: cada cuadrito te muestra qué pieza va y verás las medidas del manual.'}</p>}
           {desafio && <p className="nota">Dificultad {reglas.nombre}: {reglas.descripcion}</p>}
           {desafio && modo === 'practica' && <p className="nota">Sin cuenta, tu puntaje se guarda solo en este dispositivo.</p>}
         </Dialogo>
+      )}
+
+      {pausado && fase === 'jugando' && (
+        <div className="velo">
+          <div className="pausa pop" role="dialog" aria-modal="true" aria-label="Juego en pausa">
+            <h2>Pausa</h2>
+            <p>El reloj está detenido. Tómate tu tiempo.</p>
+            <div className="pausa-botones">
+              <Boton onClick={reanudar}>Seguir jugando</Boton>
+              <Boton tipo="fantasma" onClick={repetir}>Empezar de nuevo</Boton>
+              <Boton tipo="fantasma" onClick={() => { reanudar(); ir('mapa') }}>Salir al mapa</Boton>
+            </div>
+          </div>
+        </div>
       )}
 
       {fase === 'fin' && fin && (
