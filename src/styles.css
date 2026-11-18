@@ -375,8 +375,8 @@ a { color: var(--oro); cursor: pointer; text-decoration: underline; text-underli
 @keyframes golpe { 30% { transform: translateY(3px); } }
 
 /* Pistas e imán */
-.pista rect { fill: rgba(122, 74, 0, .14); stroke: #7A4A00; stroke-width: .14; stroke-dasharray: .3 .2; }
-.pista.iman rect { fill: rgba(255, 194, 14, .45); stroke: #FFC20E; stroke-width: .3; stroke-dasharray: none; }
+.pista rect { fill: rgba(255, 194, 14, .16); stroke: #FFC20E; stroke-width: .18; stroke-dasharray: .45 .28; }
+.pista.iman rect { fill: rgba(255, 194, 14, .55); stroke: #FFD84D; stroke-width: .34; stroke-dasharray: none; }
 .pista.iman { opacity: 1 !important; animation: none; }
 
 /* ¡Pum! La pieza cae, rebota y levanta polvo */

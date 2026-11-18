@@ -3,7 +3,7 @@ import type { Nivel } from '../../domain/niveles'
 import type { Colocacion, Dificultad, PanelId, Pieza } from '../../domain/tipos'
 import { ORDEN_CLASES } from '../../domain/tipos'
 import { pieza as fabrica } from '../../domain/uniformes'
-import { evaluarPrecision, type Calidad } from '../../domain/puntuacion'
+import type { Calidad } from '../../domain/puntuacion'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { PiezaIcono, PiezaSVG, nombrePieza } from '../componentes/Insignias'
 import { NOMBRE_PANEL, PanelFondo } from '../componentes/Paneles'
@@ -144,8 +144,11 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
     const cerca = enPanel.reduce((a, b) => dist(x, y, a.s.x, a.s.y) <= dist(x, y, b.s.x, b.s.y) ? a : b)
     const s = cerca.s
     if (s.modo === 'precision') {
-      const err = (y - s.pieza.h / 2) - (s.y - s.pieza.h / 2)
-      return { tipo: 'precision' as const, slot: cerca.i, err, top: y - s.pieza.h / 2 }
+      // Ya NO se exige el centímetro exacto: si la sueltas sobre su cuadrito amarillo, entra y se acomoda sola.
+      const dx = Math.max(0, Math.abs(x - s.x) - s.pieza.w / 2)
+      const dy = Math.max(0, Math.abs(y - s.y) - s.pieza.h / 2)
+      const margen = (2.2 + Math.max(s.pieza.w, s.pieza.h) * 0.25) * tol
+      return { tipo: Math.hypot(dx, dy) <= margen ? 'ok' as const : 'posicion' as const, slot: cerca.i, regla: s.regla }
     }
     if (FILA.has(s.pieza.tipo)) {
       // Cada botón tiene su propio casillero. Lo encajamos en SU sitio aunque lo sueltes cerca,
@@ -179,23 +182,14 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
     }
     const r = resolver(it, pt.panel, pt.x, pt.y)
     if (r.tipo === 'otroPanel') { fallo(it, `No va en ${NOMBRE_PANEL[pt.panel].toLowerCase()}. ${r.regla}`); return }
-    if (r.tipo === 'posicion') { fallo(it, FILA.has(it.pieza.tipo) ? `Va en otra posición. ${r.regla}` : r.regla); return }
+    if (r.tipo === 'posicion') { fallo(it, FILA.has(it.pieza.tipo) ? `Va en otra posición. ${r.regla}` : 'Suéltala sobre su cuadrito amarillo.'); return }
     const s = slots[r.slot]
-    if (r.tipo === 'precision') {
-      const ev = evaluarPrecision(r.err / tol)
-      const sep = r.top - bordeArriba(slots, r.slot)
-      if (ev.calidad === 'fallo') { fallo(it, `Dejaste ${fmt(Math.max(0, sep))} cm de separación. ${s.regla}`); return }
-      acierto(it, ev.factor)
-      setColocadas(c => ({ ...c, [it.id]: { slot: r.slot, x: s.x, y: pt.y, calidad: ev.calidad, n: Date.now(), desde: escalaDrag(it.pieza) } }))
-      if (ev.calidad === 'perfecto') { sfx.perfecto(); avisar(`¡Perfecto! ${fmt(Math.max(0, sep))} cm de separación`, 'bien') }
-      else { sfx.bien(); avisar(`${ev.calidad === 'bien' ? 'Bien' : 'Casi'}: te desviaste ${fmt(Math.abs(r.err))} cm`, 'info') }
-      return
-    }
+    // La pieza se acomoda sola en su lugar exacto (cae en el centro de su cuadrito).
     acierto(it, 1)
     setColocadas(c => ({ ...c, [it.id]: { slot: r.slot, x: s.x, y: s.y, calidad: 'perfecto', n: Date.now(), desde: escalaDrag(it.pieza) } }))
     sfx.bien()
     if (!desafio) avisar(s.regla, 'bien')
-  }, [acierto, fallo, descartar, desafio, resolver, slots, tol])
+  }, [acierto, fallo, descartar, desafio, resolver, slots])
 
   useEffect(() => {
     if (pendientes.length === 0 && !terminado.current) {
@@ -214,13 +208,9 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
       const pt = puntoEnPanel(e.clientX, e.clientY - drag.lift)
       if (!pt) { setGuia(null); return }
       let slot: number | null = null
-      if (pistas && drag.item.real) {
+      if (drag.item.real) {
         const r = resolver(drag.item, pt.panel, pt.x, pt.y)
-        slot = r.tipo === 'ok' || r.tipo === 'precision' ? r.slot : null
-      }
-      if (slot === null && drag.item.real) {
-        const r = resolver(drag.item, pt.panel, pt.x, pt.y)
-        if (r.tipo === 'precision') slot = r.slot
+        slot = r.tipo === 'ok' ? r.slot : null
       }
       setGuia({ panel: pt.panel, top: pt.y - drag.item.pieza.h / 2, slot })
     }
@@ -292,8 +282,9 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
       <Tablero paneles={visibles} onPanelClick={clicPanel} render={p => (
         <>
           <PanelFondo panel={p} blanca={blanca} regla={false} numeros={false} />
-          {pistas && (() => {
-            // Casilleros guía ("imán"). En práctica cada uno muestra, en fantasma, QUÉ pieza va ahí.
+          {(() => {
+            // Cuadritos amarillos SIEMPRE visibles: marcan dónde va cada pieza (así no se adivina ni se falla por poco).
+            // En práctica, además, cada cuadrito muestra en fantasma QUÉ pieza va ahí.
             const usados = new Set<string>()
             return slots.map((s, i) => {
               if (s.panel !== p || ocupados.has(i)) return null
@@ -321,8 +312,8 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
                   <circle r={r * 0.9} className="onda" />
                   {[-1, -0.5, 0.5, 1].map(k => <circle key={k} cx={k * r * 0.7} cy={Math.min(i.pieza.h / 2, 4)} r={Math.max(0.18, r * 0.07)} style={{ ['--dx' as string]: `${k * r * 0.5}px` }} />)}
                 </g>
-                {s.modo === 'precision' && (() => {
-                  // Muestra la separación con la pieza de arriba (o con la costura), no la medida de la pieza.
+                {s.modo === 'precision' && !desafio && (() => {
+                  // Solo en modo aprendizaje: muestra la separación con la pieza de arriba (o la costura).
                   const top = c.y - i.pieza.h / 2
                   const ref = bordeArriba(slots, c.slot)
                   const gap = Math.max(0, top - ref)
@@ -339,7 +330,7 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
               </g>
             )
           })}
-          {guia && guia.panel === p && conRegla(p) && (() => {
+          {guia && guia.panel === p && conRegla(p) && !desafio && (() => {
             const ref = guia.slot !== null && slots[guia.slot]?.modo === 'precision' ? bordeArriba(slots, guia.slot) : 0
             const gap = guia.top - ref
             const ancho = p === 'banda' ? 12 : 20
