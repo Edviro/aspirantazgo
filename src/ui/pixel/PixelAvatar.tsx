@@ -49,7 +49,7 @@ function suscribir(p: Pintor) {
 
 /**
  * Avatar en pixel art, dibujado por código (sin modelos 3D). Refleja el rango:
- * camisa caqui o blanca, saco negro del departamental, pañoleta de GM, torzal, galón y botones de clase.
+ * camisa caqui o blanca, saco verde petróleo del departamental, pañoleta de GM, torzal, galón y botones de clase.
  * Rendimiento: comparte sprites y un único temporizador; solo repinta si cambia el cuadro y si está a la vista.
  */
 export function PixelAvatar({ a, rango = 'conquistador', animo = 'idle', alto = 180, className }: {

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
   Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubLista, FilaRanking, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
-  RegistroAdulto, RepositorioJuego, ResultadoServidor, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
+  RegistroAdulto, RepositorioJuego, ResultadoServidor, Vidas, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
 import type { Dificultad, Rango } from '../../domain/tipos'
 import { SalasSupabase } from './salasSupabase'
@@ -117,6 +117,12 @@ export class RepositorioSupabase implements RepositorioJuego {
     return r.perfil
   }
 
+  async entrarInvitado(codigo: string, nombre: string, club: string) {
+    const r = await this.rpc<{ token: string; perfil: Perfil; codigo: string }>('entrar_invitado', { p_codigo: codigo, p_nombre: nombre, p_club: club })
+    guardarToken(r.token)
+    return { perfil: r.perfil, codigo: r.codigo }
+  }
+
   async entrarNino(codigo: string, apodo: string, pin: string) {
     const r = await this.rpc<{ token: string; perfil: Perfil }>('entrar_nino', { p_codigo: codigo, p_apodo: apodo, p_pin: pin })
     guardarToken(r.token)
@@ -126,11 +132,12 @@ export class RepositorioSupabase implements RepositorioJuego {
   async guardarAvatar(a: AvatarConfig) { await this.rpc('guardar_avatar', { p_token: this.token, p_avatar: a }) }
   async cambiarRango(r: Rango) { await this.rpc('cambiar_rango', { p_token: this.token, p_rango: r }) }
 
-  iniciarReto(reto: string, dificultad: Dificultad, sala?: string | null) {
+  iniciarReto(reto: string, dificultad: Dificultad, sala?: string | null, diario = false) {
     return sala
       ? this.rpc<string>('iniciar_reto_sala', { p_token: this.token, p_reto: reto, p_dificultad: dificultad, p_sala: sala })
-      : this.rpc<string>('iniciar_reto', { p_token: this.token, p_reto: reto, p_dificultad: dificultad })
+      : this.rpc<string>('iniciar_reto', { p_token: this.token, p_reto: reto, p_dificultad: dificultad, p_diario: diario })
   }
+  vidas() { return this.rpc<Vidas>('mis_vidas', { p_token: this.token }) }
   estadisticas() { return this.rpc<Estadisticas>('mis_estadisticas', { p_token: this.token }) }
 
   terminarReto(intento: string, puntaje: number) {

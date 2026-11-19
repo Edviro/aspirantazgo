@@ -82,3 +82,11 @@ export const COLOR_CLASE: Record<ClaseId, string> = {
 
 export const esAdulto = (r: Rango) => r !== 'conquistador'
 export const esGuiaMayor = (r: Rango) => r === 'guia_mayor' || r === 'gm_master' || r === 'gm_master_avanzado'
+
+/**
+ * Años de servicio mínimos (estrella) según el nivel de liderazgo. La primera estrella es de 2 años.
+ * Guía Mayor se inviste desde los 18 (mín. 2 años), Máster desde los 20 (mín. 4) y Máster Avanzado
+ * hacia los 23-24 (mín. 7). Un Máster Avanzado nunca puede tener 1 año de servicio.
+ */
+export const ANIOS_MINIMOS: Record<Rango, number> = { conquistador: 0, lider: 2, guia_mayor: 2, gm_master: 4, gm_master_avanzado: 7 }
+export const aniosValidos = (r: Rango, anios?: number) => Math.max(ANIOS_MINIMOS[r], Math.min(60, Math.round(anios ?? ANIOS_MINIMOS[r])))

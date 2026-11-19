@@ -4,6 +4,7 @@ import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
 import { useProgreso } from '../progreso'
 import { MEDALLAS } from '../../domain/medallas'
 import { BotonInstalar } from '../componentes/BotonInstalar'
+import { HudVidas } from '../componentes/Vidas'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
 import { MUNDOS_JUGABLES } from '../../domain/niveles'
 import { APROBADO, estrellasDeMejor } from '../../domain/puntuacion'
@@ -25,7 +26,7 @@ export default function Mapa() {
   const [sel, setSel] = useState<number | null>(null)
   const [menu, setMenu] = useState(false)
   const rachaObj = useProgreso(st => st.racha)
-  useEffect(() => { musica('mapa') }, [])
+  useEffect(() => { musica('mapa'); void useProgreso.getState().cargarVidas() }, [])
   // Si llegó con el enlace o el QR de una sala, entra directo
   useEffect(() => {
     const cod = salaDelEnlace()
@@ -82,6 +83,7 @@ export default function Mapa() {
           <span className="hud-avatar">{perfil.apodo.slice(0, 1).toUpperCase()}</span>
           <span className="hud-txt"><b>{perfil.apodo}</b><small>{RANGO_TXT[perfil.rango]}, {perfil.club.nombre}</small></span>
         </button>
+        <HudVidas />
         <div className="hud-puntos" title="Puntos totales"><span>★</span>{total.toLocaleString('es-PE')}</div>
         <button className="icono" onClick={() => setMenu(m => !m)} aria-label="Menú">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>

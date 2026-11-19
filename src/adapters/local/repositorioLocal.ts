@@ -60,6 +60,8 @@ export class RepositorioLocal implements RepositorioJuego {
     return { puntaje, mejor, puesto: 1 }
   }
 
+  /** En modo práctica no hay límite de vidas. */
+  async vidas() { return null }
   async estadisticas() { return leer(K.stats, { duelos_jugados: 0, duelos_ganados: 0, partidas: 0, salas: 0 }) }
   async misPuntajes() { return leer<Record<string, number>>(K.puntos, {}) }
 

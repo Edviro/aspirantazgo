@@ -6,7 +6,7 @@ import { CodigoQR, enlaceSala } from '../componentes/CodigoQR'
 import { MUNDOS_JUGABLES, MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
-import type { FilaSala } from '../../application/puertos'
+import type { FilaSala, FilaTotalSala } from '../../application/puertos'
 import { Podio } from '../componentes/Podio'
 import { RetoVivo } from '../componentes/RetoVivo'
 
@@ -15,12 +15,21 @@ export default function Sala() {
   const { sala, perfil, ir, dejarSala, iniciarRonda, repo } = useJuego()
   useEffect(() => { musica('himno_epico') }, [])
   const [podio, setPodio] = useState<FilaSala[] | null>(null)
+  const [total, setTotal] = useState<FilaTotalSala[] | null>(null)
+  const pedirTotal = () => {
+    const s = useJuego.getState().sala
+    if (!s || !repo.salas || s.tipo === 'duelo') return
+    repo.salas.totalSala(s.conexion.codigo).then(setTotal).catch(() => undefined)
+  }
   const pedirPodio = () => {
     const s = useJuego.getState().sala
     if (!s?.ronda || !repo.salas) return
     repo.salas.resultadoSala(s.conexion.codigo, s.ronda.nivelId, new Date(s.rondaRecibida - 120000).toISOString())
-      .then(f => setPodio(f)).catch(() => undefined)
+      .then(f => { setPodio(f); pedirTotal() }).catch(() => undefined)
   }
+  // Plan de dinámicas del líder (varios niveles seguidos; el puntaje de la sala se acumula)
+  const [plan, setPlan] = useState<string[]>([])
+  const [paso, setPaso] = useState(0)
   const [nivelId, setNivelId] = useState(MUNDO_UNIFORMES.niveles[1].id)
   const [dif, setDif] = useState<Dificultad>('medio')
   const [cuenta, setCuenta] = useState<number | null>(null)
@@ -146,25 +155,68 @@ export default function Sala() {
           </ul>
         </section>}
 
+        {total && total.length > 0 && !duelo && (ronda?.ronda ?? 0) >= 2 && (
+          <section className="parche podio-sala total-sala">
+            <h3 className="podio-titulo">Puntaje total de la sala</h3>
+            <p className="ayuda centro">Suma de las {ronda?.ronda} dinámicas jugadas.</p>
+            <Podio top={total.slice(0, 3).map(f => ({ nombre: f.apodo, avatar: f.avatar, rango: f.rango, puntos: f.puntaje }))} />
+            <ol className="carrera oficial">
+              {total.map(f => (
+                <li key={f.id} className={f.id === perfil.id ? 'yo' : ''}>
+                  <span className="pos">{f.posicion}</span>
+                  <span className="quien"><b>{f.apodo}</b><small>{f.club} · {f.rondas} {f.rondas === 1 ? 'dinámica' : 'dinámicas'}</small></span>
+                  <span className="pts">{f.puntaje}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
         {anfitrion && (
-          <section className="parche">
-            <h3>{ronda ? 'Siguiente ronda' : 'Elige el reto'}</h3>
-            <label className="campo-select">Nivel
-              <select id="sala-nivel" value={nivelId} onChange={e => setNivelId(e.target.value)}>
-                {MUNDOS_JUGABLES.map(m => (
-                  <optgroup key={m.id} label={m.nombre}>
-                    {m.niveles.filter(n => n.tipo !== 'ceremonia').map(n => <option key={n.id} value={n.id}>{n.num}. {n.titulo}</option>)}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
+          <section className="parche plan-sala">
+            <h3>Dinámicas de la sala</h3>
+            <p className="ayuda">Arma la lista de retos que jugarán tus Conquistadores. Al final se suma el puntaje de todas.</p>
+            {plan.length > 0 && (
+              <ol className="plan-lista">
+                {plan.map((id, i) => {
+                  const n = TODOS_LOS_NIVELES.find(x => x.id === id)
+                  return (
+                    <li key={id + i} className={i < paso ? 'hecha' : i === paso ? 'siguiente' : ''}>
+                      <span className="pos">{i + 1}</span><span className="quien"><b>{n?.titulo}</b>{i < paso && <small>Jugada</small>}</span>
+                      {i >= paso && <button className="quitar" onClick={() => setPlan(p => p.filter((_, k) => k !== i))} aria-label={`Quitar ${n?.titulo}`}>×</button>}
+                    </li>
+                  )
+                })}
+              </ol>
+            )}
+            <div className="plan-agregar">
+              <label className="campo-select">Nivel
+                <select id="sala-nivel" value={nivelId} onChange={e => setNivelId(e.target.value)}>
+                  {MUNDOS_JUGABLES.map(m => (
+                    <optgroup key={m.id} label={m.nombre}>
+                      {m.niveles.filter(n => n.tipo !== 'ceremonia').map(n => <option key={n.id} value={n.id}>{n.num}. {n.titulo}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+              <Boton tipo="azul" onClick={() => setPlan(p => (p.length < 10 ? [...p, nivelId] : p))} disabled={plan.length >= 10}>＋ Agregar</Boton>
+            </div>
             <div className="chips dificultad">
               {(Object.keys(DIFICULTADES) as Dificultad[]).map(d => (
                 <button key={d} className={dif === d ? 'on' : ''} onClick={() => setDif(d)}>{DIFICULTADES[d].nombre}</button>
               ))}
             </div>
             {ronda && !podio && terminaron > 0 && <Boton tipo="azul" onClick={pedirPodio}>Ver podio ahora ({terminaron} de {jugadores.length} terminaron)</Boton>}
-            <Boton onClick={() => iniciarRonda(nivelId, dif)} disabled={jugadores.length === 0}>{ronda ? 'Empezar otra ronda' : 'Empezar ronda'}</Boton>
+            {plan.length > 0 ? (
+              paso < plan.length
+                ? <Boton onClick={() => { iniciarRonda(plan[paso], dif); setPaso(p => p + 1) }} disabled={jugadores.length === 0}>
+                    {paso === 0 ? 'Empezar' : 'Siguiente'}: dinámica {paso + 1} de {plan.length}
+                  </Boton>
+                : <p className="aviso-ok">¡Terminaron las {plan.length} dinámicas! El puntaje total está arriba.</p>
+            ) : (
+              <Boton onClick={() => iniciarRonda(nivelId, dif)} disabled={jugadores.length === 0}>{ronda ? 'Jugar este nivel ahora' : 'Empezar con este nivel'}</Boton>
+            )}
+            {(ronda?.ronda ?? 0) >= 1 && <button className="enlace" onClick={pedirTotal}>Actualizar puntaje total</button>}
             {jugadores.length === 0 && <p className="ayuda">Necesitas al menos un jugador conectado.</p>}
           </section>
         )}

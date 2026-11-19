@@ -1,3 +1,4 @@
+import { esRetoDelDia, useProgreso } from '../progreso'
 import type { MedallaId } from '../../domain/medallas'
 import { useCallback, useRef } from 'react'
 import { calcularPuntaje, type ResultadoReto } from '../../domain/puntuacion'
@@ -21,6 +22,7 @@ export interface FinReto {
 export function useReto(nivel: Nivel, desafio: boolean, dificultad: Dificultad) {
   const t0 = useRef(0)
   const intento = useRef<Promise<string | null> | null>(null)
+  const errorInicio = useRef<string | null>(null)
   const repo = useJuego(s => s.repo)
   const reglas = DIFICULTADES[dificultad]
 
@@ -29,7 +31,13 @@ export function useReto(nivel: Nivel, desafio: boolean, dificultad: Dificultad) 
     t0.current = ahora()
     const sala = useJuego.getState().sala
     const codigoSala = sala && sala.rol === 'jugador' && sala.ronda ? sala.conexion.codigo : null
-    intento.current = desafio ? repo.iniciarReto(nivel.id, dificultad, codigoSala).catch(() => null) : Promise.resolve(null)
+    errorInicio.current = null
+    const diario = !codigoSala && esRetoDelDia(nivel.id, useJuego.getState().semilla)
+    intento.current = desafio
+      ? repo.iniciarReto(nivel.id, dificultad, codigoSala, diario)
+        .then(id => { if (!codigoSala) void useProgreso.getState().cargarVidas(); return id })
+        .catch((e: unknown) => { errorInicio.current = e instanceof Error ? e.message : String(e); return null })
+      : Promise.resolve(null)
     useJuego.getState().reportarProgreso(0)
   }, [desafio, nivel.id, repo, dificultad])
 
@@ -41,9 +49,10 @@ export function useReto(nivel: Nivel, desafio: boolean, dificultad: Dificultad) 
     useJuego.getState().reportarProgreso(1, resultado.puntaje, Math.round(seg))
     if (!desafio) return { resultado, servidor: null }
     const id = await intento.current
-    if (!id) return { resultado, servidor: null, aviso: 'No se pudo guardar este intento (sin conexión).' }
+    if (!id) return { resultado, servidor: null, aviso: errorInicio.current?.includes('SIN_VIDAS') ? 'Este intento no contó: no te quedaban vidas. Espera la recarga o juega el reto del día.' : 'No se pudo guardar este intento (sin conexión).' }
     try {
       const servidor = await repo.terminarReto(id, resultado.puntaje)
+      useProgreso.getState().setVidas(servidor.vidas ?? undefined)
       await useJuego.getState().refrescarPuntajes()
       return { resultado, servidor }
     } catch {

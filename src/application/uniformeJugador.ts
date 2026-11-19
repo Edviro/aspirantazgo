@@ -1,6 +1,6 @@
 import type { AvatarConfig } from './puertos'
 import type { ClaseId, Galon, PerfilUniforme, Rango } from '../domain/tipos'
-import { ORDEN_CLASES, esAdulto, esGuiaMayor } from '../domain/tipos'
+import { ORDEN_CLASES, esAdulto, aniosValidos, esGuiaMayor } from '../domain/tipos'
 import { avanzadasValidas } from '../domain/uniformes'
 
 /** Cargos directivos que llevan galón, y el galón que les corresponde (Manual de Uniformes). */
@@ -30,7 +30,7 @@ export function uniformeDeJugador(rango: Rango, a: AvatarConfig, apodo: string, 
     bautismo: esAdulto(rango) ? true : (u.bautismo ?? true),
     cargo: esAdulto(rango) ? (u.cargo || (rango === 'lider' ? 'CONSEJERO' : 'DIRECTOR')) : undefined,
     funcion: !esAdulto(rango) && u.cargo ? u.cargo : undefined,
-    estrellaAnios: esAdulto(rango) ? Math.max(1, u.anios ?? 1) : undefined,
+    estrellaAnios: esAdulto(rango) ? aniosValidos(rango, u.anios) : undefined,
     nombre: a.nombreTira || apodo,
     club: club === 'Modo práctica' ? 'CLUB CONQUIS' : club,
     // El galón se deriva del cargo directivo; no se elige por separado.

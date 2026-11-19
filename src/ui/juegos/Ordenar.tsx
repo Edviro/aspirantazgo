@@ -83,8 +83,8 @@ export function Ordenar({ dificultad, semilla, onFin }: { dificultad: Dificultad
           <h2>Toca las clases en el orden en que se reciben</h2>
           <div className="fila-investidura">
             {ORDEN_CLASES.map((_, i) => (
-              <span key={i} className={`hueco ${hechas[i] ? 'lleno' : ''}`} style={hechas[i] ? { background: COLOR_CLASE[hechas[i]] } : undefined}>
-                {hechas[i] && conNombres ? NOMBRE[hechas[i]].slice(0, 3) : i + 1}
+              <span key={i} className={`hueco ${hechas[i] ? 'lleno con-logo' : ''}`} title={hechas[i] ? NOMBRE[hechas[i]] : undefined}>
+                {hechas[i] ? <PiezaIcono p={pieza.boton(hechas[i])} size={54} /> : i + 1}
               </span>
             ))}
           </div>

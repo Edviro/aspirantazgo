@@ -1,6 +1,6 @@
 import {
   type ClaseId, type Colocacion, type LiderazgoId, type PanelId, type PerfilUniforme, type Pieza, type Rango,
-  ORDEN_CLASES, ORDEN_LIDERAZGO, esAdulto, esGuiaMayor,
+  ORDEN_CLASES, ORDEN_LIDERAZGO, esAdulto, esGuiaMayor, ANIOS_MINIMOS,
 } from './tipos'
 
 /**
@@ -25,7 +25,7 @@ export const pieza = {
   tiraClub: (club: string): Pieza => ({ key: 'tira_club', tipo: 'tira_club', texto: club, w: 10, h: 5 }),
   tiraCargo: (cargo: string): Pieza => ({ key: 'tira_cargo', tipo: 'tira_cargo', texto: cargo, w: 7.5, h: 2 }),
   c1: (): Pieza => ({ key: 'c1', tipo: 'c1', w: 7.2, h: 7.5 }),
-  estrella: (n = 1): Pieza => ({ key: 'estrella', tipo: 'estrella', nivel: n, w: 3.16, h: 3 }),
+  estrella: (n = 2): Pieza => ({ key: 'estrella', tipo: 'estrella', nivel: n, w: 3.16, h: 3 }),
   campo: (): Pieza => ({ key: 'campo', tipo: 'campo', w: 7.5, h: 5.5 }),
   c2: (fondo: 'caqui' | 'blanco'): Pieza => ({ key: 'c2_' + fondo, tipo: 'c2', fondo, w: 6.4, h: 5 }),
   divisa: (v: 'conquistador' | 'lider' | 'guia_mayor', nivel: number): Pieza => ({
@@ -218,7 +218,7 @@ export function perfilDemo(rango: Rango, nombre = 'TU APODO', club = 'TU CLUB'):
     case 'gm_master_avanzado':
       return { rango, clasesRegulares: ['amigo', 'companero', 'explorador', 'pionero', 'excursionista', 'guia'],
         clasesAvanzadas: ['amigo', 'companero', 'explorador', 'pionero', 'excursionista', 'guia'], excelencia: true, bautismo: true,
-        cargo: 'DIRECTOR', estrellaAnios: 10, nombre, club }
+        cargo: 'DIRECTOR', estrellaAnios: rango === 'gm_master_avanzado' ? 12 : 8, nombre, club }
   }
 }
 
@@ -250,7 +250,8 @@ export function perfilAleatorio(rango: Rango, rnd: () => number, nombre = 'TU AP
     excelencia: rnd() < 0.4, bautismo: conquis ? rnd() < 0.75 : true,
     funcion: conquis && rnd() < 0.6 ? FUNCIONES[entre(0, FUNCIONES.length - 1)] : undefined,
     cargo: conquis ? undefined : CARGOS[entre(0, CARGOS.length - 1)],
-    estrellaAnios: conquis ? undefined : entre(1, 12),
+    // Años de servicio coherentes con el nivel de liderazgo (Máster ≥ 4, Máster Avanzado ≥ 7)
+    estrellaAnios: conquis ? undefined : entre(ANIOS_MINIMOS[rango], ANIOS_MINIMOS[rango] + 10),
     nombre, club,
   }
 }
@@ -266,7 +267,7 @@ export function describirCaso(p: PerfilUniforme): string[] {
   out.push(`Clases regulares: ${tramo(r)}`)
   out.push(a.length ? `Clases avanzadas: ${tramo(a)}` : 'Sin clases avanzadas')
   const extras = [p.bautismo ? 'bautizado' : 'aún no bautizado', p.excelencia ? 'con insignia de excelencia' : '']
-  if (p.estrellaAnios) extras.push(`${p.estrellaAnios} año${p.estrellaAnios === 1 ? '' : 's'} de servicio`)
+  if (p.estrellaAnios) extras.push(`${p.estrellaAnios} años de servicio`)
   out.push(extras.filter(Boolean).join(', '))
   return out
 }

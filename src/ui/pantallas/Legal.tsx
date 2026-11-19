@@ -37,7 +37,7 @@ function Privacidad() {
         <li>Si registran un club: nombre del club, ciudad, Campo, Unión y país.</li>
       </ul>
       <h3>Datos técnicos</h3>
-      <p>Guardamos en el propio dispositivo un identificador de sesión para que no tengas que volver a entrar, y tus preferencias de sonido. No usamos cookies publicitarias ni herramientas de analítica de terceros.</p>
+      <p>Guardamos en el propio dispositivo un identificador de sesión para que no tengas que volver a entrar, tus preferencias de sonido y tus <b>medallas, parches y racha del reto del día</b>. Estos avances <b>no</b> se copian a nuestros servidores: si cambias de dispositivo o borras los datos del navegador, se pierden. Los puntajes, niveles superados y vidas sí se guardan en tu cuenta. No usamos cookies publicitarias ni herramientas de analítica de terceros.</p>
 
       <h2>3. Para qué los usamos</h2>
       <ul>

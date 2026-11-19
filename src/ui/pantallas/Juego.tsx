@@ -28,6 +28,7 @@ import { rachaVigente } from '../../domain/diario'
 import { IslaConquistada } from '../componentes/IslaConquistada'
 import { CapaEmocion } from '../componentes/CapaEmocion'
 import { CarreraMini } from '../componentes/CarreraMini'
+import { mmss, useProximaVida } from '../componentes/Vidas'
 
 /**
  * Piezas del uniforme del caso que este nivel NO pide armar pero que la persona ya lleva puestas
@@ -46,6 +47,7 @@ export default function Juego() {
   const [ronda, setRonda] = useState(0)
   const reto = useReto(nivel!, desafio, dificultad)
   const pausado = useJuego(s => s.pausado)
+  const vidas = useProgreso(s => s.vidas)
   const puntajeNivel = useJuego(s => (nivel ? s.puntajes[nivel.id] ?? 0 : 0))
   // Puntaje guardado ANTES de esta partida: sirve para saber si acabas de desbloquear el siguiente nivel
   const antes = useRef(puntajeNivel)
@@ -97,6 +99,9 @@ export default function Juego() {
   const empezar = () => { reto.iniciar(); setFase('jugando'); sfx.trompeta() }
   const repetir = () => { reanudar(); antes.current = useJuego.getState().puntajes[nivel.id] ?? 0; setFin(null); setRonda(r => r + 1); setFase('intro') }
   const como = COMO_SE_JUEGA[nivel.tipo]
+  // Vidas: el reto del día es gratis una vez al día; sin vidas solo se puede practicar
+  const gratisHoy = desafio && !enSala && !!vidas && vidas.diario_gratis && vidas.reto_hoy === nivel.id && esRetoDelDia(nivel.id, semilla)
+  const sinVidas = desafio && !enSala && !!vidas && vidas.vidas <= 0 && !gratisHoy
   const props = { dificultad, semilla, onFin: alTerminar }
 
   return (
@@ -138,7 +143,8 @@ export default function Juego() {
       {fase === 'jugando' && nivel.tipo !== 'ceremonia' && <CapaEmocion key={'emocion-' + ronda} />}
 
       {fase === 'intro' && (
-        <Dialogo npc={nivel.npc} titulo={nivel.titulo} accion={desafio ? '¡Al desafío!' : '¡A practicar!'} onAccion={empezar}
+        <Dialogo npc={nivel.npc} titulo={nivel.titulo} accion={sinVidas ? 'Practicar gratis' : desafio ? '¡Al desafío!' : '¡A practicar!'}
+          onAccion={sinVidas ? () => jugar(nivel, false) : empezar}
           secundaria="Volver" onSecundaria={() => ir('mapa')}>
           <p>{nivel.intro}</p>
           <div className="como-juega">
@@ -152,6 +158,7 @@ export default function Juego() {
             </div>
           )}
           {nivel.tipo === 'taller' && <p className="nota">{desafio ? 'Desafío: sin medidas ni pistas de qué va dónde. Cuentan los aciertos, el tiempo y los errores.' : 'Práctica: cada cuadrito te muestra qué pieza va y verás las medidas del manual.'}</p>}
+          {desafio && !enSala && vidas && <NotaVidas gratis={gratisHoy} sinVidas={sinVidas} />}
           {nivel.tipo !== 'ceremonia' && <MetasNivel nivelId={nivel.id} />}
           {desafio && <p className="nota">Dificultad {reglas.nombre}: {reglas.descripcion}</p>}
           {desafio && modo === 'practica' && <p className="nota">Sin cuenta, tu puntaje se guarda solo en este dispositivo.</p>}
@@ -178,7 +185,7 @@ export default function Juego() {
       )}
 
       {fase === 'fin' && fin && (
-        <FinNivel fin={fin} nivelId={nivel.id} record={desafio && antes.current > 0 && fin.resultado.puntaje > antes.current ? antes.current : null} desafio={desafio} enSala={enSala} multiplicador={reglas.multiplicador} nombreDif={reglas.nombre}
+        <FinNivel fin={fin} nivelId={nivel.id} diario={desafio && esRetoDelDia(nivel.id, semilla)} record={desafio && antes.current > 0 && fin.resultado.puntaje > antes.current ? antes.current : null} desafio={desafio} enSala={enSala} multiplicador={reglas.multiplicador} nombreDif={reglas.nombre}
           desbloqueado={desafio && !!siguiente && antes.current < APROBADO && puntajeNivel >= APROBADO ? siguiente.titulo : null}
           numSiguiente={siguiente?.num}
           onMapa={() => ir('mapa')} onSala={() => ir('sala')} onRepetir={repetir}
@@ -202,8 +209,8 @@ function useContador(meta: number, ms = 1100) {
 }
 
 /** Pantalla de fin de nivel: titular de cómic, estrellas una a una, puntaje que sube y desbloqueo del siguiente nivel. */
-function FinNivel({ fin, nivelId, record, desafio, enSala, multiplicador, nombreDif, desbloqueado, numSiguiente, onMapa, onSala, onRepetir, onDesafio, onSiguiente }: {
-  fin: FinReto; nivelId: string; record: number | null; desafio: boolean; enSala: boolean; multiplicador: number; nombreDif: string; desbloqueado: string | null; numSiguiente?: number
+function FinNivel({ fin, nivelId, diario, record, desafio, enSala, multiplicador, nombreDif, desbloqueado, numSiguiente, onMapa, onSala, onRepetir, onDesafio, onSiguiente }: {
+  fin: FinReto; nivelId: string; diario: boolean; record: number | null; desafio: boolean; enSala: boolean; multiplicador: number; nombreDif: string; desbloqueado: string | null; numSiguiente?: number
   onMapa: () => void; onSala: () => void; onRepetir: () => void; onDesafio?: () => void; onSiguiente?: () => void
 }) {
   const r = fin.resultado
@@ -214,8 +221,9 @@ function FinNivel({ fin, nivelId, record, desafio, enSala, multiplicador, nombre
     const t = setTimeout(() => sfx.desbloqueo(), 1500)
     return () => clearTimeout(t)
   }, [desbloqueado])
-  const titular = !aprobado ? '¡Casi lo logras!' : desafio ? '¡Nivel completado!' : '¡Práctica completada!'
-  const sub = r.estrellas === 3 ? 'Impecable, como en el manual.' : r.estrellas === 2 ? '¡Muy bien hecho!' : r.estrellas === 1 ? 'Aprobado. ¡Ve por las 3 estrellas!' : 'Practica un poco más y vuelve a intentarlo.'
+  const titular = diario ? (aprobado ? '¡Reto del día cumplido!' : '¡Reto del día: casi!') : !aprobado ? '¡Casi lo logras!' : desafio ? '¡Nivel completado!' : '¡Práctica completada!'
+  const sub = diario ? (aprobado ? (fin.diario !== undefined ? `Racha: ${fin.diario} ${fin.diario === 1 ? 'día' : 'días'} seguidos. ¡Vuelve mañana por otro reto!` : 'Ya lo habías cumplido hoy. ¡Vuelve mañana por otro reto!') : 'Puedes intentarlo otra vez hoy para no perder tu racha.')
+    : r.estrellas === 3 ? 'Impecable, como en el manual.' : r.estrellas === 2 ? '¡Muy bien hecho!' : r.estrellas === 1 ? 'Aprobado. ¡Ve por las 3 estrellas!' : 'Practica un poco más y vuelve a intentarlo.'
   return (
     <div className="velo">
       {aprobado && <Confeti />}
@@ -230,8 +238,11 @@ function FinNivel({ fin, nivelId, record, desafio, enSala, multiplicador, nombre
           <div><b>{r.errores}</b><small>errores</small></div>
           <div><b>{Math.round(r.segundos)}s</b><small>tiempo</small></div>
         </div>
+        {fin.servidor?.vidas_recargadas && <div className="fin-vidas gana"><i className="corazon" aria-hidden />¡Vidas recargadas! Tienes {fin.servidor.vidas?.vidas} · racha {fin.servidor.vidas?.racha}</div>}
+        {!fin.servidor?.vidas_recargadas && fin.servidor?.vida_recuperada && <div className="fin-vidas gana"><i className="corazon" aria-hidden />¡Recuperaste tu vida! Tienes {fin.servidor.vidas?.vidas}</div>}
+        {fin.servidor?.uso_vida && !aprobado && fin.servidor.vidas && <div className="fin-vidas pierde"><i className="corazon vacio" aria-hidden />Perdiste 1 vida. Te quedan {fin.servidor.vidas.vidas}</div>}
         {fin.medallas && desafio && <MedallasFin m={fin.medallas} nivelId={nivelId} />}
-        {fin.diario !== undefined && (
+        {fin.diario !== undefined && !diario && (
           <div className="fin-desbloqueo fin-diario"><b>¡Reto del día cumplido!</b><span>Racha: {fin.diario} {fin.diario === 1 ? 'día' : 'días'} seguidos</span></div>
         )}
         {desbloqueado && (
@@ -310,4 +321,14 @@ function RelojJuego({ activo, segundos }: { activo: boolean; segundos: () => num
     return () => clearInterval(id)
   }, [activo, segundos])
   return <div className="juego-reloj">{Math.floor(t / 60)}:{String(t % 60).padStart(2, '0')}</div>
+}
+
+/** En la introducción del desafío: cuánto cuesta en vidas (o que hoy es gratis, o que no te quedan). */
+function NotaVidas({ gratis, sinVidas }: { gratis: boolean; sinVidas: boolean }) {
+  const vidas = useProgreso(s => s.vidas)
+  const resta = useProximaVida()
+  if (!vidas) return null
+  if (gratis) return <p className="nota-vidas gratis"><span aria-hidden>🎁</span>Reto del día: hoy es gratis (no usa vidas) y si lo cumples recargas todas tus vidas.</p>
+  if (sinVidas) return <p className="nota-vidas"><i className="corazon vacio" aria-hidden />Te quedaste sin vidas.{resta !== null ? ` La próxima llega en ${mmss(resta)}.` : ''} Mientras tanto puedes practicar gratis o cumplir el reto del día.</p>
+  return <p className="nota-vidas"><i className="corazon" aria-hidden />Este desafío usa 1 vida (tienes {vidas.vidas}). Si lo apruebas, la recuperas.</p>
 }

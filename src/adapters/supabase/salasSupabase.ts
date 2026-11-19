@@ -1,7 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   ConexionPresencia, ConexionSala, EventosPresencia, EventosSala, InicioRonda, InvitacionDuelo, JugadorEnLinea, JugadorSala,
-  FilaSala, ProgresoSala, PuertoSalas, RespuestaDuelo, ResultadoDuelo,
+  FilaSala, FilaTotalSala, ProgresoSala, PuertoSalas, RespuestaDuelo, ResultadoDuelo,
 } from '../../application/puertos'
 import { FRASES } from '../../application/puertos'
 import { TODOS_LOS_NIVELES } from '../../domain/niveles'
@@ -26,7 +26,7 @@ function limpiarAvatar(a: unknown) {
     genero: o.genero === 'f' ? 'f' as const : 'm' as const,
     piel: num(o.piel, 0, 9), pelo: num(o.pelo, 0, 9), colorPelo: num(o.colorPelo, 0, 9),
     panoleta: o.panoleta !== false, nombreTira: texto(o.nombreTira, 16), unidad: texto(o.unidad, 16),
-    uniforme: { regulares: lista(u.regulares), avanzadas: lista(u.avanzadas), cargo: texto(u.cargo, 20) || undefined, anios: num(u.anios, 1, 60) },
+    uniforme: { regulares: lista(u.regulares), avanzadas: lista(u.avanzadas), cargo: texto(u.cargo, 20) || undefined, anios: num(u.anios, 2, 60) },
   }
 }
 
@@ -62,6 +62,7 @@ export class SalasSupabase implements PuertoSalas {
   }
   resultadoSala(codigo: string, reto: string, desde: string) { return this.rpc<FilaSala[]>('resultado_sala', { p_token: this.token(), p_codigo: codigo, p_reto: reto, p_desde: desde }) }
   reclamarAbandono(codigo: string) { return this.rpc<ResultadoDuelo>('reclamar_abandono', { p_token: this.token(), p_codigo: codigo }) }
+  totalSala(codigo: string) { return this.rpc<FilaTotalSala[]>('total_sala', { p_token: this.token(), p_codigo: codigo }) }
   resultadoDuelo(codigo: string) { return this.rpc<ResultadoDuelo>('resultado_duelo', { p_token: this.token(), p_codigo: codigo }) }
 
   conectar(codigo: string, yo: JugadorSala, ev: EventosSala, avanceEnVivo: boolean): Promise<ConexionSala> {

@@ -160,7 +160,8 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
     const repo = repoPara(modo)
     set({ modo, perfil, repo })
     await get().refrescarPuntajes()
-    if (modo === 'en_linea') get().conectarPresencia().catch(() => undefined)
+    // Los invitados de una sala no entran a la isla en vivo
+    if (modo === 'en_linea' && !perfil.invitado) get().conectarPresencia().catch(() => undefined)
   },
   setPerfil: p => set({ perfil: p }),
   refrescarPuntajes: async () => {

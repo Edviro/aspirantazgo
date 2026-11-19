@@ -66,8 +66,8 @@ const MUTACIONES: Mutacion[] = [
     aplica: r => r === 'conquistador',
     hacer: u => {
       const c1 = u[idx(u, 'c1')]
-      u.push({ pieza: pieza.estrella(1), panel: 'manga_der', x: 10, y: c1.y + c1.pieza.h / 2 + 2.5, modo: 'precision', regla: '' })
-      return { indices: [u.length - 1], explicacion: 'La estrella de tiempo de servicio es para la directiva, a partir del primer año de actividad.' }
+      u.push({ pieza: pieza.estrella(2), panel: 'manga_der', x: 10, y: c1.y + c1.pieza.h / 2 + 2.5, modo: 'precision', regla: '' })
+      return { indices: [u.length - 1], explicacion: 'La estrella de tiempo de servicio es solo para la directiva, desde los 2 años de servicio.' }
     },
   },
   {
@@ -130,7 +130,7 @@ const MUTACIONES: Mutacion[] = [
     },
   },
   {
-    aplica: r => esAdulto(r) && !esGuiaMayor(r),
+    aplica: (r, u) => esAdulto(r) && !esGuiaMayor(r) && idx(u, 'panoleta') >= 0,
     hacer: u => {
       const i = u.findIndex(c => c.pieza.tipo === 'panoleta')
       u[i] = { ...u[i], pieza: pieza.panoleta(true) }

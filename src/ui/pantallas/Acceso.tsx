@@ -6,6 +6,7 @@ import { repoEnLinea } from '../../adapters/contenedor'
 import { mensajeError } from '../../application/errores'
 import type { CatalogoOrg, ClubLista } from '../../application/puertos'
 import { CARGOS_ADULTO } from '../../application/uniformeJugador'
+import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
 import type { Rango } from '../../domain/tipos'
 
 const RANGOS_ADULTO: [Rango, string][] = [
@@ -28,7 +29,12 @@ function Google() {
 export default function Acceso() {
   const { setSesion, ir, verLegal } = useJuego()
   const cuentas = repoEnLinea?.cuentas ?? null
-  const [tab, setTab] = useState<'nino' | 'adulto'>('nino')
+  const [tab, setTab] = useState<'nino' | 'adulto' | 'invitado'>('nino')
+  // Invitado de sala: entra con el código (o el QR) + su nombre + su club, sin crear cuenta
+  const [salaPend] = useState(() => salaDelEnlace())
+  const [codSala, setCodSala] = useState(salaPend ?? '')
+  const [nombreInv, setNombreInv] = useState('')
+  const [clubInv, setClubInv] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
@@ -93,6 +99,16 @@ export default function Acceso() {
   const validarCorreo = () => { if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) throw new Error('CORREO_INVALIDO') }
   const validarClave = () => { if (clave.length < 8 || !/[A-Za-z]/.test(clave) || !/\d/.test(clave)) throw new Error('CLAVE_DEBIL') }
 
+  const entrarInvitado = () => accion(async () => {
+    if (!repoEnLinea?.entrarInvitado) throw new Error('SIN_CONEXION')
+    if (!/^[A-Z]{5}$/.test(codSala)) throw new Error('SALA_NO_EXISTE')
+    const r = await repoEnLinea.entrarInvitado(codSala, nombreInv.trim(), clubInv.trim())
+    try { sessionStorage.setItem('asp_sala_invitado', r.codigo) } catch { /* */ }
+    olvidarSalaPendiente()
+    await setSesion('en_linea', r.perfil)
+    await useJuego.getState().abrirSala(r.codigo)
+  })
+
   const entrarNino = () => accion(async () => {
     if (!repoEnLinea) throw new Error('SIN_CONEXION')
     validarApodo()
@@ -145,7 +161,27 @@ export default function Acceso() {
         <div className="tabs" role="tablist">
           <button role="tab" aria-selected={tab === 'nino'} className={tab === 'nino' ? 'on' : ''} onClick={() => { setTab('nino'); setError('') }}>Soy Conquistador</button>
           <button role="tab" aria-selected={tab === 'adulto'} className={tab === 'adulto' ? 'on' : ''} onClick={() => { setTab('adulto'); setError('') }}>Soy líder (16+)</button>
+          <button role="tab" aria-selected={tab === 'invitado'} className={tab === 'invitado' ? 'on' : ''} onClick={() => { setTab('invitado'); setError('') }}>Invitado de sala</button>
         </div>
+        {salaPend && tab !== 'invitado' && (
+          <button type="button" className="aviso-sala-invitado" onClick={() => setTab('invitado')}>
+            Te invitaron a la sala <b>{salaPend}</b>. ¿No tienes cuenta? <u>Entra como invitado</u>
+          </button>
+        )}
+
+        {tab === 'invitado' && (
+          <form className="form" onSubmit={e => { e.preventDefault(); entrarInvitado() }}>
+            <p className="ayuda">Para jugar <b>solo en una sala</b> (con el QR o el código que te dio el líder), sin crear cuenta.</p>
+            <label>Código de la sala<input value={codSala} onChange={e => setCodSala(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5))} maxLength={5} placeholder="Ej. KQZTP" autoCapitalize="characters" autoComplete="off" required /></label>
+            <div className="dos">
+              <label>Tu nombre<input value={nombreInv} onChange={e => setNombreInv(e.target.value.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü ]/g, '').slice(0, 12))} maxLength={12} placeholder="Ej. Sofía" autoComplete="given-name" required /></label>
+              <label>Tu club<input value={clubInv} onChange={e => setClubInv(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü .-]/g, '').slice(0, 40))} maxLength={40} placeholder="Ej. Halcones" required /></label>
+            </div>
+            <p className="ayuda">Solo tu nombre (sin apellido). Tu acceso sirve únicamente para esta sala, no aparece en los rankings y se borra solo a los 2 días.</p>
+            {error && <p className="error" role="alert">{error}</p>}
+            <Boton type="submit" disabled={cargando || !repoEnLinea}>Entrar a la sala</Boton>
+          </form>
+        )}
 
         {tab === 'nino' && (
           <form className="form" onSubmit={e => { e.preventDefault(); entrarNino() }}>
@@ -241,7 +277,7 @@ export default function Acceso() {
             </div>
             <label>Tu cargo<select value={cargo} onChange={e => setCargo(e.target.value)}>{CARGOS_ADULTO.map(c => <option key={c} value={c}>{c.charAt(0) + c.slice(1).toLowerCase()}</option>)}</select></label>
             <label className="check"><input type="checkbox" checked={acepta} onChange={e => setAcepta(e.target.checked)} />
-              <span>Acepto los <a onClick={() => verLegal('terminos')}>Términos</a> y la <a onClick={() => verLegal('privacidad')}>Política de privacidad</a>.</span></label>
+              <span>Acepto los <a onClick={() => verLegal('terminos')}>Términos</a> y la <a onClick={() => verLegal('privacidad')}>Política de privacidad</a>, y entiendo que mis medallas y parches se guardan en este celular (si lo cambio, se pierden).</span></label>
             {soyDirector && puedeDirigir && (
               <label className="check"><input type="checkbox" checked={autoriza} onChange={e => setAutoriza(e.target.checked)} />
                 <span>Como director, me comprometo a obtener la <a onClick={() => verLegal('padres')}>autorización firmada de los padres</a> antes de entregar el código del club a cada menor.</span></label>

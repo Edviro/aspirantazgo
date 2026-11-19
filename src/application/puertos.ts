@@ -11,6 +11,8 @@ export interface Perfil {
   cargo?: string | null
   /** Solo el dueño del juego (lo decide el servidor). */
   superadmin?: boolean
+  /** Invitado de una sala (sin cuenta): solo puede jugar en esa sala y se borra solo. */
+  invitado?: boolean
   club: { id?: string; nombre: string; codigo: string | null; ciudad: string; campo: string; union?: string | null; pais: string; soy_director?: boolean }
 }
 
@@ -57,11 +59,33 @@ export interface Estadisticas { duelos_jugados: number; duelos_ganados: number; 
 export interface ResultadoDuelo { terminado: boolean; ganador: string | null; abandono?: boolean; jugadores: { id: string; puntaje: number | null; segundos: number | null; posicion?: number | null }[] }
 
 export interface FilaSala { id: string; apodo: string; club: string; avatar: AvatarConfig | null; rango: Rango; puntaje: number; segundos: number; posicion: number }
+export interface FilaTotalSala extends FilaSala { rondas: number }
 
 export interface ResultadoServidor {
   puntaje: number
   mejor: number
   puesto: number
+  /** Vidas después de esta partida (null en salas y duelos). */
+  vidas?: Vidas | null
+  vida_recuperada?: boolean
+  vidas_recargadas?: boolean
+  uso_vida?: boolean
+}
+
+/**
+ * Vidas (guardadas en el servidor). Cada desafío usa 1 al empezar y se recupera si lo apruebas.
+ * +1 cada 20 min; el reto del día es gratis una vez al día y, si lo cumples, recarga todas.
+ */
+export interface Vidas {
+  vidas: number
+  max: number
+  /** Segundos para la próxima vida (null si están llenas). */
+  proxima_s: number | null
+  racha: number
+  /** ¿Todavía tienes el intento gratis del reto del día? */
+  diario_gratis: boolean
+  reto_hoy: string
+  diario_hecho: boolean
 }
 
 // ---------- Organización (país > unión > asociación/misión > club) ----------
@@ -144,12 +168,16 @@ export interface RepositorioJuego {
   /** Hay sesión de adulto (correo verificado) pero aún no pertenece a un club. */
   adultoSinClub(): Promise<string | null>
   unirseNino(codigo: string, apodo: string, pin: string): Promise<Perfil>
+  /** Entrar a una sala solo con nombre y club (cuenta temporal de esa sala). Devuelve el perfil y el código. */
+  entrarInvitado?(codigo: string, nombre: string, club: string): Promise<{ perfil: Perfil; codigo: string }>
   entrarNino(codigo: string, apodo: string, pin: string): Promise<Perfil>
   guardarAvatar(a: AvatarConfig): Promise<void>
   /** Solo adultos: actualizar el rango cuando reciben una investidura. */
   cambiarRango(r: Rango): Promise<void>
   /** Si se juega dentro de una sala o duelo, el intento queda ligado a ella (el servidor valida el resultado). */
-  iniciarReto(reto: string, dificultad: Dificultad, sala?: string | null): Promise<string>
+  iniciarReto(reto: string, dificultad: Dificultad, sala?: string | null, diario?: boolean): Promise<string>
+  /** Vidas del jugador (null = sin límite, p. ej. en modo práctica). */
+  vidas(): Promise<Vidas | null>
   estadisticas(): Promise<Estadisticas>
   terminarReto(intento: string, puntaje: number): Promise<ResultadoServidor>
   misPuntajes(): Promise<Record<string, number>>
@@ -197,6 +225,8 @@ export interface PuertoSalas {
   /** Si el rival se desconectó, el servidor puede darte la victoria (lo valida con los tiempos guardados). */
   reclamarAbandono(codigo: string): Promise<ResultadoDuelo>
   /** Resultado OFICIAL de una ronda de sala, calculado por el servidor con los intentos guardados. */
+  /** Puntaje acumulado de todas las dinámicas de la sala. */
+  totalSala(codigo: string): Promise<FilaTotalSala[]>
   resultadoSala(codigo: string, reto: string, desde: string): Promise<FilaSala[]>
   /**
    * `avanceEnVivo`: recibir el avance de cada jugador al instante (el anfitrión y los duelos).

@@ -6,7 +6,7 @@ import { Campamento } from '../pixel/Campamento'
 import { PixelAvatar } from '../pixel/PixelAvatar'
 import { PELOS, PIELES } from '../pixel/dibujo'
 import type { AvatarConfig } from '../../application/puertos'
-import { ORDEN_CLASES, esAdulto, esGuiaMayor, type ClaseId, type Rango } from '../../domain/tipos'
+import { ANIOS_MINIMOS, ORDEN_CLASES, aniosValidos, esAdulto, esGuiaMayor, type ClaseId, type Rango } from '../../domain/tipos'
 import { FUNCIONES, NOMBRE_CLASE } from '../../domain/uniformes'
 import { CARGOS_ADULTO, galonDeCargo } from '../../application/uniformeJugador'
 
@@ -75,16 +75,18 @@ export default function Editor() {
 
   const guardar = async () => {
     setGuardando(true)
+    // Años de servicio siempre coherentes con el nivel de liderazgo (mín. 2; Máster 4; Máster Avanzado 7)
+    const final: AvatarConfig = adulto ? { ...a, uniforme: { ...a.uniforme, anios: aniosValidos(rango, a.uniforme?.anios) } } : a
     try {
       if (rango !== perfil.rango && puedeRango) await repo.cambiarRango(rango)
-      await repo.guardarAvatar(a)
+      await repo.guardarAvatar(final)
     } catch (e) {
       // Antes este error se ignoraba y el personaje quedaba vacío en el servidor: ahora se avisa y no se sale
       setAviso(`No se pudo guardar tu personaje: ${mensajeError(e)}`)
       setGuardando(false)
       return
     }
-    setPerfil({ ...perfil, avatar: a, rango, grupo_edad: practica ? (rango === 'conquistador' ? 'menor' : 'adulto') : perfil.grupo_edad })
+    setPerfil({ ...perfil, avatar: final, rango, grupo_edad: practica ? (rango === 'conquistador' ? 'menor' : 'adulto') : perfil.grupo_edad })
     setGuardando(false)
     ir('mapa')
   }
@@ -125,7 +127,7 @@ export default function Editor() {
           </>) : (<>
             {puedeRango && (
               <div className="opcion">
-                <span>Rango</span>
+                <span>Nivel de liderazgo</span>
                 <div className="chips">{rangos.map(([r, n]) => <button key={r} className={rango === r ? 'on' : ''} onClick={() => setRango(r)}>{n}</button>)}</div>
               </div>
             )}
@@ -161,7 +163,8 @@ export default function Editor() {
             {adulto && (
               <div className="opcion">
                 <span>Años de servicio (estrella)</span>
-                <div className="chips">{[1, 2, 3, 4, 5, 10, 15, 20].map(n => <button key={n} className={(u.anios ?? 1) === n ? 'on' : ''} onClick={() => setU({ anios: n })}>{n}</button>)}</div>
+                <div className="chips">{[2, 3, 4, 5, 7, 10, 15, 20, 25].filter(n => n >= ANIOS_MINIMOS[rango]).map(n => <button key={n} className={aniosValidos(rango, u.anios) === n ? 'on' : ''} onClick={() => setU({ anios: n })}>{n}</button>)}</div>
+                {ANIOS_MINIMOS[rango] > 2 && <small className="nota">{rango === 'gm_master' ? 'Un Máster tiene como mínimo 4 años de servicio.' : 'Un Máster Avanzado tiene como mínimo 7 años de servicio.'}</small>}
               </div>
             )}
             <div className="opcion">

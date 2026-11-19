@@ -1401,3 +1401,40 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
 .intro-carga { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .boton-instalar { font-size: 1rem; }
 .ayuda-instalar ol { text-align: left; margin: 8px 0; padding-left: 22px; display: grid; gap: 6px; }
+/* Ordenar: en la fila de investidura aparece el logo de cada clase */
+.fila-investidura .hueco.con-logo { background: transparent; border-color: transparent; padding: 0; animation: pop .35s cubic-bezier(.2,1.6,.4,1) both; }
+.fila-investidura .hueco.con-logo svg, .fila-investidura .hueco.con-logo img { display: block; filter: drop-shadow(1px 2px 0 rgba(30,20,12,.5)); }
+
+/* ---- Vidas ---- */
+.corazon { display: inline-block; width: 22px; height: 20px; background: #E8283A; flex: none;
+  clip-path: path('M11 19 L2.5 10.5 Q-1 6.5 2.5 2.8 Q6.5 -0.8 11 4 Q15.5 -0.8 19.5 2.8 Q23 6.5 19.5 10.5 Z'); filter: drop-shadow(0 0 0 #000); }
+.corazon.vacio { background: #8E8678; opacity: .55; }
+.hud-vidas { display: flex; align-items: center; gap: 5px; flex: none; position: relative; padding: 6px 10px; background: var(--papel); color: var(--ink); border: var(--borde); border-radius: 99px; box-shadow: 3px 4px 0 var(--ink); font: inherit; cursor: pointer; }
+.hud-vidas b { font-family: var(--titulo); font-weight: 400; font-size: 1.2rem; line-height: 1; }
+.hud-vidas small { position: absolute; left: 50%; bottom: -15px; translate: -50% 0; white-space: nowrap; font-weight: 900; font-size: .62rem; background: var(--ink); color: #fff; padding: 0 5px; border-radius: 6px; }
+.hud-vidas.vacias { animation: latido 1.2s ease-in-out infinite; }
+.hud-vidas.vacias .corazon { background: #8E8678; }
+.fila-corazones { display: flex; justify-content: center; gap: 6px; margin: 4px 0 10px; }
+.fila-corazones .corazon { width: 30px; height: 27px; clip-path: path('M15 26 L3.4 14.3 Q-1.4 8.9 3.4 3.8 Q8.9 -1.1 15 5.4 Q21.1 -1.1 26.6 3.8 Q31.4 8.9 26.6 14.3 Z'); }
+.ayuda-vidas ul { text-align: left; margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; }
+.nota-vidas { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: rgba(232,40,58,.1); border: 2px dashed #E8283A; font-weight: 800; font-size: .88rem; }
+.nota-vidas.gratis { background: rgba(72,207,124,.14); border-color: #2FB463; }
+.fin-vidas { margin: 8px auto 0; display: inline-flex; align-items: center; gap: 8px; font-weight: 900; padding: 5px 12px; border-radius: 10px; background: rgba(255,255,255,.12); }
+.fin-vidas.pierde { background: rgba(232,40,58,.22); }
+.fin-vidas.gana { background: rgba(72,207,124,.25); animation: pop .4s cubic-bezier(.2,1.6,.4,1) 1.2s both; }
+
+/* Plan de dinámicas de la sala */
+.plan-lista { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
+.plan-lista li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: var(--papel); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 10px; }
+.plan-lista li.hecha { opacity: .55; }
+.plan-lista li.siguiente { background: var(--oro); }
+.plan-lista .pos { font-family: var(--titulo); font-size: 1.2rem; width: 22px; text-align: center; }
+.plan-lista .quien { flex: 1; display: flex; flex-direction: column; }
+.plan-lista .quien small { font-size: .72rem; font-weight: 800; }
+.plan-lista .quitar { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--ink); background: var(--rojo); color: #fff; font-weight: 900; padding: 0; line-height: 1; }
+.plan-agregar { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.plan-agregar .campo-select { flex: 1 1 220px; }
+.total-sala { border-color: var(--oro); }
+.aviso-sala-invitado { display: block; width: 100%; margin: 0 0 10px; padding: 8px 12px; border: 2px dashed var(--oro); border-radius: 10px; background: rgba(255,194,14,.15); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fin-invitado { text-align: center; }
+.fila-investidura .hueco.con-logo { overflow: visible; }

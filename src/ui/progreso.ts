@@ -3,7 +3,7 @@ import { cumplirHoy, rachaVigente, retoDelDia, type Racha } from '../domain/diar
 import { logrosGanados } from '../domain/logros'
 import { totalMedallas, type MedallaId } from '../domain/medallas'
 import { MUNDO_UNIFORMES } from '../domain/niveles'
-import type { Estadisticas } from '../application/puertos'
+import type { Estadisticas, Vidas } from '../application/puertos'
 import { useJuego } from './estado'
 
 let silencioHasta = 0
@@ -20,6 +20,11 @@ interface Progreso {
   stats: Estadisticas | null
   /** Medallas ganadas por nivel (en este dispositivo). */
   medallas: Record<string, MedallaId[]>
+  /** Vidas del servidor y el momento en que se leyeron (para la cuenta regresiva). null = sin límite. */
+  vidas: Vidas | null
+  vidasEn: number
+  cargarVidas: () => Promise<void>
+  setVidas: (v: Vidas | null | undefined) => void
   /** Guarda las medallas de una partida y devuelve las que son nuevas. */
   ganarMedallas: (nivelId: string, ids: MedallaId[]) => MedallaId[]
   cargar: (perfilId: string) => void
@@ -39,6 +44,10 @@ export const useProgreso = create<Progreso>((set, get) => ({
   nuevos: [],
   stats: null,
   medallas: {},
+  vidas: null,
+  vidasEn: 0,
+  cargarVidas: async () => { try { get().setVidas(await useJuego.getState().repo.vidas()) } catch { /* sin conexión */ } },
+  setVidas: v => { if (v !== undefined) set({ vidas: v, vidasEn: Date.now() }) },
   ganarMedallas: (nivelId, ids) => {
     const { duenio, medallas } = get()
     const antes = medallas[nivelId] ?? []
@@ -58,6 +67,7 @@ export const useProgreso = create<Progreso>((set, get) => ({
     // (mientras llegan sus puntajes y estadísticas), sin anunciarlos uno por uno
     silencioHasta = guardados ? 0 : Date.now() + 5000
     useJuego.getState().repo.estadisticas().then(stats => { set({ stats }); get().evaluar() }).catch(() => get().evaluar())
+    set({ vidas: null }); void get().cargarVidas()
   },
   cumplirDiario: () => {
     const { duenio, racha } = get()
@@ -111,3 +121,6 @@ useJuego.subscribe((s, prev) => {
   // Al salir de una sala o duelo, se actualizan las estadísticas (duelos ganados, salas jugadas)
   if (prev.sala && !s.sala) useProgreso.getState().refrescarStats()
 })
+
+// Solo en desarrollo: las pruebas automáticas pueden simular vidas y medallas
+if (import.meta.env.DEV) (window as unknown as { __progreso: typeof useProgreso }).__progreso = useProgreso

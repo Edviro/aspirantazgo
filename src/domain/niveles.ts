@@ -54,7 +54,7 @@ export const MUNDO_UNIFORMES = {
       intro: '¡Hoy es la ceremonia! Arrastra cada pieza a su lugar. Ojo: hay piezas que NO van en el uniforme de un Conquistador.',
       objetivo: (n, c) => sinAccesorios(uniformeCorrecto(perfilDemo('conquistador', n, c))),
       caso: rnd => perfilAleatorio('conquistador', rnd), filtroCaso: c => c.pieza.tipo !== 'correa',
-      distractores: [pieza.estrella(1), pieza.tiraCargo('DIRECTOR')],
+      distractores: [pieza.estrella(2), pieza.tiraCargo('DIRECTOR')],
       trampasLeyenda: [pieza.divisa('guia_mayor', 2), pieza.liderazgo('gm')],
     },
     {
@@ -96,7 +96,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'taller', rango: 'conquistador', paneles: ['banda'], parSeg: 35, npc: 'nudo',
       intro: 'La banda va del hombro derecho a la cadera izquierda. Pon la bandera a 6 cm de la costura y luego tus especialidades.',
       objetivo: () => bandaCorrecta(4),
-      distractores: [pieza.estrella(1)],
+      distractores: [pieza.estrella(2)],
       trampasLeyenda: [pieza.c1()],
     },
     {
@@ -130,7 +130,7 @@ export const MUNDO_UNIFORMES = {
       tipo: 'taller', rango: 'conquistador', paneles: ['banderin'], parSeg: 35, npc: 'nudo',
       intro: 'Cada unidad lleva su banderín. Arma el tuyo con las medidas del manual.',
       objetivo: (_n, c, u) => banderinCorrecto(c, u || 'HALCONES'),
-      trampasLeyenda: [pieza.estrella(1)],
+      trampasLeyenda: [pieza.estrella(2)],
     },
     {
       id: 'u08-lider', num: 12, titulo: 'Uniforme de líder', subtitulo: 'Directivo que todavía no es Guía Mayor',

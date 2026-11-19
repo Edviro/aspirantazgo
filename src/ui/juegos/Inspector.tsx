@@ -21,6 +21,8 @@ export function Inspector({ nivel, base, fijas = [], rango, dificultad, semilla,
     () => sembrarErrores(base, rango, Math.max(2, (nivel.errores ?? 4) + reglas.erroresExtra), semilla ? azar(semilla + 7) : Math.random),
     [base, rango, nivel.errores, reglas.erroresExtra, semilla])
   const [hallados, setHallados] = useState<Set<number>>(new Set())
+  // Solo se marca con ✗ la pieza que TÚ tocaste (antes, al encontrar un intercambio, se marcaba también la otra pieza sola)
+  const [tocadas, setTocadas] = useState<Set<number>>(new Set())
   const [fallos, setFallos] = useState(0)
   const [marcasMal, setMarcasMal] = useState<number[]>([])
   const [toast, setToast] = useState<{ t: string; k: 'bien' | 'mal'; n: number } | null>(null)
@@ -53,7 +55,9 @@ export function Inspector({ nivel, base, fijas = [], rango, dificultad, semilla,
     if (fin.current) return
     const e = errores.findIndex(er => er.indices.includes(i))
     if (e >= 0) {
-      if (hallados.has(e)) return
+      if (tocadas.has(i)) return
+      setTocadas(t => new Set(t).add(i))
+      if (hallados.has(e)) { sfx.bien(); return }
       const h = new Set(hallados).add(e)
       setHallados(h)
       useJuego.getState().reportarProgreso(h.size / errores.length)
@@ -69,7 +73,7 @@ export function Inspector({ nivel, base, fijas = [], rango, dificultad, semilla,
     }
   }
 
-  const piezasMal = new Set(errores.flatMap((e, k) => (hallados.has(k) ? e.indices : [])))
+  const piezasMal = tocadas
 
   return (
     <div className="taller inspector">

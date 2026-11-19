@@ -43,8 +43,8 @@ export function dibujarAvatar(ctx: CanvasRenderingContext2D, o: Opts) {
   const piel = PIELES[o.piel ?? 2] ?? PIELES[2]
   const pelo = PELOS[o.pelo ?? 0] ?? PELOS[0]
   const camisa = o.adulto ? C.blanca : C.caqui, camisaS = o.adulto ? C.blancaS : C.caquiS
-  // Departamental: saco negro sobre camisa blanca (Manual, uniforme del departamental)
-  const tela = o.blazer ? '#26262E' : camisa, telaS = o.blazer ? '#17171D' : camisaS
+  // Departamental: saco verde petróleo sobre camisa blanca (uniforme del departamental)
+  const tela = o.blazer ? '#0F4A47' : camisa, telaS = o.blazer ? '#0A3533' : camisaS
   const chica = o.genero === 'f'
   const estilo = o.peinado ?? 0
 
@@ -63,14 +63,14 @@ export function dibujarAvatar(ctx: CanvasRenderingContext2D, o: Opts) {
   if (o.blazer) {
     // camisa blanca en V entre las solapas, botones dorados
     for (let i = 0; i < 6; i++) px(21 + Math.floor(i / 2), 28 + i, 6 - 2 * Math.floor(i / 2), 1, C.blanca)
-    px(20, 28, 1, 7, '#3A3A44'); px(27, 28, 1, 7, '#3A3A44')
+    px(20, 28, 1, 7, '#16605C'); px(27, 28, 1, 7, '#16605C')
     px(23, 36, 2, 1, C.oro); px(23, 39, 2, 1, C.oro)
   } else {
     for (let i = 0; i < 3; i++) px(23, 30 + i * 4, 2, 2, camisaS)
   }
   // bolsillos con tapa
-  px(16, 33, 7, 6, telaS); px(17, 35, 5, 3, tela); px(16, 33, 7, 1, o.blazer ? '#3A3A44' : camisaS)
-  px(26, 33, 7, 6, telaS); px(27, 35, 5, 3, tela); px(26, 33, 7, 1, o.blazer ? '#3A3A44' : camisaS)
+  px(16, 33, 7, 6, telaS); px(17, 35, 5, 3, tela); px(16, 33, 7, 1, o.blazer ? '#16605C' : camisaS)
+  px(26, 33, 7, 6, telaS); px(27, 35, 5, 3, tela); px(26, 33, 7, 1, o.blazer ? '#16605C' : camisaS)
   // tira del nombre (sobre el bolsillo derecho de quien lo usa = izquierda en pantalla)
   px(16, 31, 7, 1, o.adulto ? '#FFFFFF' : '#EBDDB5')
   // botones de clases regulares (sobre el bolsillo izquierdo de quien lo usa)
@@ -136,7 +136,7 @@ export function dibujarMini(ctx: CanvasRenderingContext2D, o: Opts, paso = 0) {
     p(3, 3, 8, 5, piel)
     p(2, 3, 1, chica || (o.peinado ?? 0) >= 3 ? 7 : 3, pelo); p(11, 3, 1, chica || (o.peinado ?? 0) >= 3 ? 7 : 3, pelo)
     p(5, 5, 1, 1, C.out); p(8, 5, 1, 1, C.out); p(6, 7, 2, 1, '#c0504a')
-    const tela = o.blazer ? '#26262E' : camisa, telaS = o.blazer ? '#17171D' : sombra
+    const tela = o.blazer ? '#0F4A47' : camisa, telaS = o.blazer ? '#0A3533' : sombra
     p(3, 8, 8, 6, tela); p(3, 8, 1, 6, telaS); p(10, 8, 1, 6, telaS); if (o.blazer) p(6, 8, 2, 3, C.blanca)
     p(2, 8, 1, 5, telaS); p(11, 8, 1, 5, telaS); p(2, 13, 1, 1, piel); p(11, 13, 1, 1, piel)
     if (o.panoleta) { p(5, 8, 4, 1, C.panoleta); p(6, 9, 2, 2, C.panoleta); if (o.gm) { p(5, 8, 1, 1, C.bordeGM); p(8, 8, 1, 1, C.bordeGM) } }
