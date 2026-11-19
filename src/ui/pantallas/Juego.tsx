@@ -125,7 +125,7 @@ export default function Juego() {
         {fase !== 'intro' && nivel.tipo === 'memoria' && <Memoria {...props} />}
       </main>
 
-      {fase === 'jugando' && nivel.tipo !== 'ceremonia' && <CapaEmocion key={ronda} />}
+      {fase === 'jugando' && nivel.tipo !== 'ceremonia' && <CapaEmocion key={'emocion-' + ronda} />}
 
       {fase === 'intro' && (
         <Dialogo npc={nivel.npc} titulo={nivel.titulo} accion={desafio ? '¡Al desafío!' : '¡A practicar!'} onAccion={empezar}
