@@ -25,12 +25,16 @@ const vibrar = (p: number | number[]) => { try { navigator.vibrate?.(p) } catch 
 // ---- Emoción: cada acierto/error avisa a la capa visual (combo, chispas, sacudida) ----
 export type Emocion = 'bien' | 'perfecto' | 'mal'
 const oyentes = new Set<(e: Emocion, combo: number) => void>()
-let combo = 0
+let combo = 0, comboMax = 0, fallos = 0
 /** Escucha aciertos y errores; devuelve la función para dejar de escuchar. */
 export function alEmocion(f: (e: Emocion, combo: number) => void) { oyentes.add(f); return () => { oyentes.delete(f) } }
-export const reiniciarCombo = () => { combo = 0 }
+export const reiniciarCombo = () => { combo = 0; comboMax = 0; fallos = 0 }
+/** Mejor racha de aciertos y fallos de la partida actual (para las medallas). */
+export const rachaDePartida = () => ({ comboMax, fallos })
 function emitir(e: Emocion) {
   combo = e === 'mal' ? 0 : combo + 1
+  comboMax = Math.max(comboMax, combo)
+  if (e === 'mal') fallos++
   oyentes.forEach(f => { try { f(e, combo) } catch { /* */ } })
 }
 /** Con cada acierto seguido, el sonido sube un poquito de tono (como en los juegos de arcade). */

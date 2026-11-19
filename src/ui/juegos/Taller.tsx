@@ -61,8 +61,8 @@ const RAYOS = Array.from({ length: 28 }, (_, k) => {
   return `${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`
 }).join(' ')
 
-export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin }: {
-  nivel: Nivel; slots: Colocacion[]; blanca: boolean; desafio: boolean; dificultad: Dificultad; caso?: string[]; onFin: (factores: number[], errores: number) => void
+export function Taller({ nivel, slots, fijas = [], blanca, desafio, dificultad, caso, onFin }: {
+  nivel: Nivel; slots: Colocacion[]; fijas?: Colocacion[]; blanca: boolean; desafio: boolean; dificultad: Dificultad; caso?: string[]; onFin: (factores: number[], errores: number) => void
 }) {
   const reglas = DIFICULTADES[dificultad]
   const pistas = !desafio || reglas.pistas
@@ -301,6 +301,7 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
       <Tablero paneles={visibles} onPanelClick={clicPanel} render={p => (
         <>
           <PanelFondo panel={p} blanca={blanca} regla={false} numeros={false} />
+          {fijas.filter(f => f.panel === p).map((f, i) => <g key={'fija' + i} transform={`translate(${f.x},${f.y})`} className="pieza-fija" aria-hidden><PiezaSVG p={f.pieza} /></g>)}
           {(() => {
             // Cuadritos amarillos SIEMPRE visibles: marcan dónde va cada pieza (así no se adivina ni se falla por poco).
             // En práctica, además, cada cuadrito muestra en fantasma QUÉ pieza va ahí.

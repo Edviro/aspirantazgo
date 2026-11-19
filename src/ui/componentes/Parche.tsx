@@ -16,6 +16,7 @@ function Glifo({ f }: { f: Figura }) {
     case 'tienda': return <path {...p} d="M22 74 L50 26 L78 74 Z M50 26 L50 74 M42 74 L50 56 L58 74" />
     case 'trofeo': return <path {...p} d="M36 26 L64 26 L62 46 Q50 58 38 46 Z M36 30 Q24 30 28 42 Q30 48 38 46 M64 30 Q76 30 72 42 Q70 48 62 46 M50 54 L50 64 M38 72 L62 72 L60 64 L40 64 Z" />
     case 'panoleta': return <path {...p} d="M24 30 L76 30 L50 74 Z M44 44 L56 44 L50 58 Z" />
+    case 'medalla': return <g {...p}><path d="M38 22 L46 44 M62 22 L54 44" strokeWidth={7} stroke={TINTA} /><path d="M38 22 L46 44 M62 22 L54 44" strokeWidth={3.5} stroke="#D7242F" /><circle cx="50" cy="58" r="18" /><polygon points="50,47 53,55 61,55 55,60 57,68 50,63 43,68 45,60 39,55 47,55" fill="#FFC20E" strokeWidth={1.5} /></g>
     case 'rayo': return <polygon {...p} points="56,20 32,54 48,54 42,80 70,42 54,42" />
   }
 }

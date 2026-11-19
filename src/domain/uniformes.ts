@@ -158,7 +158,8 @@ export function uniformeCorrecto(u: PerfilUniforme): Colocacion[] {
   }
 
   // ---- Accesorios ----
-  add(pieza.panoleta(gm), 'pecho', 25, 8.2, 'zona', gm
+  // La pañoleta se recibe con la primera investidura (clase de Amigo): sin clases todavía no se usa.
+  if (adulto || u.clasesRegulares.length > 0) add(pieza.panoleta(gm), 'pecho', 25, 8.2, 'zona', gm
     ? 'Pañoleta de Guía Mayor (borde rojo, emblema LC1), solo después de la investidura.'
     : 'Pañoleta oficial amarilla con el emblema C2, sujeta con el sujetador.')
   add(pieza.correa(), 'pecho', 25, 39.5, 'zona', 'Correa verde petróleo con hebilla del emblema C3.')

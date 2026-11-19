@@ -12,8 +12,8 @@ import { Tablero } from './Tablero'
 import { sfx } from '../sonido'
 
 
-export function Inspector({ nivel, base, rango, dificultad, semilla, onFin }: {
-  nivel: Nivel; base: Colocacion[]; rango: Rango; dificultad: Dificultad; semilla: number | null; onFin: (factores: number[], errores: number) => void
+export function Inspector({ nivel, base, fijas = [], rango, dificultad, semilla, onFin }: {
+  nivel: Nivel; base: Colocacion[]; fijas?: Colocacion[]; rango: Rango; dificultad: Dificultad; semilla: number | null; onFin: (factores: number[], errores: number) => void
 }) {
   const reglas = DIFICULTADES[dificultad]
   const LIMITE = Math.round(75 * reglas.tiempo)
@@ -87,6 +87,7 @@ export function Inspector({ nivel, base, rango, dificultad, semilla, onFin }: {
       <Tablero paneles={visibles} render={p => (
         <>
           <PanelFondo panel={p} blanca={esAdulto(rango)} regla={false} />
+          {fijas.filter(f => f.panel === p).map((f, i) => <g key={'fija' + i} transform={`translate(${f.x},${f.y})`} className="pieza-fija" aria-hidden><PiezaSVG p={f.pieza} /></g>)}
           {uniforme.map((c, i) => c.panel !== p ? null : (
             <g key={i} transform={`translate(${c.x},${c.y})`} className={`tocable ${marcasMal.includes(i) ? 'tiembla' : ''}`}
               onPointerDown={e => { e.stopPropagation(); tocar(i) }}>

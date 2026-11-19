@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { musica } from '../musica'
 import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
 import { useProgreso } from '../progreso'
+import { MEDALLAS } from '../../domain/medallas'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
 import { MUNDOS_JUGABLES } from '../../domain/niveles'
 import { APROBADO, estrellasDeMejor } from '../../domain/puntuacion'
@@ -51,9 +52,11 @@ export default function Mapa() {
     return { estados, estrellas, actual }
   }, [niveles, puntajes])
 
+  const medallas = useProgreso(s => s.medallas)
   if (!perfil) return null
   const total = Object.values(puntajes).reduce((a, b) => a + b, 0)
   const nivelSel = sel !== null ? niveles[sel] : null
+  const medallasMundo = niveles.reduce((n, nv) => n + (medallas[nv.id]?.length ?? 0), 0)
   const puedeSalas = !!repo.salas
   const reto = retoDelDia()
   const hechoHoy = rachaObj.ultimo === reto.fecha
@@ -103,7 +106,7 @@ export default function Mapa() {
 
       <div className="mapa-titulo">
         <h1>{mundoActual.nombre}</h1>
-        <p>{estados.filter(e => e === 'hecho').length} de {niveles.length} niveles superados</p>
+        <p>{estados.filter(e => e === 'hecho').length} de {niveles.length} niveles superados · 🏅 {medallasMundo}/{niveles.length * 3}</p>
         {MUNDOS_JUGABLES.length > 1 && <div className="islas" role="tablist" aria-label="Islas">
           {MUNDOS_JUGABLES.map(m => (
             <button key={m.id} role="tab" aria-selected={m.id === mundoActual.id} className={m.id === mundoActual.id ? 'on' : ''}
@@ -162,6 +165,11 @@ export default function Mapa() {
           <h2>{nivelSel.titulo}</h2>
           <p className="hoja-sub">{nivelSel.subtitulo}</p>
           <Estrellas n={estrellas[sel]} />
+          {nivelSel.tipo !== 'ceremonia' && (
+            <div className="medallas-mini" aria-label={`Medallas: ${medallas[nivelSel.id]?.length ?? 0} de 3`}>
+              {MEDALLAS.map(m => <span key={m.id} className={(medallas[nivelSel.id] ?? []).includes(m.id) ? 'tengo' : ''} title={`${m.nombre}: ${m.como}`}>{m.icono}</span>)}
+            </div>
+          )}
           <p className="hoja-mejor">{puntajes[nivelSel.id] ? <>Mejor puntaje: <b>{puntajes[nivelSel.id]}</b></> : 'Aún no lo juegas en desafío'}</p>
           {estados[sel] === 'bloqueado' ? (
             <p className="nota">Supera el nivel {sel} en desafío, con 400 puntos o más, para abrir este.</p>

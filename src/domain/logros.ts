@@ -9,9 +9,13 @@ export interface ContextoLogros {
   duelosGanados: number
   salas: number
   partidas: number
+  /** Medallas de nivel ganadas (sin errores, combo, leyenda). */
+  medallas?: number
+  /** Medallas ganadas solo en los niveles de la Isla del Uniforme. */
+  medallasIsla?: number
 }
 
-export type Figura = 'estrella' | 'escudo' | 'llama' | 'espadas' | 'corona' | 'manga' | 'carta' | 'brujula' | 'tienda' | 'trofeo' | 'panoleta' | 'rayo'
+export type Figura = 'medalla' | 'estrella' | 'escudo' | 'llama' | 'espadas' | 'corona' | 'manga' | 'carta' | 'brujula' | 'tienda' | 'trofeo' | 'panoleta' | 'rayo'
 
 export interface Logro { id: string; nombre: string; como: string; color: string; figura: Figura; cumple: (c: ContextoLogros) => boolean }
 
@@ -33,6 +37,8 @@ export const LOGROS: Logro[] = [
   { id: 'en-equipo', nombre: 'En equipo', como: 'Juega una sala en vivo con tu club.', color: '#5B3FA8', figura: 'tienda', cumple: c => c.salas >= 1 },
   { id: 'duelista', nombre: 'Duelista', como: 'Gana tu primer duelo.', color: '#C0392B', figura: 'espadas', cumple: c => c.duelosGanados >= 1 },
   { id: 'campeon', nombre: 'Campeón', como: 'Gana 10 duelos.', color: '#B8860B', figura: 'trofeo', cumple: c => c.duelosGanados >= 10 },
+  { id: 'medallas-10', nombre: 'Coleccionista', como: 'Gana 10 medallas de nivel.', color: '#0F7C8C', figura: 'medalla', cumple: c => (c.medallas ?? 0) >= 10 },
+  { id: 'medallas-todas', nombre: 'Inspector total', como: 'Gana las 3 medallas en todos los niveles de la isla.', color: '#B8860B', figura: 'medalla', cumple: c => (c.medallasIsla ?? 0) >= MUNDO_UNIFORMES.niveles.length * 3 },
   { id: 'veterano', nombre: 'Veterano', como: 'Termina 50 partidas.', color: '#4A5470', figura: 'panoleta', cumple: c => c.partidas >= 50 },
 ]
 

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MUNDO_UNIFORMES, mundoDeNivel, prepararNivel } from '../../domain/niveles'
-import { describirCaso } from '../../domain/uniformes'
+import { describirCaso, uniformeCorrecto } from '../../domain/uniformes'
 import { COMO_SE_JUEGA } from '../comoSeJuega'
 import { pausar, reanudar } from '../reloj'
 import { azar } from '../../domain/azar'
-import { esAdulto } from '../../domain/tipos'
+import { esAdulto, type Colocacion, type PerfilUniforme } from '../../domain/tipos'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { useJuego } from '../estado'
 import { Boton, Confeti, Dialogo, Estrellas } from '../componentes/Comunes'
@@ -19,7 +19,8 @@ import { Parejas } from '../juegos/Parejas'
 import { Ceremonia } from '../juegos/Ceremonia'
 import { Memoria } from '../juegos/Memoria'
 import { useReto, type FinReto } from '../juegos/useReto'
-import { sfx } from '../sonido'
+import { rachaDePartida, sfx } from '../sonido'
+import { MEDALLAS, medallasDePartida } from '../../domain/medallas'
 import { musica, pistaDeNivel } from '../musica'
 import { APROBADO } from '../../domain/puntuacion'
 import { esRetoDelDia, useProgreso } from '../progreso'
@@ -27,6 +28,15 @@ import { rachaVigente } from '../../domain/diario'
 import { IslaConquistada } from '../componentes/IslaConquistada'
 import { CapaEmocion } from '../componentes/CapaEmocion'
 import { CarreraMini } from '../componentes/CarreraMini'
+
+/**
+ * Piezas del uniforme del caso que este nivel NO pide armar pero que la persona ya lleva puestas
+ * (p. ej. la pañoleta: si tiene clases, la tiene). Se dibujan fijas para que la camisa sea realista.
+ */
+function fijasDe(p: { slots: Colocacion[]; caso: PerfilUniforme | null }): Colocacion[] {
+  if (!p.caso) return []
+  return uniformeCorrecto(p.caso).filter(c => c.pieza.tipo === 'panoleta' && !p.slots.some(s => s.pieza.tipo === 'panoleta'))
+}
 
 export default function Juego() {
   const { nivel, desafio, dificultad, semilla, perfil, ir, jugar, modo, sala } = useJuego()
@@ -75,10 +85,16 @@ export default function Juego() {
     const r = await reto.terminar(factores, errores)
     // Reto del día: si lo apruebas, suma a tu racha
     const diario = desafio && esRetoDelDia(nivel!.id, semilla) && r.resultado.estrellas >= 1 && useProgreso.getState().cumplirDiario()
-    setFin({ ...r, diario: diario ? rachaVigente(useProgreso.getState().racha) : undefined })
+    // Medallas del nivel (sin errores, combo, leyenda): solo en el desafío y aprobado
+    let medallas: FinReto['medallas']
+    if (nivel!.tipo !== 'ceremonia') {
+      const ganadas = medallasDePartida({ desafio, aprobado: r.resultado.estrellas >= 1, dificultad, errores: r.resultado.errores, comboMax: rachaDePartida().comboMax })
+      medallas = { ganadas, nuevas: useProgreso.getState().ganarMedallas(nivel!.id, ganadas) }
+    }
+    setFin({ ...r, diario: diario ? rachaVigente(useProgreso.getState().racha) : undefined, medallas })
     setFase('fin')
     if (r.resultado.estrellas >= 1) sfx.nivel(); else sfx.mal()
-  }, [reto, desafio, nivel, semilla])
+  }, [reto, desafio, nivel, semilla, dificultad])
 
   if (!nivel || !perfil) return null
   const siguiente = mundoDeNivel(nivel.id).niveles.find(n => n.num === nivel.num + 1)
@@ -113,8 +129,8 @@ export default function Juego() {
       {enSala && <CarreraMini />}
 
       <main className={`juego-zona ${pausado ? 'pausado' : ''}`} key={ronda} aria-hidden={pausado || undefined}>
-        {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} slots={partida!.slots} blanca={esAdulto(partida!.caso?.rango ?? nivel.rango)} desafio={desafio} dificultad={dificultad} caso={partida!.caso ? describirCaso(partida!.caso) : undefined} onFin={alTerminar} />}
-        {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} base={partida!.slots} rango={partida!.caso?.rango ?? nivel.rango} {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} slots={partida!.slots} fijas={fijasDe(partida!)} blanca={esAdulto(partida!.caso?.rango ?? nivel.rango)} desafio={desafio} dificultad={dificultad} caso={partida!.caso ? describirCaso(partida!.caso) : undefined} onFin={alTerminar} />}
+        {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} base={partida!.slots} fijas={fijasDe(partida!)} rango={partida!.caso?.rango ?? nivel.rango} {...props} />}
         {fase !== 'intro' && nivel.tipo === 'quiz' && <Quiz {...props} banco={nivel.banco} imagen={nivel.imagen} segPregunta={nivel.id === 'a08-palabra' ? (desafio ? 40 : 90) : undefined} />}
         {fase !== 'intro' && nivel.tipo === 'vf' && <VerdaderoFalso {...props} banco={nivel.vf} />}
         {fase !== 'intro' && nivel.tipo === 'frase' && nivel.rondas && <Frase rondas={nivel.rondas} {...props} />}
@@ -142,6 +158,7 @@ export default function Juego() {
             </div>
           )}
           {nivel.tipo === 'taller' && <p className="nota">{desafio ? 'Desafío: sin medidas ni pistas de qué va dónde. Cuentan los aciertos, el tiempo y los errores.' : 'Práctica: cada cuadrito te muestra qué pieza va y verás las medidas del manual.'}</p>}
+          {nivel.tipo !== 'ceremonia' && <MetasNivel nivelId={nivel.id} />}
           {desafio && <p className="nota">Dificultad {reglas.nombre}: {reglas.descripcion}</p>}
           {desafio && modo === 'practica' && <p className="nota">Sin cuenta, tu puntaje se guarda solo en este dispositivo.</p>}
         </Dialogo>
@@ -167,7 +184,7 @@ export default function Juego() {
       )}
 
       {fase === 'fin' && fin && (
-        <FinNivel fin={fin} desafio={desafio} enSala={enSala} multiplicador={reglas.multiplicador} nombreDif={reglas.nombre}
+        <FinNivel fin={fin} nivelId={nivel.id} record={desafio && antes.current > 0 && fin.resultado.puntaje > antes.current ? antes.current : null} desafio={desafio} enSala={enSala} multiplicador={reglas.multiplicador} nombreDif={reglas.nombre}
           desbloqueado={desafio && !!siguiente && antes.current < APROBADO && puntajeNivel >= APROBADO ? siguiente.titulo : null}
           numSiguiente={siguiente?.num}
           onMapa={() => ir('mapa')} onSala={() => ir('sala')} onRepetir={repetir}
@@ -191,8 +208,8 @@ function useContador(meta: number, ms = 1100) {
 }
 
 /** Pantalla de fin de nivel: titular de cómic, estrellas una a una, puntaje que sube y desbloqueo del siguiente nivel. */
-function FinNivel({ fin, desafio, enSala, multiplicador, nombreDif, desbloqueado, numSiguiente, onMapa, onSala, onRepetir, onDesafio, onSiguiente }: {
-  fin: FinReto; desafio: boolean; enSala: boolean; multiplicador: number; nombreDif: string; desbloqueado: string | null; numSiguiente?: number
+function FinNivel({ fin, nivelId, record, desafio, enSala, multiplicador, nombreDif, desbloqueado, numSiguiente, onMapa, onSala, onRepetir, onDesafio, onSiguiente }: {
+  fin: FinReto; nivelId: string; record: number | null; desafio: boolean; enSala: boolean; multiplicador: number; nombreDif: string; desbloqueado: string | null; numSiguiente?: number
   onMapa: () => void; onSala: () => void; onRepetir: () => void; onDesafio?: () => void; onSiguiente?: () => void
 }) {
   const r = fin.resultado
@@ -212,12 +229,14 @@ function FinNivel({ fin, desafio, enSala, multiplicador, nombreDif, desbloqueado
         <div className="fin-titular"><span>{titular}</span></div>
         <p className="fin-sub">{sub}</p>
         <Estrellas n={r.estrellas} grande />
+        {record !== null && <div className="nuevo-record" aria-label={`Nuevo récord, antes ${record}`}><b>¡Nuevo récord!</b><small>antes {record}</small></div>}
         <div className="resultado-puntos"><span>{puntos}</span><small>puntos{desafio && multiplicador !== 1 ? ` (x${String(multiplicador).replace('.', ',')} por ${nombreDif})` : ''}</small></div>
         <div className="resultado-datos">
           <div><b>{Math.round(r.precision * 100)}%</b><small>precisión</small></div>
           <div><b>{r.errores}</b><small>errores</small></div>
           <div><b>{Math.round(r.segundos)}s</b><small>tiempo</small></div>
         </div>
+        {fin.medallas && desafio && <MedallasFin m={fin.medallas} nivelId={nivelId} />}
         {fin.diario !== undefined && (
           <div className="fin-desbloqueo fin-diario"><b>¡Reto del día cumplido!</b><span>Racha: {fin.diario} {fin.diario === 1 ? 'día' : 'días'} seguidos</span></div>
         )}
@@ -238,6 +257,52 @@ function FinNivel({ fin, desafio, enSala, multiplicador, nombreDif, desbloqueado
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Las 3 medallas del nivel en la introducción: las que ya tienes brillan, las que faltan son tu meta. */
+function MetasNivel({ nivelId }: { nivelId: string }) {
+  const todas = useProgreso(s => s.medallas)
+  const tengo = todas[nivelId] ?? []
+  return (
+    <div className="metas-nivel">
+      <b>Medallas de este nivel <small>{tengo.length}/3</small></b>
+      <ul>
+        {MEDALLAS.map(m => (
+          <li key={m.id} className={tengo.includes(m.id) ? 'tengo' : ''} style={{ ['--c' as string]: m.color }}>
+            <span className="medalla-ico" aria-hidden>{m.icono}</span>
+            <span><strong>{m.nombre}</strong><small>{m.como}</small></span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** Al terminar: las medallas aparecen una por una; las nuevas caen con sello y sonido. */
+function MedallasFin({ m, nivelId }: { m: NonNullable<FinReto['medallas']>; nivelId: string }) {
+  const tengo = useProgreso(s => s.medallas)
+  const delNivel = tengo[nivelId] ?? []
+  useEffect(() => {
+    const ts = m.nuevas.map((_, i) => setTimeout(() => sfx.racha(), 1300 + i * 450))
+    return () => ts.forEach(clearTimeout)
+  }, [m.nuevas])
+  const total = Object.values(tengo).reduce((n, l) => n + l.length, 0)
+  return (
+    <div className="medallas-fin">
+      {MEDALLAS.map((d, i) => {
+        const gano = m.ganadas.includes(d.id) || delNivel.includes(d.id), nueva = m.nuevas.includes(d.id)
+        return (
+          <div key={d.id} className={`medalla-fin ${gano ? 'gano' : ''} ${nueva ? 'nueva' : ''}`} style={{ ['--c' as string]: d.color, animationDelay: `${1.1 + i * 0.45}s` }} title={d.como}>
+            <span className="medalla-ico" aria-hidden>{d.icono}</span>
+            <small>{d.nombre}</small>
+            {nueva && <em>¡Nueva!</em>}
+          </div>
+        )
+      })}
+      {m.nuevas.length > 0 && <p className="medallas-total">Llevas <b>{total}</b> medallas. ¡Colecciónalas todas!</p>}
+      {m.nuevas.length === 0 && delNivel.length < 3 && <p className="medallas-total">Próxima medalla: {MEDALLAS.find(d => !delNivel.includes(d.id))?.como}</p>}
     </div>
   )
 }

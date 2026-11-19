@@ -10,6 +10,27 @@ function centrado(ctx: CanvasRenderingContext2D, t: string, y: number, max: numb
   ctx.fillText(t, ctx.canvas.width / 2, y)
 }
 
+/** Sello dorado tipo roseta con cintas: "Isla del Uniforme · Aprobado". */
+function sello(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.save(); ctx.translate(x, y)
+  // Cintas
+  for (const lado of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(lado * 18, 40); ctx.lineTo(lado * 62, 150); ctx.lineTo(lado * 40, 138); ctx.lineTo(lado * 30, 162); ctx.lineTo(lado * -6, 52); ctx.closePath()
+    ctx.fillStyle = lado < 0 ? '#D7242F' : '#B3141E'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = TINTA; ctx.stroke()
+  }
+  // Roseta festoneada
+  ctx.beginPath()
+  for (let i = 0; i <= 48; i++) { const a = (i / 48) * Math.PI * 2, r = i % 2 ? 92 : 102; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) }
+  ctx.closePath(); ctx.fillStyle = '#F2B90F'; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = TINTA; ctx.stroke()
+  ctx.beginPath(); ctx.arc(0, 0, 76, 0, Math.PI * 2); ctx.fillStyle = '#FFD54A'; ctx.fill(); ctx.lineWidth = 3; ctx.stroke()
+  ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.arc(0, 0, 66, 0, Math.PI * 2); ctx.strokeStyle = '#9A6B00'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([])
+  ctx.fillStyle = TINTA; ctx.textAlign = 'center'
+  ctx.font = '22px Bangers, Impact, sans-serif'; ctx.fillText('ISLA DEL', 0, -24); ctx.fillText('UNIFORME', 0, 0)
+  ctx.font = '30px Bangers, Impact, sans-serif'; ctx.fillStyle = '#B3141E'; ctx.fillText('APROBADO', 0, 34)
+  ctx.fillStyle = TINTA; ctx.font = '18px sans-serif'; ctx.fillText('★ ★ ★', 0, 56)
+  ctx.restore()
+}
+
 export interface DatosCertificado { nombre: string; club: string; campo?: string; fecha: string }
 
 /**
@@ -28,13 +49,12 @@ export async function dibujarCertificado(d: DatosCertificado): Promise<HTMLCanva
   ctx.strokeStyle = TINTA; ctx.lineWidth = 10; ctx.strokeRect(36, 36, 1528, 1058)
   ctx.strokeStyle = '#0E4B45'; ctx.lineWidth = 18; ctx.strokeRect(62, 62, 1476, 1006)
   ctx.setLineDash([14, 10]); ctx.strokeStyle = '#FFC20E'; ctx.lineWidth = 3; ctx.strokeRect(62, 62, 1476, 1006); ctx.setLineDash([])
-  // Emblemas
+  // Logo arriba (una sola vez) y sello dorado de la isla abajo a la derecha
   try {
-    const [logo, c1] = await Promise.all([cargar(asset('logo-alas')), cargar(asset('emblema-c1'))])
+    const logo = await cargar(asset('logo-alas'))
     ctx.drawImage(logo, 800 - 170, 96, 340, 340 * (logo.height / logo.width))
-    ctx.drawImage(c1, 140, 820, 150, 150 * (c1.height / c1.width))
-    ctx.drawImage(c1, 1310, 820, 150, 150 * (c1.height / c1.width))
-  } catch { /* sin imágenes, el certificado igual sale */ }
+  } catch { /* sin imagen, el certificado igual sale */ }
+  sello(ctx, 1360, 870)
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
   // Título con contorno de cómic
   ctx.font = '120px Bangers, Impact, sans-serif'

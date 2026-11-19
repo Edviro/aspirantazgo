@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { cumplirHoy, rachaVigente, retoDelDia, type Racha } from '../domain/diario'
 import { logrosGanados } from '../domain/logros'
+import { totalMedallas, type MedallaId } from '../domain/medallas'
+import { MUNDO_UNIFORMES } from '../domain/niveles'
 import type { Estadisticas } from '../application/puertos'
 import { useJuego } from './estado'
 
@@ -16,6 +18,10 @@ interface Progreso {
   /** Parches recién ganados que aún no se mostraron. */
   nuevos: string[]
   stats: Estadisticas | null
+  /** Medallas ganadas por nivel (en este dispositivo). */
+  medallas: Record<string, MedallaId[]>
+  /** Guarda las medallas de una partida y devuelve las que son nuevas. */
+  ganarMedallas: (nivelId: string, ids: MedallaId[]) => MedallaId[]
   cargar: (perfilId: string) => void
   cumplirDiario: () => boolean
   evaluar: () => void
@@ -32,10 +38,22 @@ export const useProgreso = create<Progreso>((set, get) => ({
   logros: [],
   nuevos: [],
   stats: null,
+  medallas: {},
+  ganarMedallas: (nivelId, ids) => {
+    const { duenio, medallas } = get()
+    const antes = medallas[nivelId] ?? []
+    const nuevas = ids.filter(m => !antes.includes(m))
+    if (!duenio || !nuevas.length) return nuevas
+    const todas = { ...medallas, [nivelId]: [...antes, ...nuevas] }
+    guardar(`asp_medallas_${duenio}`, todas)
+    set({ medallas: todas })
+    get().evaluar()
+    return nuevas
+  },
   cargar: id => {
     if (get().duenio === id) return
     const guardados = leer<string[] | null>(`asp_logros_${id}`, null)
-    set({ duenio: id, racha: leer(`asp_racha_${id}`, VACIA), logros: guardados ?? [], nuevos: [], stats: null })
+    set({ duenio: id, racha: leer(`asp_racha_${id}`, VACIA), logros: guardados ?? [], nuevos: [], stats: null, medallas: leer(`asp_medallas_${id}`, {}) })
     // La primera vez en este dispositivo, los parches que ya tenía se registran en silencio
     // (mientras llegan sus puntajes y estadísticas), sin anunciarlos uno por uno
     silencioHasta = guardados ? 0 : Date.now() + 5000
@@ -70,11 +88,13 @@ export const useProgreso = create<Progreso>((set, get) => ({
 
 function contexto() {
   const { puntajes, perfil } = useJuego.getState()
-  const { racha, stats } = useProgreso.getState()
+  const { racha, stats, medallas } = useProgreso.getState()
   if (!perfil) return null
   return {
     puntajes, racha: rachaVigente(racha), rachaMejor: racha.mejor, diasCumplidos: racha.total,
     duelosGanados: stats?.duelos_ganados ?? 0, salas: stats?.salas ?? 0, partidas: stats?.partidas ?? 0,
+    medallas: totalMedallas(medallas),
+    medallasIsla: MUNDO_UNIFORMES.niveles.reduce((n, nv) => n + (medallas[nv.id]?.length ?? 0), 0),
   }
 }
 

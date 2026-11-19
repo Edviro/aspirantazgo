@@ -1,3 +1,4 @@
+import type { MedallaId } from '../../domain/medallas'
 import { useCallback, useRef } from 'react'
 import { calcularPuntaje, type ResultadoReto } from '../../domain/puntuacion'
 import { DIFICULTADES } from '../../domain/dificultad'
@@ -7,7 +8,11 @@ import type { ResultadoServidor } from '../../application/puertos'
 import { useJuego } from '../estado'
 import { ahora, reanudar } from '../reloj'
 
-export interface FinReto { resultado: ResultadoReto; servidor: ResultadoServidor | null; aviso?: string; /** Racha si esta partida cumplió el reto del día. */ diario?: number }
+export interface FinReto {
+  resultado: ResultadoReto; servidor: ResultadoServidor | null; aviso?: string
+  /** Racha si esta partida cumplió el reto del día. */ diario?: number
+  /** Medallas de esta partida y cuáles son nuevas. */ medallas?: { ganadas: MedallaId[]; nuevas: MedallaId[] }
+}
 
 /**
  * Caso de uso "jugar un reto": cronometra, abre el intento en el servidor (que guarda la hora real)
