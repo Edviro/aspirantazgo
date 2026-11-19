@@ -13,7 +13,7 @@ export interface Perfil {
   superadmin?: boolean
   /** Invitado de una sala (sin cuenta): solo puede jugar en esa sala y se borra solo. */
   invitado?: boolean
-  club: { id?: string; nombre: string; codigo: string | null; ciudad: string; campo: string; union?: string | null; pais: string; soy_director?: boolean }
+  club: { id?: string; nombre: string; codigo: string | null; ciudad: string; campo: string; union?: string | null; pais: string; soy_director?: boolean; /** Bandera del club en pixel art (texto validado por el servidor). */ bandera?: string | null }
 }
 
 export interface AvatarConfig {
@@ -62,6 +62,8 @@ export interface FilaSala { id: string; apodo: string; club: string; avatar: Ava
 export interface FilaTotalSala extends FilaSala { rondas: number }
 
 export interface ResultadoServidor {
+  /** ConquisCoins ganadas con esta partida (0 si no aprobó o ya llegó al tope del día). */
+  monedas?: number
   puntaje: number
   mejor: number
   puesto: number
@@ -188,6 +190,15 @@ export interface RepositorioJuego {
   misPuntajes(): Promise<Record<string, number>>
   ranking(alcance: Alcance, pais?: string): Promise<FilaRanking[]>
   miembrosClub(): Promise<{ apodo: string; rango: string; grupo_edad: string; puntos: number }[]>
+  /** ConquisCoins y lo que compraste (solo en línea). */
+  bolsa?(): Promise<Bolsa>
+  catalogoTienda?(): Promise<ItemTienda[]>
+  comprar?(item: string): Promise<Bolsa>
+  /** Director: personajes de su club (para cambiarlos: los niños no pueden cambiar el suyo una vez armado). */
+  directorMiembros?(): Promise<MiembroConAvatar[]>
+  directorGuardarAvatar?(id: string, a: AvatarConfig): Promise<void>
+  /** Director: bandera del club en pixel art (o null para quitarla). */
+  guardarBanderaClub?(bandera: string | null): Promise<void>
   borrarMiembro(apodo: string): Promise<void>
   borrarMisDatos(): Promise<void>
   salir(): Promise<void>
@@ -245,13 +256,29 @@ export interface PuertoSalas {
    * posiciones; los nombres y avatares se piden con `perfilesPublicos` (vienen de la base de datos).
    */
   plaza(yo: { id: string; clubId: string }, pos: PuntoPlaza, eventos: EventosPlaza): Promise<ConexionPlaza>
-  perfilesPublicos(ids: string[]): Promise<JugadorEnLinea[]>
+  perfilesPublicos(ids: string[]): Promise<PerfilPublico[]>
+}
+
+// ---------- Tienda (ConquisCoins) ----------
+export interface Bolsa { saldo: number; ganadas_hoy: number; tope: number; items: string[] }
+export interface ItemTienda { id: string; tipo: 'pin' | 'parche'; nombre: string; precio: number }
+export interface MiembroConAvatar { id: string; apodo: string; rango: Rango; grupo_edad: GrupoEdad; avatar: AvatarConfig }
+
+/** Lo que se muestra de otro jugador en el mundo abierto (todo viene de la base de datos). */
+export interface PerfilPublico extends JugadorEnLinea {
+  pais?: string; campo?: string; union?: string; bandera?: string | null
+  /** Niveles aprobados (400 puntos o más). */
+  aprobados?: number
+  pines?: string[]
+  /** Dónde es el mejor: 'mundo' | 'pais' | 'union' | 'campo' | 'club'. */
+  campeon?: string[]
 }
 
 // ---------- Plaza Central (mundo abierto) ----------
 /** Posición en baldosas del mapa de la plaza. */
 export interface PuntoPlaza { x: number; y: number }
-export interface PresenteEnPlaza { id: string; x: number; y: number }
+/** `t`: cuándo llegó (ordena las parcelas de los clubes); `cer`: está formado para la ceremonia de banderas. */
+export interface PresenteEnPlaza { id: string; x: number; y: number; t: number; cer: boolean }
 export interface EventosPlaza {
   /** Quiénes están en tu canal y dónde estaban al entrar o al detenerse. */
   onPresentes?: (lista: PresenteEnPlaza[]) => void
@@ -262,11 +289,15 @@ export interface EventosPlaza {
 export interface ConexionPlaza {
   /** Número de canal (Plaza 1, Plaza 2…). */
   canal: number
+  /** Cuándo llegaste al canal (ordena las parcelas de los clubes). */
+  llegada: number
   /** Avisa que caminas (se agrupan los envíos: máximo ~4 por segundo). */
   ir(desde: PuntoPlaza, hasta: PuntoPlaza): void
   /** Guarda dónde te detuviste, para quien entre después (como mucho cada 3 s). */
   quieto(pos: PuntoPlaza): void
   gesto(frase: number): Promise<void>
+  /** Avisa que te formas (o ya no) para el izamiento o el arriamiento. */
+  formar(si: boolean): void
   salir(): Promise<void>
 }
 

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
+  Bolsa, ItemTienda, MiembroConAvatar,
   Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubLista, FilaRanking, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
   RegistroAdulto, RepositorioJuego, ResultadoServidor, Vidas, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
@@ -153,6 +154,18 @@ export class RepositorioSupabase implements RepositorioJuego {
   }
 
   miembrosClub() { return this.rpc<{ apodo: string; rango: string; grupo_edad: string; puntos: number }[]>('miembros_de_mi_club') }
+  bolsa() { return this.rpc<Bolsa>('mi_bolsa', { p_token: this.token }) }
+  catalogoTienda() { return this.rpc<ItemTienda[]>('tienda_catalogo') }
+  comprar(item: string) {
+    if (!/^[a-z0-9-]{3,30}$/.test(item)) return Promise.reject(new Error('ITEM_INVALIDO'))
+    return this.rpc<Bolsa>('comprar', { p_token: this.token, p_item: item })
+  }
+  directorMiembros() { return this.rpc<MiembroConAvatar[]>('director_miembros') }
+  async directorGuardarAvatar(id: string, a: AvatarConfig) { await this.rpc('director_guardar_avatar', { p_id: id, p_avatar: a }) }
+  async guardarBanderaClub(bandera: string | null) {
+    if (bandera !== null && !/^p:([0-9a-f]{6},){0,15}[0-9a-f]{6};d:[0-9a-f]{384}$/.test(bandera)) throw new Error('BANDERA_INVALIDA')
+    await this.rpc('guardar_bandera_club', { p_bandera: bandera })
+  }
 
   async borrarMiembro(apodo: string) { await this.rpc('borrar_jugador_de_mi_club', { p_apodo: apodo }) }
 

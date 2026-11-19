@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
 import { mensajeError } from '../../application/errores'
-import type { SesionProgramada } from '../../application/puertos'
+import type { MiembroConAvatar, SesionProgramada } from '../../application/puertos'
+import { Bandera } from '../componentes/plaza/Iconos'
+import { pixelarImagen } from '../pixel/banderas'
+import Editor from './Editor'
 
 type Miembro = { apodo: string; rango: string; grupo_edad: string; puntos: number }
 
@@ -12,7 +15,7 @@ const manana = () => { const d = new Date(Date.now() + 86400000); return d.toISO
 
 /** Panel del club: código, solicitudes de práctica (con aprobación), salas y miembros. */
 export default function Director() {
-  const { perfil, repo, ir, verLegal, abrirSala, hub } = useJuego()
+  const { perfil, repo, ir, verLegal, abrirSala, hub, setPerfil } = useJuego()
   const [miembros, setMiembros] = useState<Miembro[]>([])
   const [sesiones, setSesiones] = useState<SesionProgramada[]>([])
   const [copiado, setCopiado] = useState(false)
@@ -21,9 +24,14 @@ export default function Director() {
   const [msg, setMsg] = useState<{ t: string; ok: boolean } | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const director = !!perfil?.club.soy_director
+  const [personajes, setPersonajes] = useState<Record<string, MiembroConAvatar>>({})
+  const [editando, setEditando] = useState<MiembroConAvatar | null>(null)
+  const [bandera, setBandera] = useState<string | null>(null)
+  const [msgBandera, setMsgBandera] = useState<{ t: string; ok: boolean } | null>(null)
 
   const cargar = () => {
     if (director) repo.miembrosClub().then(setMiembros).catch(() => setMiembros([]))
+    if (director) repo.directorMiembros?.().then(l => setPersonajes(Object.fromEntries(l.map(m => [m.apodo, m])))).catch(() => setPersonajes({}))
     repo.lider?.misSesiones().then(setSesiones).catch(() => setSesiones([]))
   }
   useEffect(() => { cargar() }, [repo]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -44,6 +52,22 @@ export default function Director() {
     await repo.lider!.solicitarSesion({ titulo: form.titulo, inicia: inicia.toISOString(), minutos: form.minutos, ninos: form.ninos, lideres: form.lideres, nota: form.nota })
     cargar()
   }, 'Solicitud enviada. Te avisaremos aquí cuando la aprueben.')
+  /** La imagen se convierte aquí, en el equipo del director: al servidor solo llega el texto de 24×16 pixeles. */
+  const elegirBandera = async (f?: File) => {
+    setMsgBandera(null)
+    if (!f) return
+    try { setBandera(await pixelarImagen(f)) } catch (e) { setMsgBandera({ t: mensajeError(e), ok: false }) }
+  }
+  const guardarBandera = async (b: string | null) => {
+    if (!repo.guardarBanderaClub) return
+    setMsgBandera(null); setOcupado(true)
+    try {
+      await repo.guardarBanderaClub(b)
+      setPerfil({ ...perfil, club: { ...perfil.club, bandera: b } })
+      setBandera(null)
+      setMsgBandera({ t: b ? 'Bandera guardada: ya flamea en el campamento de tu club.' : 'Bandera del club quitada.', ok: true })
+    } catch (e) { setMsgBandera({ t: mensajeError(e), ok: false }) } finally { setOcupado(false) }
+  }
   const enHorario = (s: SesionProgramada) => {
     const t0 = new Date(s.inicia).getTime(), ahora = Date.now()
     return ahora >= t0 - 30 * 60000 && ahora <= t0 + (s.minutos + 30) * 60000
@@ -110,6 +134,30 @@ export default function Director() {
           <p className="ayuda">La sala rápida funciona si el administrador permite salas sin aprobación.</p>
         </section>
 
+        {director && repo.guardarBanderaClub && (
+          <section className="tarjeta bandera-club">
+            <h3>Bandera del club</h3>
+            <p className="ayuda">En la portada de tu campamento flamean la bandera de tu país y la de Conquistadores. Sube la de tu club y se convierte en pixel art para ser la tercera.</p>
+            <div className="banderas-vista" aria-label="Así se verán las banderas en la portada">
+              <Bandera tipo="pais" pais={perfil.club.pais} alto={44} />
+              <Bandera tipo="conquis" alto={44} />
+              {(bandera ?? perfil.club.bandera) ? <Bandera tipo="club" bandera={bandera ?? perfil.club.bandera} alto={44} /> : <span className="bandera-vacia">Tu bandera</span>}
+            </div>
+            <label className="subir-bandera">
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => { elegirBandera(e.target.files?.[0]); e.target.value = '' }} disabled={ocupado} />
+              <span>{perfil.club.bandera ? 'Cambiar imagen' : 'Elegir imagen'}</span>
+            </label>
+            {bandera && (
+              <div className="fila-botones">
+                <Boton tipo="fantasma" onClick={() => setBandera(null)} disabled={ocupado}>Descartar</Boton>
+                <Boton onClick={() => guardarBandera(bandera)} disabled={ocupado}>Guardar bandera</Boton>
+              </div>
+            )}
+            {!bandera && perfil.club.bandera && <button className="borrar" onClick={() => guardarBandera(null)} disabled={ocupado}>Quitar la bandera del club</button>}
+            {msgBandera && <p className={msgBandera.ok ? 'aviso-ok' : 'error'} role="status">{msgBandera.t}</p>}
+          </section>
+        )}
+
         {director && (
           <section className="tarjeta">
             <h3>Miembros ({miembros.length})</h3>
@@ -118,16 +166,23 @@ export default function Director() {
                 <li key={m.apodo}>
                   <span><b>{m.apodo}</b><small>{m.grupo_edad === 'menor' ? 'Conquistador' : m.rango.replace(/_/g, ' ')}</small></span>
                   <span className="pts">{m.puntos}</span>
+                  {personajes[m.apodo] && <button className="personaje" onClick={() => setEditando(personajes[m.apodo])} aria-label={`Cambiar el personaje de ${m.apodo}`}>Personaje</button>}
                   {m.apodo !== perfil.apodo && <button className="borrar" onClick={() => setBorrar(m.apodo)} aria-label={`Eliminar ${m.apodo}`}>Eliminar</button>}
                 </li>
               ))}
               {miembros.length === 0 && <li className="vacio">Todavía no hay miembros.</li>}
             </ul>
+            <p className="ayuda">Cada conquistador configura su personaje una sola vez; después solo tú puedes cambiarlo (por ejemplo, cuando recibe una nueva clase).</p>
             <p className="ayuda">Si un padre o madre pide borrar los datos de su hijo, elimínalo aquí: se borra al instante junto con sus puntajes.</p>
           </section>
         )}
         <Boton onClick={() => ir(hub)}>Volver</Boton>
       </div>
+      {editando && (
+        <div className="director-editor">
+          <Editor miembro={editando} onListo={() => { setEditando(null); cargar() }} />
+        </div>
+      )}
       {borrar && (
         <div className="velo">
           <div className="resultado pop">

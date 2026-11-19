@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { useJuego } from './ui/estado'
 import Intro from './ui/pantallas/Intro'
 import { AvisosDuelo } from './ui/componentes/AvisosDuelo'
+import { AvisoSabado } from './ui/componentes/AvisoSabado'
 import { AvisoLogro } from './ui/componentes/AvisoLogro'
 import { AyudaInstalar } from './ui/componentes/BotonInstalar'
 import { AvisoDispositivo } from './ui/componentes/AvisoDispositivo'
@@ -52,6 +53,7 @@ export default function App() {
         {pantalla === 'campamentos' && <Campamentos />}
         {pantalla === 'plaza' && <Plaza />}
       </Suspense>
+      <AvisoSabado />
       <AvisosDuelo />
       <AvisoLogro />
       <AyudaInstalar />

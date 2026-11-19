@@ -1,18 +1,22 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { FRASES, type ConexionPlaza, type JugadorEnLinea, type PresenteEnPlaza, type PuntoPlaza } from '../../application/puertos'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { FRASES, type Bolsa, type ConexionPlaza, type PerfilPublico, type PresenteEnPlaza, type PuntoPlaza } from '../../application/puertos'
 import { CAMPAMENTO_CENTRAL, CAMPAMENTOS, centralAbierto, progresoCampamento } from '../../domain/campamentos'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
 import {
-  ALTO, ANCHO, OBJETOS, SALIDA, horaLima, luzDelDia, objetoEn, ruta, transitable, usableCerca, type Objeto,
+  ALTO, ANCHO, OBJETOS, PARCELAS, MUELLE, SALIDA, alturaBanderas, asignar, ceremoniaAhora, esSabado, formacion, horaLima, luzDelDia,
+  objetoEn, ruta, transitable, usableCerca, zonaDe, type Campista, type Objeto, type Zona,
 } from '../../domain/plaza'
 import { Boton } from '../componentes/Comunes'
 import { MenuPrincipal } from '../componentes/MenuPrincipal'
 import { BarraFrases, DialogoReto } from '../componentes/Retar'
 import { Travesia } from '../componentes/Travesia'
 import { HudVidas } from '../componentes/Vidas'
+import { FichaCarpa, FichaJugador, RANGO_TXT } from '../componentes/plaza/Fichas'
+import { Bandera } from '../componentes/plaza/Iconos'
+import { Moneda, Tienda } from '../componentes/plaza/Tienda'
 import { useJuego } from '../estado'
 import { musica } from '../musica'
-import { B, dibujarSuelo, lucesDeNoche, pintarSprite, spriteDe, type Sprite } from '../pixel/plazaPixel'
+import { B, dibujarSuelo, lucesDeNoche, pintarSprite, spriteDe, type ExtraSprite, type Sprite } from '../pixel/plazaPixel'
 import { PixelAvatar } from '../pixel/PixelAvatar'
 import { useProgreso } from '../progreso'
 import { sfx } from '../sonido'
@@ -20,27 +24,30 @@ import { limpiarTransicion, marcarTransicion, menosMovimiento, verTransicion } f
 
 const VEL = 3.6 // baldosas por segundo
 const VIDA_GLOBO = 4500
-const MUELLE = { x: 24.5, y: 4.5 }
-const RANGO_TXT: Record<string, string> = { conquistador: 'Conquistador', lider: 'Líder', guia_mayor: 'Guía Mayor', gm_master: 'GM Máster', gm_master_avanzado: 'GM Máster Avanzado' }
+const COLORES_CLUB = ['#D7242F', '#1F5FD1', '#1E9A4B', '#E8771E', '#7A1F3D', '#0E8C8C', '#5B3FA8', '#B07A3A', '#E25C8A', '#2C3E50', '#C98F00']
+const colorDeClub = (id: string) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return COLORES_CLUB[h % COLORES_CLUB.length] }
+const VENDEDORES = [
+  { nombre: 'Don Lucho', a: { genero: 'm' as const, piel: 3, pelo: 2, colorPelo: 4 }, x: 39.3, y: 27.55 },
+  { nombre: 'Tía Rosa', a: { genero: 'f' as const, piel: 2, pelo: 1, colorPelo: 1 }, x: 41.1, y: 27.55 },
+]
 
 interface Ente { x: number; y: number; ruta: PuntoPlaza[]; mira: 1 | -1; camina: boolean; el?: HTMLElement | null; cuerpo?: HTMLElement | null }
 
 const ACCION: Record<string, string> = {
-  barco: '⛵ Subir al barco', tablero: '🏆 Ver el tablero de honor', reto: '⭐ Reto del día', 'carpa-club': '⛺ Entrar a la carpa de mi club',
-  escenario: '🎤 Escenario', santuario: '🔥 Fogata del Gran Campamento', letrero: '🪧 Leer el letrero',
+  barco: '⛵ Subir al barco', tablero: '🏆 Tablero de honor', reto: '⭐ Reto del día', tienda: '🛍️ Tienda de parches y pines',
+  escenario: '🎤 Escenario', santuario: '🔥 Gran fogata', letrero: '🪧 Leer el letrero', consejo: '🔥 Fuego del Consejo',
+  portada: '⛺ Portada del campamento', 'carpa-p': '⛺ Ver la carpa',
 }
 
-/** Hora para el día y la noche (en desarrollo se puede forzar con window.__hora para probar). */
-const horaActual = () => {
-  const forzada = import.meta.env.DEV ? (window as unknown as { __hora?: number }).__hora : undefined
-  return typeof forzada === 'number' ? forzada : horaLima()
-}
+const dev = () => (import.meta.env.DEV ? (window as unknown as { __hora?: number; __sabado?: boolean }) : {})
+/** Hora para el día, la noche y las ceremonias (en desarrollo se puede forzar con window.__hora). */
+const horaActual = () => { const f = dev().__hora; return typeof f === 'number' ? f : horaLima() }
+const sabadoAhora = () => { const f = dev().__sabado; return typeof f === 'boolean' ? f : esSabado() }
 
 /**
- * Plaza Central: mundo abierto donde se encuentran los conquistadores de todos los clubes.
- * Caminas tocando el suelo (o con las flechas), ves a los demás de tu canal moverse, saludas con frases rápidas
- * y usas lo que hay en la plaza: el barco a los campamentos, el tablero de honor, el reto del día, la carpa
- * de tu club y el escenario. Hay día y noche con la hora de Perú.
+ * Gran Campamento: el mundo abierto donde se encuentran los conquistadores de todos los clubes.
+ * Caminas tocando el suelo (o con las flechas), ves a los de tu canal, tu club tiene su parcela con portada, banderas
+ * y carpas; hay tienda, Fuego del Consejo, escenario, día y noche, izamiento y arriamiento, y el sábado es de culto.
  */
 export default function Plaza() {
   const { perfil, repo, ir, jugar, puntajes, modo, presencia } = useJuego()
@@ -60,7 +67,23 @@ export default function Plaza() {
   }, [])
   const s = vista.s
 
-  // ---------- Suelo y objetos ----------
+  // ---------- Hora: día y noche, ceremonias y sábado ----------
+  const [hora, setHora] = useState(horaActual)
+  const [sabado, setSabado] = useState(sabadoAhora)
+  useEffect(() => {
+    const t = setInterval(() => {
+      const h = horaActual()
+      // cada segundo cerca de las ceremonias (para que las banderas suban suave); si no, cada 30 s
+      setHora(prev => (ceremoniaAhora(h) || ceremoniaAhora(prev) || Math.abs(h - prev) > 0.008 ? h : prev))
+      setSabado(sabadoAhora())
+    }, 1000)
+    return () => clearInterval(t)
+  }, [])
+  const luz = luzDelDia(hora)
+  const cer = ceremoniaAhora(hora)
+  const altura = alturaBanderas(hora)
+
+  // ---------- Suelo ----------
   const suelo0 = useRef<HTMLCanvasElement>(null), suelo1 = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     for (const [ref, f] of [[suelo0, 0], [suelo1, 1]] as const) {
@@ -70,43 +93,49 @@ export default function Plaza() {
       dibujarSuelo(cv.getContext('2d')!, f, abierto)
     }
   }, [abierto])
-  const sprites = useMemo(() => OBJETOS.map(ob => ({ ob, sp: spriteDe(ob, abierto) })).filter((x): x is { ob: Objeto; sp: Sprite } => !!x.sp), [abierto])
-
-  // ---------- Día y noche ----------
-  const [hora, setHora] = useState(horaActual)
-  useEffect(() => { const t = setInterval(() => setHora(horaActual()), 60000); return () => clearInterval(t) }, [])
-  const luz = luzDelDia(hora)
-  const luces = useMemo(() => lucesDeNoche(OBJETOS, abierto), [abierto])
 
   // ---------- Entidades: tú y los demás ----------
   const [llegada] = useState(() => verTransicion())
   const yo = useRef<Ente>({ ...(llegada?.tipo === 'llegar' ? MUELLE : SALIDA), ruta: [], mira: 1, camina: false })
   const otros = useRef(new Map<string, Ente>())
-  const perfiles = useRef(new Map<string, JugadorEnLinea>())
+  const perfiles = useRef(new Map<string, PerfilPublico>())
+  const tiempos = useRef(new Map<string, { t: number; cer: boolean }>())
   const rechazados = useRef(new Set<string>())
   const [ids, setIds] = useState<string[]>([])
+  const [ver, setVer] = useState(0)
   const conexion = useRef<ConexionPlaza | null>(null)
   const [canal, setCanal] = useState<number | null>(null)
+  const [miLlegada, setMiLlegada] = useState(0)
   const [red, setRed] = useState<'conectando' | 'vivo' | 'solo'>('conectando')
   const [gestos, setGestos] = useState<Record<string, { frase: number; t: number }>>({})
   const [cerca, setCerca] = useState<Objeto | null>(null)
+  const [zona, setZona] = useState<Zona>({ tipo: 'plaza' })
   const [aviso, setAviso] = useState<string | null>(null)
-  const [elegido, setElegido] = useState<JugadorEnLinea | null>(null)
-  const [rivales, setRivales] = useState<JugadorEnLinea[]>([])
+  const [elegido, setElegido] = useState<PerfilPublico | null>(null)
+  const [carpaVista, setCarpaVista] = useState<Objeto | null>(null)
+  const [rivales, setRivales] = useState<PerfilPublico[]>([])
   const [zarpar, setZarpar] = useState(false)
   const [menu, setMenu] = useState(false)
   const [hablar, setHablar] = useState(false)
+  const [tienda, setTienda] = useState(false)
+  const [bolsa, setBolsa] = useState<Bolsa | null>(null)
+  const [formado, setFormado] = useState(false)
+  const [rechazoCer, setRechazoCer] = useState<string | null>(null)
   const marca = useRef<HTMLDivElement>(null)
   const usoPendiente = useRef<Objeto | null>(null)
   const teclas = useRef(new Set<string>())
   const cam = useRef({ x: yo.current.x, y: yo.current.y, ox: 0, oy: 0 })
+  const colocado = useRef(llegada?.tipo === 'llegar')
+  const miClub = perfil?.club.id ?? 'mi-club'
+
+  useEffect(() => { repo.bolsa?.().then(setBolsa).catch(() => undefined) }, [repo])
 
   const actualizarLista = useCallback(() => {
     const l = [...otros.current.keys()].filter(id => perfiles.current.has(id)).slice(0, 60)
     setIds(prev => (prev.length === l.length && prev.every((v, i) => v === l[i]) ? prev : l))
   }, [])
 
-  // Pide (en lote) los nombres y avatares verdaderos de quienes aparecen: vienen de la base de datos, no del canal
+  // Pide (en lote) los nombres, clubes y logros verdaderos de quienes aparecen: vienen de la base de datos, no del canal
   const pidiendo = useRef<number>(0)
   const resolver = useCallback(() => {
     clearTimeout(pidiendo.current)
@@ -117,7 +146,7 @@ export default function Plaza() {
         const l = await repo.salas.perfilesPublicos(faltan)
         for (const j of l) perfiles.current.set(j.id, j)
         for (const id of faltan) if (!perfiles.current.has(id)) rechazados.current.add(id)
-        actualizarLista()
+        actualizarLista(); setVer(v => v + 1)
       } catch { /* se reintenta con el próximo cambio */ }
     }, 250)
   }, [repo.salas, actualizarLista])
@@ -126,12 +155,13 @@ export default function Plaza() {
     const vistos = new Set<string>()
     for (const p of lista) {
       vistos.add(p.id)
+      tiempos.current.set(p.id, { t: p.t, cer: p.cer })
       const e = otros.current.get(p.id)
       if (!e) otros.current.set(p.id, { x: p.x, y: p.y, ruta: [], mira: 1, camina: false })
       else if (!e.ruta.length && Math.hypot(e.x - p.x, e.y - p.y) > 1.5) { e.x = p.x; e.y = p.y }
     }
-    for (const id of [...otros.current.keys()]) if (!vistos.has(id)) otros.current.delete(id)
-    resolver(); actualizarLista()
+    for (const id of [...otros.current.keys()]) if (!vistos.has(id)) { otros.current.delete(id); tiempos.current.delete(id) }
+    resolver(); actualizarLista(); setVer(v => v + 1)
   }, [resolver, actualizarLista])
 
   const caminar = useCallback((id: string, desde: PuntoPlaza, hasta: PuntoPlaza) => {
@@ -148,7 +178,7 @@ export default function Plaza() {
     if (de !== perfil?.id) sfx.burbuja()
   }, [perfil?.id])
 
-  // ---------- Conexión al canal de la plaza ----------
+  // ---------- Conexión al canal ----------
   useEffect(() => {
     limpiarTransicion()
     if (!perfil || !repo.salas || modo !== 'en_linea' || perfil.invitado) { setRed('solo'); return }
@@ -159,12 +189,101 @@ export default function Plaza() {
       onGesto: g => recibirGesto(g.de, g.frase),
     }).then(c => {
       if (!vivo) { void c.salir(); return }
-      con = c; conexion.current = c; setCanal(c.canal); setRed('vivo')
+      con = c; conexion.current = c; setCanal(c.canal); setMiLlegada(c.llegada); setRed('vivo')
     }).catch(() => { if (vivo) setRed('solo') })
     return () => { vivo = false; conexion.current = null; void con?.salir() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------- Usar cosas de la plaza ----------
+  // ---------- Campamentos de los clubes: parcelas por orden de llegada y carpas por sexo ----------
+  const asignacion = useMemo(() => {
+    if (!perfil) return asignar([])
+    const campistas: Campista[] = [{ id: perfil.id, clubId: miClub, t: miLlegada, genero: perfil.avatar.genero === 'f' ? 'f' : 'm' }]
+    for (const id of ids) {
+      const j = perfiles.current.get(id)
+      if (!j) continue
+      campistas.push({ id, clubId: j.clubId, t: tiempos.current.get(id)?.t ?? Date.now(), genero: j.avatar?.genero === 'f' ? 'f' : 'm' })
+    }
+    return asignar(campistas)
+  }, [ids, ver, miLlegada, perfil, miClub])
+  const clubDeParcela = useMemo(() => {
+    const m = new Map<number, { id: string; nombre: string; pais?: string | null; bandera?: string | null; color: string }>()
+    for (const [clubId, i] of asignacion.parcelas) {
+      const mio = clubId === miClub
+      const alguien = mio ? null : [...perfiles.current.values()].find(j => j.clubId === clubId)
+      m.set(i, mio
+        ? { id: clubId, nombre: perfil?.club.nombre ?? 'Mi club', pais: perfil?.club.pais, bandera: perfil?.club.bandera, color: colorDeClub(clubId) }
+        : { id: clubId, nombre: alguien?.club ?? 'Club', pais: alguien?.pais, bandera: alguien?.bandera, color: colorDeClub(clubId) })
+    }
+    return m
+  }, [asignacion, miClub, perfil])
+  const miParcela = asignacion.parcelas.get(miClub)
+
+  // Al entrar (sin barco) apareces en tu campamento, frente a tu carpa
+  useEffect(() => {
+    if (colocado.current || red === 'conectando' || !perfil) return
+    colocado.current = true
+    const c = asignacion.carpas.get(perfil.id)
+    const carpa = c && OBJETOS.find(o => o.tipo === 'carpa-p' && o.parcela === c.parcela && o.sexo === c.sexo && o.slot === c.slot)
+    const p = carpa?.uso ?? (miParcela !== undefined ? PARCELAS[miParcela].patio : null)
+    if (!p) return
+    Object.assign(yo.current, { x: p.x, y: p.y, ruta: [] })
+    Object.assign(cam.current, { x: p.x, y: p.y })
+    conexion.current?.quieto(p)
+  }, [red, asignacion, miParcela, perfil])
+
+  // ---------- Sprites (se reutilizan si no cambian) ----------
+  const cacheSprites = useRef(new Map<string, Sprite>())
+  const sprites = useMemo(() => {
+    const ocupadas = new Set<string>()
+    for (const c of asignacion.carpas.values()) ocupadas.add(`${c.parcela}-${c.sexo}-${c.slot}`)
+    const lista: { clave: string; sp: Sprite }[] = []
+    OBJETOS.forEach((ob, i) => {
+      const club = ob.parcela !== undefined ? clubDeParcela.get(ob.parcela) : undefined
+      if (ob.tipo === 'asta' && ob.slot === 2 && !club?.bandera) return // tercera asta solo si el club tiene bandera
+      const extra: ExtraSprite = { sabado }
+      if (ob.parcela !== undefined) { extra.color = club?.color; extra.ocupada = ob.tipo === 'carpa-p' ? ocupadas.has(`${ob.parcela}-${ob.sexo}-${ob.slot}`) : !!club }
+      const clave = `${i}|${abierto}|${extra.color ?? ''}|${extra.ocupada ?? ''}|${(ob.tipo === 'reto' || ob.tipo === 'tienda' || ob.tipo === 'escenario') && sabado}`
+      let sp = cacheSprites.current.get(clave)
+      if (!sp) { const nuevo = spriteDe(ob, abierto, extra); if (!nuevo) return; sp = nuevo; cacheSprites.current.set(clave, sp) }
+      lista.push({ clave, sp })
+    })
+    return lista
+  }, [asignacion, clubDeParcela, abierto, sabado])
+  const luces = useMemo(() => lucesDeNoche(OBJETOS), [])
+
+  // ---------- Ceremonia de banderas ----------
+  const miembrosFormados = useMemo(() => {
+    if (!perfil || miParcela === undefined) return null
+    const lista = [...ids].map(id => perfiles.current.get(id)!).filter(j => j && j.clubId === miClub && tiempos.current.get(j.id)?.cer)
+      .map(j => ({ id: j.id, sexo: (j.avatar?.genero === 'f' ? 'f' : 'm') as 'm' | 'f', lider: j.rango !== 'conquistador', t: tiempos.current.get(j.id)!.t }))
+    if (formado) lista.push({ id: perfil.id, sexo: perfil.avatar.genero === 'f' ? 'f' : 'm', lider: perfil.rango !== 'conquistador', t: miLlegada })
+    return formacion(PARCELAS[miParcela], lista)
+  }, [ids, ver, formado, perfil, miParcela, miClub, miLlegada])
+  // Ir (o volver) al lugar de la formación; los demás formados de tu club también se ordenan
+  useEffect(() => {
+    if (!miembrosFormados || !perfil) return
+    for (const [id, pos] of miembrosFormados) {
+      if (id === perfil.id) {
+        if (Math.hypot(yo.current.x - pos.x, yo.current.y - pos.y) > 0.3) {
+          const r = ruta(yo.current, pos, abierto)
+          yo.current.ruta = r.length ? [...r.slice(0, -1), pos] : [pos]
+          conexion.current?.ir({ x: yo.current.x, y: yo.current.y }, pos)
+        }
+      } else {
+        const e = otros.current.get(id)
+        if (e && !e.ruta.length && Math.hypot(e.x - pos.x, e.y - pos.y) > 0.3) { const r = ruta(e, pos, true); e.ruta = r.length ? [...r.slice(0, -1), pos] : [pos] }
+      }
+    }
+  }, [miembrosFormados, perfil, abierto])
+  // Termina la ceremonia: se rompe filas
+  useEffect(() => {
+    if (!cer && formado) { setFormado(false); conexion.current?.formar(false) }
+    if (cer?.fase === 'en_curso' && cer.minutos < 0.02 && formado) sfx.trompeta()
+  }, [cer?.fase, formado]) // eslint-disable-line react-hooks/exhaustive-deps
+  const formarme = () => { setFormado(true); conexion.current?.formar(true); sfx.aviso(); setAviso(null) }
+  const romperFilas = () => { if (formado) { setFormado(false); conexion.current?.formar(false) } }
+
+  // ---------- Usar cosas del campamento ----------
   const reto = retoDelDia()
   const rachaObj = useProgreso(st => st.racha)
   const hechoHoy = rachaObj.ultimo === reto.fecha
@@ -176,18 +295,34 @@ export default function Plaza() {
       case 'barco': sfx.zas(); setZarpar(true); break
       case 'tablero': ir('ranking'); break
       case 'reto':
-        if (hechoHoy) setAviso(`Ya cumpliste el reto de hoy (${reto.nivel.titulo}). Racha: ${rachaVigente(rachaObj)} días. ¡Vuelve mañana!`)
+        if (sabado) setAviso('Feliz sábado: los desafíos descansan hasta el sábado a las 6 p. m. ¡Te esperamos en el culto!')
+        else if (hechoHoy) setAviso(`Ya cumpliste el reto de hoy (${reto.nivel.titulo}). Racha: ${rachaVigente(rachaObj)} días. ¡Vuelve mañana!`)
         else jugar(reto.nivel, true, 'medio', reto.semilla)
         break
-      case 'carpa-club': ir('club'); break
-      case 'escenario': setAviso('Aquí se harán los programas en vivo: cultos, predicaciones y presentaciones de los clubes. ¡Muy pronto!'); break
+      case 'tienda':
+        if (sabado) setAviso('La tienda está cerrada por ser sábado. Abre el sábado a las 6 p. m.')
+        else setTienda(true)
+        break
+      case 'escenario': setAviso(sabado
+        ? 'Feliz sábado: este es el lugar del culto. Pronto los líderes podrán dirigir programas en vivo desde aquí.'
+        : 'Escenario de cultos y programas: pronto los líderes podrán dirigir cultos, predicaciones y presentaciones en vivo.'); break
       case 'santuario': setAviso(abierto
-        ? '¡Lo lograste! Completaste todos los campamentos: la fogata del Gran Campamento Conquistador está encendida para ti.'
-        : `La fogata del Gran Campamento se enciende cuando completes todos los campamentos. Completaste ${completos} de ${listos} ${listos === 1 ? 'campamento abierto' : 'campamentos abiertos'}.`); break
-      case 'letrero': setAviso('Toma el barco del muelle para viajar a los campamentos: Uniforme, Historia, Orden Cerrado, Clases, Organización y Emblemas.'); break
+        ? '¡Lo lograste! Completaste todos los campamentos: la gran fogata del Gran Campamento es tuya.'
+        : `La gran fogata es el corazón del Gran Campamento. Su puerta se abre cuando completes todos los campamentos (llevas ${completos} de ${listos}).`); break
+      case 'consejo': setAviso('Fuego del Consejo: aquí se reúnen todos los clubes alrededor del fuego para historias, alabanzas y reconocimientos.'); break
+      case 'letrero': setAviso('Toma el barco del muelle para ir a los campamentos de desafíos: Uniforme, Historia, Orden Cerrado, Clases, Organización y Emblemas.'); break
+      case 'portada': {
+        const club = ob.parcela !== undefined ? clubDeParcela.get(ob.parcela) : undefined
+        const n = club ? [...asignacion.carpas.values()].filter(c => c.parcela === ob.parcela).length : 0
+        setAviso(club
+          ? `Campamento del club ${club.nombre}: ${n} ${n === 1 ? 'acampando' : 'acampando'}. Las banderas se izan a las 7:00 y se arrían a las 19:00.`
+          : 'Parcela libre: aquí acampará el próximo club que llegue.')
+        break
+      }
+      case 'carpa-p': setCarpaVista(ob); break
     }
-  }, [abierto, completos, listos, hechoHoy, ir, jugar, reto, rachaObj])
-  useEffect(() => { if (!aviso) return; const t = setTimeout(() => setAviso(null), 6500); return () => clearTimeout(t) }, [aviso])
+  }, [abierto, completos, listos, hechoHoy, ir, jugar, reto, rachaObj, sabado, clubDeParcela, asignacion])
+  useEffect(() => { if (!aviso) return; const t = setTimeout(() => setAviso(null), 7000); return () => clearTimeout(t) }, [aviso])
 
   // ---------- Bucle de animación: mover, cámara y profundidad ----------
   const pintar = useCallback((e: Ente) => {
@@ -215,7 +350,6 @@ export default function Plaza() {
     const bucle = (t: number) => {
       const dt = Math.min(0.1, (t - ant) / 1000); ant = t
       const y0 = yo.current
-      // Flechas / WASD: caminar directo, chocando con lo que no se pisa
       const k = teclas.current
       const dx = (k.has('ArrowRight') || k.has('d') ? 1 : 0) - (k.has('ArrowLeft') || k.has('a') ? 1 : 0)
       const dy = (k.has('ArrowDown') || k.has('s') ? 1 : 0) - (k.has('ArrowUp') || k.has('w') ? 1 : 0)
@@ -232,7 +366,6 @@ export default function Plaza() {
         conTecla = false; y0.camina = false; tTecla = 1
         conexion.current?.ir({ x: y0.x, y: y0.y }, { x: y0.x, y: y0.y }); conexion.current?.quieto({ x: y0.x, y: y0.y })
       } else if (avanzar(y0, dt)) {
-        // llegó a su destino
         conexion.current?.quieto({ x: y0.x, y: y0.y })
         marca.current?.classList.remove('on')
         const ob = usoPendiente.current
@@ -242,10 +375,9 @@ export default function Plaza() {
       pintar(y0)
       for (const e of otros.current.values()) { avanzar(e, dt); pintar(e) }
 
-      // Cámara: sigue a tu personaje con suavidad, sin salirse del mundo
+      // Cámara: sigue a tu personaje con suavidad, con un margen de mar alrededor
       const c = cam.current, vw = vista.w / (B * s), vh = vista.h / (B * s)
       c.x += (y0.x - c.x) * Math.min(1, dt * 5); c.y += (y0.y - c.y) * Math.min(1, dt * 5)
-      // margen de mar alrededor (arriba más, por el barco y la barra de arriba)
       const cx = vw >= ANCHO + 4 ? ANCHO / 2 : Math.min(ANCHO + 2 - vw / 2, Math.max(vw / 2 - 2, c.x))
       const cy = vh >= ALTO + 9 ? ALTO / 2 : Math.min(ALTO + 3 - vh / 2, Math.max(vh / 2 - 6, c.y + 1.5))
       c.ox = Math.round(vista.w / 2 - cx * B * s); c.oy = Math.round(vista.h / 2 - cy * B * s)
@@ -254,7 +386,11 @@ export default function Plaza() {
       if (capaLuz.current) capaLuz.current.style.transform = tr
 
       tCerca += dt
-      if (tCerca > 0.2) { tCerca = 0; const ob = usableCerca(y0.x, y0.y); setCerca(p => (p === ob ? p : ob)) }
+      if (tCerca > 0.25) {
+        tCerca = 0
+        const ob = usableCerca(y0.x, y0.y); setCerca(p => (p === ob ? p : ob))
+        const z = zonaDe(y0.x, y0.y); setZona(p => (p.tipo === z.tipo && (p.tipo !== 'parcela' || (z.tipo === 'parcela' && p.parcela === z.parcela)) ? p : z))
+      }
       raf = requestAnimationFrame(bucle)
     }
     raf = requestAnimationFrame(bucle)
@@ -268,14 +404,14 @@ export default function Plaza() {
       const t = e.target as HTMLElement
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.closest('.velo'))) return
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key
-      if (valida(k)) { teclas.current.add(k); e.preventDefault() }
+      if (valida(k)) { teclas.current.add(k); e.preventDefault(); romperFilas() }
       if ((k === 'Enter' || k === ' ' || k === 'e') && cerca && !(t?.tagName === 'BUTTON')) { e.preventDefault(); usar(cerca) }
     }
     const arriba = (e: KeyboardEvent) => teclas.current.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key)
     const soltarTodo = () => teclas.current.clear()
     window.addEventListener('keydown', abajo); window.addEventListener('keyup', arriba); window.addEventListener('blur', soltarTodo)
     return () => { window.removeEventListener('keydown', abajo); window.removeEventListener('keyup', arriba); window.removeEventListener('blur', soltarTodo) }
-  }, [cerca, usar])
+  }, [cerca, usar]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tocar el suelo: caminar hasta ahí (o hasta lo que tocaste, y usarlo al llegar)
   const tocar = (ev: React.PointerEvent<HTMLDivElement>) => {
@@ -287,6 +423,7 @@ export default function Plaza() {
     const camino = ruta(yo.current, destino, abierto)
     setElegido(null); setHablar(false)
     if (!camino.length) return
+    romperFilas()
     usoPendiente.current = ob
     yo.current.ruta = camino
     const fin = camino[camino.length - 1]
@@ -304,7 +441,7 @@ export default function Plaza() {
     setHablar(false)
   }
 
-  // Llegando en barco: la cámara baja sobre la plaza
+  // Llegando en barco: la cámara baja sobre el muelle
   const flash = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     if (llegada?.tipo !== 'llegar' || menosMovimiento()) return
@@ -317,16 +454,22 @@ export default function Plaza() {
     if (!import.meta.env.DEV) return
     const w = window as unknown as Record<string, unknown>
     w.__plaza = {
-      agregar: (l: (JugadorEnLinea & { x: number; y: number })[]) => {
-        for (const j of l) { perfiles.current.set(j.id, j); otros.current.set(j.id, { x: j.x, y: j.y, ruta: [], mira: 1, camina: false }) }
-        actualizarLista()
+      agregar: (l: (PerfilPublico & { x: number; y: number; t?: number; cer?: boolean })[]) => {
+        for (const j of l) {
+          perfiles.current.set(j.id, j); tiempos.current.set(j.id, { t: j.t ?? Date.now(), cer: !!j.cer })
+          otros.current.set(j.id, { x: j.x, y: j.y, ruta: [], mira: 1, camina: false })
+        }
+        actualizarLista(); setVer(v => v + 1)
       },
+      formar: (id: string, si: boolean) => { const t = tiempos.current.get(id); if (t) { t.cer = si; setVer(v => v + 1) } },
       ir: (id: string, x: number, y: number) => { const e = otros.current.get(id); if (e) caminar(id, e, { x, y }) },
       gesto: recibirGesto,
       yo: () => ({ x: yo.current.x, y: yo.current.y }),
+      teletransportar: (x: number, y: number) => { Object.assign(yo.current, { x, y, ruta: [] }); Object.assign(cam.current, { x, y }) },
+      asignacion: () => ({ parcelas: [...asignacion.parcelas], carpas: [...asignacion.carpas] }),
     }
     return () => { delete w.__plaza }
-  }, [actualizarLista, caminar, recibirGesto])
+  }, [actualizarLista, caminar, recibirGesto, asignacion])
 
   if (!perfil) return null
   const lista = ids.map(id => perfiles.current.get(id)!).filter(Boolean)
@@ -339,15 +482,43 @@ export default function Plaza() {
   }
   const altoPj = 30 * s
   const total = Object.values(puntajes).reduce((a, b) => a + b, 0)
+  const nombreZona = (z: Zona) => z.tipo === 'parcela' ? (clubDeParcela.get(z.parcela) ? `Campamento de ${clubDeParcela.get(z.parcela)!.nombre}` : 'Parcela libre')
+    : z.tipo === 'plaza' ? 'Plaza Central' : z.tipo === 'consejo' ? 'Fuego del Consejo' : z.tipo === 'muelle' ? 'Muelle' : 'Gran Campamento'
+  const zonaDeOtro = (id: string) => { const e = otros.current.get(id); return e ? nombreZona(zonaDe(e.x, e.y)) : 'Gran Campamento' }
+  const yoPublico: PerfilPublico & { yo: boolean } = {
+    id: perfil.id, apodo: perfil.apodo, rango: perfil.rango, avatar: perfil.avatar, club: perfil.club.nombre, clubId: miClub, pais: perfil.club.pais,
+    aprobados: Object.values(puntajes).filter(p => p >= 400).length, pines: bolsa?.items ?? [], yo: true,
+  }
+  const ocupantesDe = (ob: Objeto) => [...asignacion.carpas.entries()]
+    .filter(([, c]) => c.parcela === ob.parcela && c.sexo === ob.sexo && c.slot === ob.slot)
+    .map(([id]) => (id === perfil.id ? yoPublico : perfiles.current.get(id)))
+    .filter((x): x is PerfilPublico => !!x)
+  const invitar = cer && cer.fase !== 'final' && miParcela !== undefined && !formado && rechazoCer !== `${cer.tipo}-${Math.floor(hora)}`
 
   return (
     <div className="pantalla plaza">
-      <div className="plaza-vista" ref={caja} onPointerDown={tocar} aria-label="Plaza Central. Toca el suelo para caminar.">
+      <div className="plaza-vista" ref={caja} onPointerDown={tocar} aria-label="Gran Campamento. Toca el suelo para caminar.">
         <div className="plaza-zoom">
           <div className="plaza-capa" ref={capa} style={{ width: ANCHO * B * s, height: ALTO * B * s }}>
             <canvas ref={suelo0} className="plaza-suelo" style={{ width: ANCHO * B * s, height: ALTO * B * s }} aria-hidden />
             <canvas ref={suelo1} className="plaza-suelo isla-ola" style={{ width: ANCHO * B * s, height: ALTO * B * s }} aria-hidden />
-            {sprites.map(({ ob, sp }, i) => <SpriteObjeto key={`${ob.tipo}-${i}-${abierto}`} sp={sp} s={s} />)}
+            {sprites.map(({ clave, sp }) => <SpriteObjeto key={clave} sp={sp} s={s} />)}
+            {/* Banderas de cada campamento: país, Conquistadores y (si tiene) la del club. Suben a las 7:00 y bajan a las 19:00. */}
+            {[...clubDeParcela.entries()].map(([i, club]) => OBJETOS.filter(o => o.tipo === 'asta' && o.parcela === i && (o.slot! < 2 || club.bandera)).map(o => (
+              <div key={`b-${i}-${o.slot}`} className="plaza-bandera" style={{ left: (o.x * B + 9) * s, top: (o.y * B - 36 + (1 - altura) * 32) * s, zIndex: o.y * B + B + 1 }}>
+                <Bandera tipo={o.slot === 0 ? 'pais' : o.slot === 1 ? 'conquis' : 'club'} pais={club.pais} bandera={club.bandera} alto={10 * s} />
+              </div>
+            )))}
+            {/* Nombre del club en cada portada */}
+            {OBJETOS.filter(o => o.tipo === 'portada').map(o => {
+              const club = clubDeParcela.get(o.parcela!)
+              return <span key={`p-${o.parcela}`} className={`plaza-portada ${club ? '' : 'libre'}`} style={{ left: (o.x * B + 8) * s, top: (o.y * B + 6) * s, zIndex: o.y * B + o.h * B + 2, ['--c' as string]: club?.color ?? '#8d8d86' }}>{club ? club.nombre : 'Libre'}</span>
+            })}
+            {VENDEDORES.map(v => (
+              <div key={v.nombre} className="plaza-pj vendedor" style={{ transform: `translate3d(${v.x * B * s}px, ${v.y * B * s}px, 0)`, zIndex: 27 * B }} aria-hidden>
+                <span className="plaza-pj-dentro"><span className="plaza-cuerpo"><PixelAvatar a={v.a} rango="lider" animo="idle" alto={altoPj} /></span></span>
+              </div>
+            ))}
             <div className="plaza-marca" ref={marca} aria-hidden />
             {lista.map(j => (
               <button key={j.id} className="plaza-pj" ref={el => { const e = otros.current.get(j.id); if (e) { e.el = el; e.cuerpo = el?.querySelector('.plaza-cuerpo') as HTMLElement | null; pintar(e) } }}
@@ -370,7 +541,6 @@ export default function Plaza() {
             </div>
           </div>
         </div>
-        {/* Noche: oscurece todo y los faroles, la fogata y el escenario alumbran */}
         <div className="plaza-noche" style={{ opacity: luz.oscuridad }} aria-hidden />
         <div className="plaza-dorado" style={{ opacity: luz.dorado }} aria-hidden />
         <div className="plaza-capa plaza-luces" ref={capaLuz} style={{ width: ANCHO * B * s, height: ALTO * B * s, opacity: luz.faroles ? 1 : 0 }} aria-hidden>
@@ -380,12 +550,13 @@ export default function Plaza() {
       <div className="mundo-flash" ref={flash} style={{ opacity: llegada?.tipo === 'llegar' && !menosMovimiento() ? 1 : 0 }} aria-hidden />
 
       <header className="hud">
-        <button className="hud-perfil" onClick={() => ir('editor')} aria-label="Editar personaje">
+        <button className="hud-perfil" onClick={() => ir('editor')} aria-label="Ver mi personaje">
           <span className="hud-avatar">{perfil.apodo.slice(0, 1).toUpperCase()}</span>
           <span className="hud-txt"><b>{perfil.apodo}</b><small>{RANGO_TXT[perfil.rango]}, {perfil.club.nombre}</small></span>
         </button>
         <HudVidas />
-        <div className="hud-puntos" title="Puntos totales"><span>★</span>{total.toLocaleString('es-PE')}</div>
+        {bolsa ? <button className="hud-puntos hud-monedas" onClick={() => (sabado ? setAviso('La tienda está cerrada por ser sábado.') : setTienda(true))} title="ConquisCoins"><Moneda n={bolsa.saldo} /></button>
+          : <div className="hud-puntos" title="Puntos totales"><span>★</span>{total.toLocaleString('es-PE')}</div>}
         <button className="icono" onClick={() => setMenu(m => !m)} aria-label="Menú">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>
         </button>
@@ -393,24 +564,32 @@ export default function Plaza() {
       <MenuPrincipal abierto={menu} onCerrar={() => setMenu(false)} onCampamentos={() => setZarpar(true)} />
 
       <div className="plaza-titulo">
-        <h1>Plaza Central</h1>
-        <p>{red === 'vivo' ? <><i className="en-vivo-punto" aria-hidden />Canal {canal} · {lista.length + 1} {lista.length === 0 ? 'conquistador' : 'conquistadores'} aquí</>
-          : red === 'conectando' ? 'Conectando con los demás clubes…' : modo === 'practica' ? 'Modo práctica: recorres la plaza tú solo' : 'Sin conexión: recorres la plaza tú solo'}
+        <h1>{nombreZona(zona)}</h1>
+        <p>{red === 'vivo' ? <><i className="en-vivo-punto" aria-hidden />Canal {canal} · {lista.length + 1} {lista.length === 0 ? 'conquistador' : 'conquistadores'}</>
+          : red === 'conectando' ? 'Conectando con los demás clubes…' : modo === 'practica' ? 'Modo práctica: recorres el campamento tú solo' : 'Sin conexión: recorres el campamento tú solo'}
           {luz.fase === 'noche' ? ' · 🌙' : luz.fase === 'atardecer' ? ' · 🌇' : luz.fase === 'amanecer' ? ' · 🌅' : ''}</p>
+        {sabado && <p className="plaza-sabado">🕊️ ¡Feliz sábado! Hoy es día de culto: los desafíos y la tienda descansan.</p>}
       </div>
 
       {aviso && <div className="plaza-aviso pop" role="status" onClick={() => setAviso(null)}>{aviso}</div>}
 
-      {elegido && (
-        <div className="plaza-ficha pop" role="dialog" aria-label={`${elegido.apodo}, de ${elegido.club}`}>
-          <PixelAvatar a={elegido.avatar ?? {}} rango={elegido.rango} animo="saluda" alto={84} />
-          <div><b>{elegido.apodo}</b><small>{RANGO_TXT[elegido.rango]} · {elegido.club}</small></div>
+      {invitar && (
+        <div className="plaza-ceremonia pop" role="dialog" aria-label="Ceremonia de banderas">
+          <b>🎺 {cer!.tipo === 'izamiento' ? 'Izamiento de banderas — 7:00' : 'Arriamiento de banderas — 19:00'}</b>
+          <p>{cer!.fase === 'invitacion' ? `Empieza en ${Math.max(1, Math.ceil(-cer!.minutos))} min` : '¡Está empezando!'} en el campamento de tu club. Varones a la izquierda, damas a la derecha, en filas de 8; los líderes adelante y atrás, y tres izan las banderas.</p>
           <div className="fila-botones">
-            <Boton tipo="fantasma" onClick={() => setElegido(null)}>Cerrar</Boton>
-            {presencia && <Boton tipo="rojo" onClick={() => { setRivales([elegido]); setElegido(null) }}>Retar</Boton>}
+            <Boton tipo="fantasma" onClick={() => setRechazoCer(`${cer!.tipo}-${Math.floor(hora)}`)}>Ahora no</Boton>
+            <Boton onClick={formarme}>Formarme</Boton>
           </div>
         </div>
       )}
+      {formado && cer && <div className="plaza-formado" role="status">{cer.fase === 'invitacion' ? '¡Atención! Formados para la ceremonia…' : cer.fase === 'en_curso' ? (cer.tipo === 'izamiento' ? '🎺 Izando las banderas…' : '🎺 Arriando las banderas…') : '¡Rompan filas!'}</div>}
+
+      {elegido && <FichaJugador j={elegido} zona={zonaDeOtro(elegido.id)} onCerrar={() => setElegido(null)}
+        onRetar={presencia && !sabado ? () => { setRivales([elegido]); setElegido(null) } : undefined} />}
+      {carpaVista && <FichaCarpa titulo={`Carpa ${carpaVista.sexo === 'f' ? 'de damas' : 'de varones'} ${(carpaVista.slot ?? 0) + 1}${clubDeParcela.get(carpaVista.parcela!) ? ` · ${clubDeParcela.get(carpaVista.parcela!)!.nombre}` : ''}`}
+        ocupantes={ocupantesDe(carpaVista)} onCerrar={() => setCarpaVista(null)} />}
+      {tienda && <Tienda bolsa={bolsa} onBolsa={setBolsa} onCerrar={() => setTienda(false)} />}
 
       {hablar && red === 'vivo' && <div className="plaza-frases pop"><BarraFrases onEnviar={decir} /></div>}
 
@@ -419,22 +598,22 @@ export default function Plaza() {
         {cerca
           ? <Boton onClick={() => usar(cerca)}>{ACCION[cerca.tipo]}</Boton>
           : <span className="plaza-pista">Toca el suelo para caminar</span>}
-        <button className="btn-brujula" onClick={() => { sfx.zas(); setZarpar(true) }} aria-label="Ir a los campamentos en barco">
+        <button className="btn-brujula" onClick={() => { sfx.zas(); setZarpar(true) }} aria-label="Ir a los campamentos de desafíos en barco">
           <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden><circle cx="16" cy="16" r="13" fill="#FFF7DF" stroke="#1E140C" strokeWidth="2.5" /><path d="M16 5l4 11h-8z" fill="#D7242F" /><path d="M16 27l-4-11h8z" fill="#1F5FD1" /><circle cx="16" cy="16" r="2" fill="#1E140C" /></svg>
-          <span>Campamentos</span>
+          <span>Desafíos</span>
         </button>
       </nav>
 
       {rivales.length > 0 && <DialogoReto rivales={rivales} setRivales={setRivales} libres={lista} onCerrar={() => setRivales([])} />}
 
-      {zarpar && <Travesia texto="Zarpando de la" destino="Plaza Central" color="#F2B90F"
+      {zarpar && <Travesia texto="Zarpando del" destino="Gran Campamento" color="#F2B90F"
         onFin={() => { marcarTransicion({ tipo: 'alejar', desde: CAMPAMENTO_CENTRAL.id }); ir('campamentos') }} />}
     </div>
   )
 }
 
-/** Un objeto alto de la plaza (pino, carpa, farol…) en su propio lienzo, ordenado por profundidad. */
-function SpriteObjeto({ sp, s }: { sp: Sprite; s: number }) {
+/** Un objeto alto (pino, carpa, farol…) en su propio lienzo, ordenado por profundidad. */
+const SpriteObjeto = memo(function SpriteObjeto({ sp, s }: { sp: Sprite; s: number }) {
   const a = useRef<HTMLCanvasElement>(null), b = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     for (const [ref, f] of [[a, 0], [b, 1]] as const) {
@@ -451,4 +630,4 @@ function SpriteObjeto({ sp, s }: { sp: Sprite; s: number }) {
       {sp.animado && <canvas ref={b} className="plaza-sprite isla-ola" style={estilo} aria-hidden />}
     </>
   )
-}
+})

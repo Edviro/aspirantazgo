@@ -1,5 +1,12 @@
 const MENSAJES: Record<string, string> = {
   CANTIDAD_INVALIDA: 'Elige de 1 a 10 vidas.',
+  SIN_MONEDAS: 'Te faltan ConquisCoins. Gánalas superando desafíos.',
+  YA_LO_TIENES: 'Ya tienes ese artículo.',
+  ITEM_INVALIDO: 'Ese artículo ya no está en la tienda.',
+  AVATAR_BLOQUEADO: 'Tu personaje ya está listo. Si necesitas cambiarlo, pídeselo a tu director.',
+  BANDERA_INVALIDA: 'No se pudo usar esa imagen como bandera. Prueba con otra.',
+  IMAGEN_GRANDE: 'La imagen es muy pesada (máximo 8 MB).',
+  IMAGEN_INVALIDA: 'Usa una imagen PNG, JPG, WEBP o GIF.',
   JUGADOR_NO_EXISTE: 'Ese jugador ya no existe o es un invitado de sala.',
   CLUB_NO_EXISTE: 'Ese código de club no existe. Pídele el código a tu líder.',
   APODO_OCUPADO: 'Ese apodo ya está en uso en tu club. Prueba con otro.',

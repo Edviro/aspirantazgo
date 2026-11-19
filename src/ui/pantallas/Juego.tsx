@@ -248,6 +248,7 @@ function FinNivel({ fin, nivelId, diario, record, desafio, enSala, multiplicador
         {desbloqueado && (
           <div className="fin-desbloqueo"><b>¡Nivel {numSiguiente} desbloqueado!</b><span>{desbloqueado}</span></div>
         )}
+        {!!fin.servidor?.monedas && fin.servidor.monedas > 0 && <div className="fin-vidas gana fin-monedas"><span className="moneda"><i aria-hidden />+{fin.servidor.monedas}</span> ConquisCoins para la tienda del campamento</div>}
         {fin.servidor && <p className="resultado-servidor">Tu mejor marca: <b>{fin.servidor.mejor}</b>. Puesto <b>#{fin.servidor.puesto}</b> en este nivel.</p>}
         {!desafio && <p className="nota">La práctica no cuenta para el ranking ni desbloquea niveles. Juega el desafío para avanzar.</p>}
         {fin.aviso && <p className="nota aviso">{fin.aviso}</p>}

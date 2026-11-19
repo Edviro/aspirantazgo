@@ -1615,3 +1615,65 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
 .plaza-ficha small { color: #6B5530; font-weight: 700; }
 .plaza-ficha .fila-botones { grid-column: 1 / -1; margin: 6px 0 0; }
 @media (prefers-reduced-motion: reduce) { .plaza-sprite.ola-inversa, .plaza-pj.camina .plaza-cuerpo canvas, .plaza-luces i.calida { animation: none; } }
+
+/* ---------- Gran Campamento: banderas, portadas, vendedores, ceremonias, tienda ---------- */
+.bandera-px { display: inline-block; image-rendering: pixelated; vertical-align: middle; }
+.plaza-bandera { position: absolute; pointer-events: none; transition: top 1s linear; transform-origin: 0 50%; animation: banderaOndea .9s steps(2) infinite; }
+.plaza-portada { position: absolute; translate: -50% -50%; pointer-events: none; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;
+  padding: 3px 8px; border-radius: 6px; background: var(--c); color: #fff; border: 2px solid var(--ink); font-weight: 900; font-size: .68rem; text-shadow: 1px 1px 0 var(--ink); }
+.plaza-portada.libre { background: #8d8d86; opacity: .8; }
+.plaza-pj.vendedor { pointer-events: none; }
+.plaza-sabado { display: block !important; margin: 6px auto 0 !important; width: fit-content; max-width: calc(100% - 24px); background: #2a3f8f !important; white-space: normal; }
+.plaza-ceremonia { position: absolute; left: 50%; translate: -50% 0; top: calc(130px + env(safe-area-inset-top)); z-index: 24; width: min(400px, calc(100% - 24px));
+  padding: 12px 16px; background: var(--papel); color: var(--ink); border: var(--borde); border-radius: 16px; box-shadow: var(--golpe-g); }
+.plaza-ceremonia b { font-family: var(--titulo); font-weight: 400; font-size: 1.3rem; letter-spacing: .6px; }
+.plaza-ceremonia p { margin: 6px 0 4px; font-weight: 600; line-height: 1.35; font-size: .9rem; }
+.plaza-formado { position: absolute; left: 50%; translate: -50% 0; top: calc(130px + env(safe-area-inset-top)); z-index: 23; padding: 8px 14px; border-radius: 99px; background: rgba(30,20,12,.82); color: #FFE58A; font-weight: 900; }
+.moneda { display: inline-flex; align-items: center; gap: 5px; font-weight: 900; }
+.moneda i { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FFE58A 0 25%, #F2B90F 26% 60%, #C98F00 61%); box-shadow: 0 0 0 1.5px var(--ink); flex: none; }
+.moneda.grande { font-family: var(--titulo); font-weight: 400; font-size: 1.8rem; letter-spacing: 1px; }
+.moneda.grande i { width: 26px; height: 26px; }
+.hud-monedas { border: var(--borde); cursor: pointer; font-family: var(--titulo); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.icono-item { image-rendering: pixelated; flex: none; }
+.tienda { max-width: 460px; }
+.tienda-saludo { font-style: italic; margin: 4px 0 10px; }
+.tienda-saldo { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 10px; }
+.tienda-saldo small { opacity: .8; }
+.tienda-lista { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; max-height: 46vh; overflow-y: auto; }
+.tienda-lista li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 2px solid rgba(30,20,12,.25); border-radius: 12px; background: rgba(255,255,255,.5); text-align: left; }
+.tienda-lista li.mio { opacity: .75; }
+.tienda-lista li.recien { animation: tiendaRecien .8s ease; }
+@keyframes tiendaRecien { 30% { background: #FFE58A; } }
+.tienda-nombre { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tienda-nombre small { opacity: .7; font-weight: 700; }
+.tienda-lista .btn { min-width: 92px; padding: 8px 12px; }
+.tienda-tengo { font-weight: 900; color: #1E9A4B; }
+.ficha-datos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ficha-org { display: flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 700; color: #6B5530; }
+.ficha-zona { font-size: .78rem; font-weight: 800; }
+.ficha-logros { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ficha-aprob, .ficha-campeon { padding: 3px 8px; border-radius: 99px; background: rgba(30,20,12,.08); font-weight: 800; font-size: .76rem; }
+.ficha-campeon { background: #FFE58A; }
+.ficha-pines { display: inline-flex; gap: 3px; flex-wrap: wrap; }
+.carpa-ficha { max-width: 440px; }
+.carpa-lista { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; text-align: left; }
+.carpa-lista li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 12px; background: rgba(255,255,255,.5); }
+.carpa-lista li.yo { background: #FFE58A; }
+.carpa-lista .quien { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.carpa-lista .quien small { opacity: .8; font-weight: 700; }
+.aviso-sabado { max-width: 420px; text-align: center; }
+.aviso-sabado-icono { font-size: 2.6rem; line-height: 1; }
+
+/* Director: bandera del club y personajes */
+.bandera-club .banderas-vista { display: flex; align-items: flex-end; gap: 14px; justify-content: center; padding: 12px; background: var(--papel-2, rgba(0,0,0,.05)); border-radius: 10px; margin: 8px 0 12px; }
+.bandera-club .bandera-px { image-rendering: pixelated; box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.bandera-vacia { width: 66px; height: 44px; display: grid; place-items: center; border: 2px dashed currentColor; opacity: .5; font-size: .7rem; border-radius: 4px; }
+.subir-bandera { display: inline-flex; cursor: pointer; }
+.subir-bandera input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.subir-bandera span { padding: 10px 16px; border: 2.5px solid var(--tinta, #1E140C); border-radius: 10px; font-weight: 800; background: #fff; color: var(--tinta, #1E140C); }
+.subir-bandera:focus-within span { outline: 3px solid #F2B90F; outline-offset: 2px; }
+.miembros .personaje { background: none; border: 2px solid currentColor; border-radius: 8px; padding: 4px 8px; font-weight: 700; cursor: pointer; color: inherit; }
+.director-editor { position: fixed; inset: 0; z-index: 60; background: var(--fondo, #1b2b4a); overflow: auto; }
+.editor-bloqueado h2 { margin: 0 0 6px; }
+.editor-bloqueado p { margin: 0 0 14px; }

@@ -5,7 +5,7 @@ import { Boton } from '../componentes/Comunes'
 import { Campamento } from '../pixel/Campamento'
 import { PixelAvatar } from '../pixel/PixelAvatar'
 import { PELOS, PIELES } from '../pixel/dibujo'
-import type { AvatarConfig } from '../../application/puertos'
+import type { AvatarConfig, MiembroConAvatar } from '../../application/puertos'
 import { ANIOS_MINIMOS, ORDEN_CLASES, aniosValidos, esAdulto, esGuiaMayor, type ClaseId, type Rango } from '../../domain/tipos'
 import { FUNCIONES, NOMBRE_CLASE } from '../../domain/uniformes'
 import { CARGOS_ADULTO, galonDeCargo } from '../../application/uniformeJugador'
@@ -36,8 +36,13 @@ function useAltoAvatar() {
 /** Solo letras, números y espacios: nada de datos de contacto. */
 const limpiar = (s: string) => s.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü ]/g, '').slice(0, 14).toUpperCase()
 
-export default function Editor() {
-  const { perfil, repo, setPerfil, ir, hub } = useJuego()
+/**
+ * Editor del personaje. Un conquistador lo configura una sola vez: después solo su director puede cambiarlo
+ * (el servidor lo hace cumplir). El director lo abre con `miembro` para editar el de alguien de su club.
+ */
+export default function Editor({ miembro, onListo }: { miembro?: MiembroConAvatar; onListo?: () => void } = {}) {
+  const { perfil: miPerfil, repo, setPerfil, ir, hub } = useJuego()
+  const perfil = miembro && miPerfil ? { ...miPerfil, id: miembro.id, apodo: miembro.apodo, rango: miembro.rango, grupo_edad: miembro.grupo_edad, avatar: miembro.avatar } : miPerfil
   const [a, setA] = useState<AvatarConfig>(() => {
     const base: AvatarConfig = { genero: 'm', piel: 2, pelo: 0, colorPelo: 0, ...(perfil?.avatar ?? {}) }
     const validos = PEINADOS[base.genero === 'f' ? 'f' : 'm'].map(x => x.v)
@@ -50,7 +55,8 @@ export default function Editor() {
   const [aviso, setAviso] = useState('')
   if (!perfil) return null
   const practica = perfil.id === 'local'
-  const puedeRango = practica || perfil.grupo_edad === 'adulto'
+  const bloqueado = !miembro && !practica && perfil.grupo_edad === 'menor' && !perfil.invitado && !!perfil.avatar?.genero
+  const puedeRango = !miembro && (practica || perfil.grupo_edad === 'adulto')
   const rangos = practica ? RANGOS : RANGOS.filter(([r]) => r !== 'conquistador')
   const u = a.uniforme ?? {}
   const gm = esGuiaMayor(rango), adulto = esAdulto(rango)
@@ -78,6 +84,11 @@ export default function Editor() {
     // Años de servicio siempre coherentes con el nivel de liderazgo (mín. 2; Máster 4; Máster Avanzado 7)
     const final: AvatarConfig = adulto ? { ...a, uniforme: { ...a.uniforme, anios: aniosValidos(rango, a.uniforme?.anios) } } : a
     try {
+      if (miembro) {
+        if (!repo.directorGuardarAvatar) throw new Error('NO_AUTORIZADO')
+        await repo.directorGuardarAvatar(miembro.id, final)
+        setGuardando(false); onListo?.(); return
+      }
       if (rango !== perfil.rango && puedeRango) await repo.cambiarRango(rango)
       await repo.guardarAvatar(final)
     } catch (e) {
@@ -91,8 +102,23 @@ export default function Editor() {
     ir(hub)
   }
 
-  return (
+  if (bloqueado) return (
     <div className="pantalla editor">
+      <div className="editor-escena">
+        <Campamento />
+        <div className="editor-nombre"><b>{a.nombreTira || perfil.apodo}</b><small>{perfil.club.nombre}{a.unidad ? `, unidad ${a.unidad}` : ''}</small></div>
+        <div className="pixel-tarima"><PixelAvatar a={a} rango={rango} animo="saluda" alto={alto} /></div>
+      </div>
+      <div className="editor-panel pop editor-bloqueado">
+        <h2>Así te ven en el campamento</h2>
+        <p>Tu personaje ya está listo. Si cambias de clase, de unidad o de función, pídeselo a tu director: solo él o ella puede cambiarlo.</p>
+        <Boton onClick={() => ir(hub)}>Volver</Boton>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className={`pantalla editor ${miembro ? 'editor-director' : ''}`}>
       <div className="editor-escena">
         <Campamento />
         <div className="editor-nombre"><b>{a.nombreTira || perfil.apodo}</b><small>{perfil.club.nombre}{a.unidad ? `, unidad ${a.unidad}` : ''}</small></div>
@@ -182,7 +208,15 @@ export default function Editor() {
           </>)}
         </div>
         {aviso && pestana === 'look' && <small className="nota aviso" role="alert">{aviso}</small>}
-        <Boton onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : '¡Listo, al mapa!'}</Boton>
+        {miembro ? (
+          <div className="fila-botones">
+            <Boton tipo="fantasma" onClick={() => onListo?.()} disabled={guardando}>Cancelar</Boton>
+            <Boton onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : `Guardar a ${miembro.apodo}`}</Boton>
+          </div>
+        ) : <>
+          {!practica && perfil.grupo_edad === 'menor' && !perfil.invitado && <small className="nota">Revisa bien: una vez guardado, solo tu director podrá cambiar tu personaje.</small>}
+          <Boton onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : '¡Listo, al campamento!'}</Boton>
+        </>}
       </div>
     </div>
   )

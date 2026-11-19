@@ -1,7 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   ConexionPlaza, ConexionPresencia, ConexionSala, EventosPlaza, EventosPresencia, EventosSala, InicioRonda, InvitacionDuelo, JugadorEnLinea, JugadorSala,
-  FilaSala, FilaTotalSala, ProgresoSala, PresenteEnPlaza, PuertoSalas, PuntoPlaza, RespuestaDuelo, ResultadoDuelo,
+  FilaSala, FilaTotalSala, PerfilPublico, ProgresoSala, PresenteEnPlaza, PuertoSalas, PuntoPlaza, RespuestaDuelo, ResultadoDuelo,
 } from '../../application/puertos'
 import { FRASES } from '../../application/puertos'
 import { TODOS_LOS_NIVELES } from '../../domain/niveles'
@@ -40,6 +40,20 @@ function limpiarEnLinea(v: unknown): JugadorEnLinea | null {
     rango: (RANGOS.has(o.rango as string) ? o.rango : 'conquistador') as JugadorEnLinea['rango'],
     avatar: limpiarAvatar(o.avatar), ocupado: o.ocupado === true,
     x: typeof o.x === 'number' && Number.isFinite(o.x) ? Math.min(0.92, Math.max(0.08, o.x)) : undefined,
+  }
+}
+
+const AMBITOS = new Set(['mundo', 'pais', 'union', 'campo', 'club'])
+const BANDERA = /^p:([0-9a-f]{6},){0,15}[0-9a-f]{6};d:[0-9a-f]{384}$/
+function limpiarPublico(v: unknown): PerfilPublico | null {
+  const j = limpiarEnLinea(v)
+  if (!j) return null
+  const o = v as Record<string, unknown>
+  const lista = (x: unknown, ok: (s: string) => boolean, max: number) => (Array.isArray(x) ? x.filter((e): e is string => typeof e === 'string' && ok(e)).slice(0, max) : [])
+  return {
+    ...j, pais: texto(o.pais, 3).toUpperCase(), campo: texto(o.campo, 80), union: texto(o.union, 80),
+    bandera: typeof o.bandera === 'string' && BANDERA.test(o.bandera) ? o.bandera : null,
+    aprobados: num(o.aprobados, 0, 999), pines: lista(o.pines, e => /^[a-z0-9-]{3,30}$/.test(e), 20), campeon: lista(o.campeon, e => AMBITOS.has(e), 5),
   }
 }
 
@@ -261,11 +275,11 @@ export class SalasSupabase implements PuertoSalas {
     })().catch(async e => { clearInterval(latidoT); await this.sb.removeChannel(isla).catch(() => undefined); await this.sb.removeChannel(buzon).catch(() => undefined); throw e })
   }
 
-  perfilesPublicos(ids: string[]): Promise<JugadorEnLinea[]> {
+  perfilesPublicos(ids: string[]): Promise<PerfilPublico[]> {
     const lista = [...new Set(ids)].filter(esId).slice(0, 60)
     if (!lista.length) return Promise.resolve([])
     return this.rpc<unknown[]>('perfiles_publicos', { p_token: this.token(), p_ids: lista })
-      .then(r => (Array.isArray(r) ? r : []).map(limpiarEnLinea).filter((j): j is JugadorEnLinea => !!j))
+      .then(r => (Array.isArray(r) ? r : []).map(limpiarPublico).filter((j): j is PerfilPublico => !!j))
   }
 
   /**
@@ -294,7 +308,7 @@ export class SalasSupabase implements PuertoSalas {
           if (!esId(clave) || clave === yo.id || !m) continue
           const pt = punto(m.x, m.y)
           if (!pt) continue
-          presentes.add(clave); lista.push({ id: clave, ...pt })
+          presentes.add(clave); lista.push({ id: clave, ...pt, t: num(m.t, 0, 9e15), cer: m.cer === true })
           if (lista.length >= 80) break
         }
         return lista
@@ -316,6 +330,8 @@ export class SalasSupabase implements PuertoSalas {
       elegido = true
       let ultimo = 0, pendiente: { desde: PuntoPlaza; hasta: PuntoPlaza } | null = null, tIr = 0
       let ultimoTrack = 0, posPend: PuntoPlaza | null = null, tTrack = 0
+      const llegue = Date.now()
+      const meta = { x: r2(pos.x), y: r2(pos.y), t: llegue, cer: false }
       const enviarIr = () => {
         if (!pendiente) return
         const { desde, hasta } = pendiente; pendiente = null; ultimo = Date.now()
@@ -324,12 +340,14 @@ export class SalasSupabase implements PuertoSalas {
       const track = () => {
         if (!posPend) return
         const p = posPend; posPend = null; ultimoTrack = Date.now()
-        canal.track({ x: r2(p.x), y: r2(p.y) }).catch(() => undefined)
+        meta.x = r2(p.x); meta.y = r2(p.y)
+        canal.track({ ...meta }).catch(() => undefined)
       }
-      await canal.track({ x: r2(pos.x), y: r2(pos.y) })
+      await canal.track({ ...meta })
       ev.onPresentes?.(leerPresentes())
       return {
         canal: n,
+        llegada: llegue,
         ir: (desde, hasta) => {
           pendiente = { desde, hasta }
           const espera = 250 - (Date.now() - ultimo)
@@ -343,6 +361,7 @@ export class SalasSupabase implements PuertoSalas {
           else if (!tTrack) tTrack = window.setTimeout(() => { tTrack = 0; track() }, espera)
         },
         gesto: async frase => { await canal.send({ type: 'broadcast', event: 'gesto', payload: { de: yo.id, frase } }) },
+        formar: si => { if (meta.cer === si) return; meta.cer = si; ultimoTrack = Date.now(); canal.track({ ...meta }).catch(() => undefined) },
         salir: async () => {
           clearTimeout(tIr); clearTimeout(tTrack)
           await canal.untrack().catch(() => undefined)

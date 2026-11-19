@@ -3,6 +3,7 @@ import type { ConexionPresencia, ConexionSala, InicioRonda, InvitacionDuelo, Jug
 import { guardarModo, repoLocal, repoPara, type Modo } from '../adapters/contenedor'
 import { TODOS_LOS_NIVELES, type Nivel } from '../domain/niveles'
 import type { Dificultad } from '../domain/tipos'
+import { esSabado } from '../domain/plaza'
 
 export type Pantalla = 'intro' | 'acceso' | 'editor' | 'mapa' | 'juego' | 'ranking' | 'legal' | 'director' | 'sala' | 'club' | 'admin' | 'logros' | 'campamentos' | 'plaza'
 
@@ -54,6 +55,9 @@ interface Estado {
   refrescarPuntajes: () => Promise<void>
   setDificultad: (d: Dificultad) => void
   jugar: (n: Nivel, desafio: boolean, dificultad?: Dificultad, semilla?: number | null) => void
+  /** El sábado (viernes 18:00 a sábado 18:00) no hay desafíos ni práctica, salvo en una sala dirigida por un líder. */
+  avisoSabado: boolean
+  cerrarAvisoSabado: () => void
   salir: () => Promise<void>
   toggleSonido: () => void
   abrirSala: (codigo: string | null, sesionId?: string | null) => Promise<void>
@@ -171,7 +175,13 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
     try { set({ puntajes: await get().repo.misPuntajes() }) } catch { /* sin conexión */ }
   },
   setDificultad: d => { try { localStorage.setItem('asp_dif', d) } catch { /* */ } set({ dificultad: d }) },
-  jugar: (n, desafio, dificultad, semilla = null) => set(s => ({ nivel: n, desafio, dificultad: dificultad ?? s.dificultad, semilla, pantalla: 'juego' })),
+  jugar: (n, desafio, dificultad, semilla = null) => {
+    const forzado = import.meta.env.DEV ? (window as unknown as { __sabado?: boolean }).__sabado : undefined
+    if (!get().sala && (typeof forzado === 'boolean' ? forzado : esSabado())) { set({ avisoSabado: true }); return }
+    set(s => ({ nivel: n, desafio, dificultad: dificultad ?? s.dificultad, semilla, pantalla: 'juego' }))
+  },
+  avisoSabado: false,
+  cerrarAvisoSabado: () => set({ avisoSabado: false }),
   salir: async () => {
     await get().dejarSala()
     await get().presencia?.salir().catch(() => undefined)
