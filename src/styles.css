@@ -1211,3 +1211,26 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
 .podio-titulo { margin: 0 0 4px !important; font-family: var(--titulo); font-weight: 400; font-size: 1.8rem !important; letter-spacing: 1.5px; color: var(--oro);
   -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); }
 .podio-bloque { justify-content: flex-start; gap: 1px; padding-top: 3px; }
+
+/* Isla conquistada: la gran celebración al completar la Isla del Uniforme */
+.isla-ganada { z-index: 90; background: radial-gradient(circle at 50% 42%, rgba(255,194,14,.35), rgba(11,25,70,.9) 60%); overflow: hidden; }
+.isla-rayos { position: fixed; left: 50%; top: 42%; width: 220vmax; height: 220vmax; translate: -50% -50%; pointer-events: none;
+  background: repeating-conic-gradient(rgba(255,229,138,.18) 0 9deg, transparent 9deg 22.5deg); animation: girar 40s linear infinite;
+  mask: radial-gradient(circle, #000 10%, transparent 55%); -webkit-mask: radial-gradient(circle, #000 10%, transparent 55%); }
+.isla-ganada-caja { position: relative; z-index: 2; width: min(480px, 100%); text-align: center; background: var(--fieltro); border: var(--borde); border-radius: 22px;
+  box-shadow: var(--golpe-g); outline: var(--puntada); outline-offset: -10px; padding: 0 22px 22px; animation: pop .5s cubic-bezier(.2,1.4,.4,1) both; }
+.isla-ganada-titular { margin: -28px auto 4px; width: fit-content; }
+.isla-ganada-titular span { display: block; font-family: var(--titulo); font-size: clamp(2.2rem, 9vw, 3.2rem); letter-spacing: 2px; line-height: 1.05; padding: 8px 22px 6px;
+  rotate: -3deg; background: var(--rojo); color: #fff; -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; border: var(--borde); box-shadow: var(--golpe-g);
+  animation: titular .6s cubic-bezier(.2,1.6,.4,1) .15s both; }
+.isla-ganada-escena { display: flex; align-items: flex-end; justify-content: center; gap: 6px; min-height: 180px; margin-top: 6px; }
+.isla-ganada-parche { animation: caeParche .9s cubic-bezier(.3,1.5,.5,1) .5s both; filter: drop-shadow(4px 5px 0 var(--ink)); }
+.isla-ganada-parche svg { display: block; animation: latido 1.6s ease-in-out 1.6s infinite; }
+@keyframes caeParche { from { opacity: 0; transform: translateY(-140px) rotate(-200deg) scale(.4); } }
+.isla-ganada-avatar { animation: entrada .5s cubic-bezier(.2,1.4,.4,1) .9s both; }
+.isla-ganada-caja h2 { margin: 8px 0 4px; font-family: var(--titulo); font-weight: 400; letter-spacing: 1.5px; font-size: 1.7rem; color: var(--oro); }
+.isla-ganada-caja p { margin: 4px 0; color: var(--crema); font-weight: 800; }
+.isla-ganada-premio { display: inline-block; margin-top: 8px !important; padding: 6px 12px; background: #48CF7C; color: var(--ink) !important; border: var(--borde); border-radius: 10px;
+  box-shadow: var(--golpe); animation: pop .4s cubic-bezier(.2,1.5,.4,1) 1.5s both; }
+.isla-ganada .fila-botones { margin-top: 16px; }
+@media (prefers-reduced-motion: reduce) { .isla-rayos, .isla-ganada-parche, .isla-ganada-parche svg, .isla-ganada-avatar { animation: none; } }

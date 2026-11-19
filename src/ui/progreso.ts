@@ -20,6 +20,8 @@ interface Progreso {
   cumplirDiario: () => boolean
   evaluar: () => void
   verNuevo: () => void
+  /** Quita un parche de la cola de avisos (ya se mostró de otra forma, p. ej. en la celebración de la isla). */
+  descartarNuevo: (id: string) => void
   refrescarStats: () => void
 }
 
@@ -62,6 +64,7 @@ export const useProgreso = create<Progreso>((set, get) => ({
     else set(s => ({ logros: todos, nuevos: [...s.nuevos, ...nuevos] }))
   },
   verNuevo: () => set(s => ({ nuevos: s.nuevos.slice(1) })),
+  descartarNuevo: id => set(s => ({ nuevos: s.nuevos.filter(x => x !== id) })),
   refrescarStats: () => { useJuego.getState().repo.estadisticas().then(stats => { set({ stats }); get().evaluar() }).catch(() => undefined) },
 }))
 

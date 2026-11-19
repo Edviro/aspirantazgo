@@ -10,11 +10,23 @@ import { APROBADO } from '../../domain/puntuacion'
 import { useState, useEffect } from 'react'
 import { descargarCertificado, dibujarCertificado } from '../certificado'
 import { mensajeError } from '../../application/errores'
+import { IR_AL_CERTIFICADO } from '../componentes/IslaConquistada'
 
 /** Mis parches: la colección de logros, el reto del día y la racha. */
 export default function Logros() {
   const { ir, jugar, puntajes, perfil } = useJuego()
   useEffect(() => { musica('himno_emotivo') }, [])
+  // Viene de la celebración de la isla: baja directo al certificado
+  useEffect(() => {
+    let ir = false
+    try { ir = sessionStorage.getItem(IR_AL_CERTIFICADO) === '1'; sessionStorage.removeItem(IR_AL_CERTIFICADO) } catch { /* */ }
+    if (!ir) return
+    const t = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>('.certificado')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.querySelector('input')?.focus({ preventScroll: true })
+    }, 350)
+    return () => clearTimeout(t)
+  }, [])
   const faltan = MUNDO_UNIFORMES.niveles.filter(n => (puntajes[n.id] ?? 0) < APROBADO).length
   const [nombre, setNombre] = useState(() => { try { return localStorage.getItem('asp_nombre_certificado') ?? '' } catch { return '' } })
   const [vista, setVista] = useState<string | null>(null)

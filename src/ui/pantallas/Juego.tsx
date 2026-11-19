@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { mundoDeNivel, prepararNivel } from '../../domain/niveles'
+import { MUNDO_UNIFORMES, mundoDeNivel, prepararNivel } from '../../domain/niveles'
 import { describirCaso } from '../../domain/uniformes'
 import { COMO_SE_JUEGA } from '../comoSeJuega'
 import { pausar, reanudar } from '../reloj'
@@ -24,6 +24,7 @@ import { musica, pistaDeNivel } from '../musica'
 import { APROBADO } from '../../domain/puntuacion'
 import { esRetoDelDia, useProgreso } from '../progreso'
 import { rachaVigente } from '../../domain/diario'
+import { IslaConquistada } from '../componentes/IslaConquistada'
 
 export default function Juego() {
   const { nivel, desafio, dificultad, semilla, perfil, ir, jugar, modo, sala } = useJuego()
@@ -37,8 +38,15 @@ export default function Juego() {
   const puntajeNivel = useJuego(s => (nivel ? s.puntajes[nivel.id] ?? 0 : 0))
   // Puntaje guardado ANTES de esta partida: sirve para saber si acabas de desbloquear el siguiente nivel
   const antes = useRef(puntajeNivel)
+  // ¿Esta partida fue la que completó la Isla del Uniforme? (antes este nivel no estaba aprobado y ahora están todos)
+  const islaCompleta = useJuego(s => MUNDO_UNIFORMES.niveles.every(n => (s.puntajes[n.id] ?? 0) >= APROBADO))
+  const [festejoVisto, setFestejoVisto] = useState(false)
+  const festejo = fase === 'fin' && !!fin && desafio && !enSala && !festejoVisto && islaCompleta && antes.current < APROBADO
+    && !!nivel && MUNDO_UNIFORMES.niveles.some(n => n.id === nivel.id)
+  useEffect(() => {
+    musica(fase === 'jugando' ? (enSala ? 'himno_epico' : pistaDeNivel(nivel?.tipo ?? '')) : fase === 'fin' ? (festejo ? 'himno_epico' : null) : 'mapa')
+  }, [fase, festejo]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { reanudar(); musica('mapa') }, [])
-  useEffect(() => { musica(fase === 'jugando' ? (enSala ? 'himno_epico' : pistaDeNivel(nivel?.tipo ?? '')) : fase === 'fin' ? null : 'mapa') }, [fase]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (fase !== 'jugando' || enSala) return
     const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') (useJuego.getState().pausado ? reanudar : pausar)() }
@@ -145,6 +153,11 @@ export default function Juego() {
             </div>
           </div>
         </div>
+      )}
+
+      {festejo && (
+        <IslaConquistada avatar={perfil.avatar} rango={perfil.rango} niveles={MUNDO_UNIFORMES.niveles.length}
+          onCertificado={() => ir('logros')} onSeguir={() => setFestejoVisto(true)} />
       )}
 
       {fase === 'fin' && fin && (
