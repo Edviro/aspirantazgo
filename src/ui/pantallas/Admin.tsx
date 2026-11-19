@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
 import { mensajeError } from '../../application/errores'
+import { AdminCultos } from '../componentes/admin/AdminCultos'
+import { AdminTorneos } from '../componentes/admin/AdminTorneos'
 import type { ClubAdmin, JugadorAdmin, ResumenAdmin, SalaAdmin, SesionAdmin } from '../../application/puertos'
 
-type Pestana = 'resumen' | 'solicitudes' | 'usuarios' | 'clubes' | 'salas' | 'importar'
-const PESTANAS: [Pestana, string][] = [['resumen', 'Resumen'], ['solicitudes', 'Solicitudes'], ['usuarios', 'Usuarios'], ['clubes', 'Clubes'], ['salas', 'Salas'], ['importar', 'Importar']]
+type Pestana = 'resumen' | 'solicitudes' | 'cultos' | 'torneos' | 'usuarios' | 'clubes' | 'salas' | 'importar'
+const PESTANAS: [Pestana, string][] = [['resumen', 'Resumen'], ['solicitudes', 'Solicitudes'], ['cultos', 'Cultos'], ['torneos', 'Torneos'], ['usuarios', 'Usuarios'], ['clubes', 'Clubes'], ['salas', 'Salas'], ['importar', 'Importar']]
 const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—')
 const RANGO: Record<string, string> = { conquistador: 'Conquistador', lider: 'Líder', guia_mayor: 'Guía Mayor', gm_master: 'GM Máster', gm_master_avanzado: 'GM Máster Av.' }
 
@@ -124,6 +126,9 @@ export default function Admin() {
             </section>
           </>
         )}
+
+        {tab === 'cultos' && <AdminCultos admin={admin} hacer={hacer} />}
+        {tab === 'torneos' && <AdminTorneos admin={admin} hacer={hacer} />}
 
         {tab === 'solicitudes' && (
           <>

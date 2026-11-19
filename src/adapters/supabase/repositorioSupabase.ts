@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
-  Bolsa, ItemTienda, MiembroConAvatar,
+  Bolsa, ItemTienda, MiembroConAvatar, ClubRetable, ProgramaAdmin, ProgramaVivo, PuertoCulto, RetoClub, Torneo, TorneoAdmin,
   Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubLista, FilaRanking, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
   RegistroAdulto, RepositorioJuego, ResultadoServidor, Vidas, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
@@ -21,6 +21,7 @@ export class RepositorioSupabase implements RepositorioJuego {
   readonly cuentas: PuertoCuentas
   readonly lider: PuertoLider
   readonly admin: PuertoAdmin
+  readonly culto: PuertoCulto
   private sb: SupabaseClient
 
   constructor(url: string, clave: string) {
@@ -88,6 +89,34 @@ export class RepositorioSupabase implements RepositorioJuego {
       async resolverSesion(id, estado, respuesta) { await rpc('admin_resolver_sesion', { p_id: id, p_estado: estado, p_respuesta: respuesta }) },
       async config(clave, valor) { await rpc('admin_config', { p_clave: clave, p_valor: valor }) },
       importar: datos => rpc('admin_importar', { p_datos: datos }),
+      torneos: () => rpc<TorneoAdmin[]>('admin_torneos'),
+      crearTorneo: d => rpc<string>('admin_crear_torneo', { p_titulo: d.titulo, p_ambito: d.ambito, p_reto: d.reto, p_inicia: d.inicia, p_termina: d.termina, p_pais: d.pais }),
+      async cancelarTorneo(id) { await rpc('admin_cancelar_torneo', { p_id: id }) },
+      programas: () => rpc<ProgramaAdmin[]>('admin_programas'),
+      guardarPrograma: p => rpc<string>('admin_programa_guardar', { p }),
+      async estadoPrograma(id, estado) { await rpc('admin_programa_estado', { p_id: id, p_estado: estado }) },
+    }
+
+    const AVISO = 'v'
+    this.culto = {
+      actual: () => rpc<ProgramaVivo | null>('programa_actual', { p_token: token() }),
+      decir: (programa, texto) => rpc<number>('programa_decir', { p_token: token(), p_programa: programa, p_texto: texto }),
+      control: (programa, parte, diapositiva) => rpc<number>('programa_control', { p_token: token(), p_programa: programa, p_parte: parte, p_diapositiva: diapositiva }),
+      diapositivas: (programa, orden, d) => rpc<number>('programa_diapositivas', { p_token: token(), p_programa: programa, p_orden: orden, p_diapositivas: d }),
+      async estado(programa, estado) { await rpc('programa_estado', { p_token: token(), p_programa: programa, p_estado: estado }) },
+      async borrarDicho(programa, id) { await rpc('programa_borrar_dicho', { p_token: token(), p_programa: programa, p_id: id }) },
+      // Canal solo de avisos: lleva un número de versión, nunca contenido. Si alguien manda avisos falsos, lo único que
+      // logra es que los demás vuelvan a preguntar al servidor (y eso está limitado en la pantalla).
+      async escuchar(programa, onCambio) {
+        if (!/^[0-9a-f-]{36}$/.test(programa)) throw new Error('DATOS_INVALIDOS')
+        const ch = sb.channel(`culto-${programa}`, { config: { broadcast: { self: false, ack: false } } })
+        ch.on('broadcast', { event: AVISO }, m => { const v = (m.payload as { v?: unknown })?.v; if (typeof v === 'number' && Number.isFinite(v)) onCambio(v) })
+        await new Promise<void>(res => { ch.subscribe(st => { if (st === 'SUBSCRIBED' || st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') res() }) })
+        return {
+          avisar(v) { void ch.send({ type: 'broadcast', event: AVISO, payload: { v } }) },
+          async salir() { await sb.removeChannel(ch) },
+        }
+      },
     }
   }
 
@@ -166,6 +195,15 @@ export class RepositorioSupabase implements RepositorioJuego {
     if (bandera !== null && !/^p:([0-9a-f]{6},){0,15}[0-9a-f]{6};d:[0-9a-f]{384}$/.test(bandera)) throw new Error('BANDERA_INVALIDA')
     await this.rpc('guardar_bandera_club', { p_bandera: bandera })
   }
+
+  torneos() { return this.rpc<Torneo[]>('torneos_vigentes', { p_token: this.token }) }
+  clubesParaRetar(buscar: string) { return this.rpc<ClubRetable[]>('clubes_para_retar', { p_buscar: buscar }) }
+  directorRetar(d: { rivales: string[]; reto: string; inicia: string; dias: number; titulo: string }) {
+    return this.rpc<string>('director_retar', { p_rivales: d.rivales, p_reto: d.reto, p_inicia: d.inicia, p_dias: d.dias, p_titulo: d.titulo })
+  }
+  directorRetos() { return this.rpc<RetoClub[]>('director_retos') }
+  async directorResponderReto(id: string, acepta: boolean) { await this.rpc('director_responder_reto', { p_id: id, p_acepta: acepta }) }
+  async directorCancelarReto(id: string) { await this.rpc('director_cancelar_reto', { p_id: id }) }
 
   async borrarMiembro(apodo: string) { await this.rpc('borrar_jugador_de_mi_club', { p_apodo: apodo }) }
 

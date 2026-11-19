@@ -199,7 +199,7 @@ export const OBJETOS: Objeto[] = (() => {
     { tipo: 'tablero', x: 34, y: 19, w: 4, h: 2, uso: { x: 36.5, y: 21.6 } },
     { tipo: 'reto', x: 59, y: 19, w: 3, h: 2, uso: { x: 59.5, y: 21.6 } },
     { tipo: 'tienda', x: 38, y: 26, w: 4, h: 2, uso: { x: 41.5, y: 28.6 } },
-    { tipo: 'escenario', x: 45, y: 33, w: 7, h: 2, uso: { x: 48.5, y: 32.2 } },
+    { tipo: 'escenario', x: 45, y: 33, w: 7, h: 2, uso: { x: 48.5, y: 35.8 } },
     { tipo: 'santuario', x: SANTUARIO.x, y: SANTUARIO.y, w: SANTUARIO.w, h: SANTUARIO.h, uso: { x: 48.5, y: 27.6 } },
     { tipo: 'fogata', fogata: 'gran', x: 47, y: 22, w: 3, h: 2 },
     { tipo: 'bandera', x: 46, y: 21, w: 1, h: 1 },
@@ -216,8 +216,8 @@ export const OBJETOS: Objeto[] = (() => {
   // Faroles en la avenida, la plaza y los caminos (de noche se encienden)
   for (const [x, y] of [[45, 12], [51, 16], [41, 18], [55, 18], [39, 23], [57, 23], [42, 29], [54, 29], [44, 31], [53, 31],
     [43, 44], [53, 44], [44, 52], [52, 53]] as const) o.push({ tipo: 'farol', x, y, w: 1, h: 1 })
-  // Bancas frente al escenario
-  for (const x of [45, 50]) o.push({ tipo: 'banca', x, y: 31, w: 2, h: 1 })
+  // Bancas frente al escenario (el público mira el telón desde el sur, de frente)
+  for (const x of [45, 50]) o.push({ tipo: 'banca', x, y: 37, w: 2, h: 1 })
   // Parcelas de clubes: portada, astas, carpas por sexo y su fogata
   for (const p of PARCELAS) {
     const gx = p.puerta === 'este' ? p.x + p.w - 1 : p.x

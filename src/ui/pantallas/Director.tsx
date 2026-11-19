@@ -6,6 +6,7 @@ import type { MiembroConAvatar, SesionProgramada } from '../../application/puert
 import { Bandera } from '../componentes/plaza/Iconos'
 import { pixelarImagen } from '../pixel/banderas'
 import Editor from './Editor'
+import { RetosClub } from '../componentes/RetosClub'
 
 type Miembro = { apodo: string; rango: string; grupo_edad: string; puntos: number }
 
@@ -157,6 +158,8 @@ export default function Director() {
             {msgBandera && <p className={msgBandera.ok ? 'aviso-ok' : 'error'} role="status">{msgBandera.t}</p>}
           </section>
         )}
+
+        {director && <RetosClub />}
 
         {director && (
           <section className="tarjeta">

@@ -212,7 +212,7 @@ export class SalasSupabase implements PuertoSalas {
       ocupados.set(p.id, p.ocupado === true); emitir()
     })
     isla.on('broadcast', { event: 'gesto' }, ({ payload: p }) => {
-      if (!p || !esId(p.de) || typeof p.frase !== 'number' || p.frase < 0 || p.frase >= FRASES.length) return
+      if (!p || !esId(p.de) || !Number.isInteger(p.frase) || p.frase < 0 || p.frase >= FRASES.length) return
       ev.onGesto?.({ de: p.de, frase: Math.floor(p.frase) })
     })
     buzon.on('broadcast', { event: 'invitacion' }, ({ payload: p }) => {
@@ -320,7 +320,7 @@ export class SalasSupabase implements PuertoSalas {
         if (desde && hasta) ev.onIr?.({ id: p.id, desde, hasta })
       })
       canal.on('broadcast', { event: 'gesto' }, ({ payload: p }) => {
-        if (!elegido || !p || !esId(p.de) || !presentes.has(p.de) || typeof p.frase !== 'number' || p.frase < 0 || p.frase >= FRASES.length) return
+        if (!elegido || !p || !esId(p.de) || !presentes.has(p.de) || !Number.isInteger(p.frase) || p.frase < 0 || p.frase >= FRASES.length) return
         ev.onGesto?.({ de: p.de, frase: Math.floor(p.frase) })
       })
       try { await suscribir(canal) } catch (e) { await this.sb.removeChannel(canal).catch(() => undefined); throw e }

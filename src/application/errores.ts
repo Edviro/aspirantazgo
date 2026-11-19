@@ -1,5 +1,12 @@
 const MENSAJES: Record<string, string> = {
   CANTIDAD_INVALIDA: 'Elige de 1 a 10 vidas.',
+  NO_EN_VIVO: 'El programa no está en vivo en este momento.',
+  MUY_RAPIDO: 'Espera un momento antes de volver a hablar.',
+  YOUTUBE_INVALIDO: 'Ese enlace de YouTube no es válido. Copia el enlace del video o de la transmisión.',
+  CLUB_SIN_DIRECTOR: 'Solo puedes retar a clubes que tienen director registrado.',
+  DEMASIADOS_RETOS: 'Tu club ya tiene 5 retos activos. Espera a que terminen.',
+  RETO_NO_EXISTE: 'Ese desafío no existe.',
+  DATOS_INVALIDOS: 'Revisa los datos: algo no es válido.',
   SIN_MONEDAS: 'Te faltan ConquisCoins. Gánalas superando desafíos.',
   YA_LO_TIENES: 'Ya tienes ese artículo.',
   ITEM_INVALIDO: 'Ese artículo ya no está en la tienda.',

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { FRASES, type Bolsa, type ConexionPlaza, type PerfilPublico, type PresenteEnPlaza, type PuntoPlaza } from '../../application/puertos'
+import { FRASES, type Bolsa, type ConexionPlaza, type PerfilPublico, type PresenteEnPlaza, type ProgramaVivo, type PuntoPlaza } from '../../application/puertos'
 import { CAMPAMENTO_CENTRAL, CAMPAMENTOS, centralAbierto, progresoCampamento } from '../../domain/campamentos'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
 import {
@@ -14,6 +14,8 @@ import { HudVidas } from '../componentes/Vidas'
 import { FichaCarpa, FichaJugador, RANGO_TXT } from '../componentes/plaza/Fichas'
 import { Bandera } from '../componentes/plaza/Iconos'
 import { Moneda, Tienda } from '../componentes/plaza/Tienda'
+import { Culto } from '../componentes/plaza/Culto'
+import { TableroRetos } from '../componentes/plaza/TableroRetos'
 import { useJuego } from '../estado'
 import { musica } from '../musica'
 import { B, dibujarSuelo, lucesDeNoche, pintarSprite, spriteDe, type ExtraSprite, type Sprite } from '../pixel/plazaPixel'
@@ -34,7 +36,7 @@ const VENDEDORES = [
 interface Ente { x: number; y: number; ruta: PuntoPlaza[]; mira: 1 | -1; camina: boolean; el?: HTMLElement | null; cuerpo?: HTMLElement | null }
 
 const ACCION: Record<string, string> = {
-  barco: '⛵ Subir al barco', tablero: '🏆 Tablero de honor', reto: '⭐ Reto del día', tienda: '🛍️ Tienda de parches y pines',
+  barco: '⛵ Subir al barco', tablero: '🏆 Torneos y tablero de honor', reto: '⭐ Reto del día', tienda: '🛍️ Tienda de parches y pines',
   escenario: '🎤 Escenario', santuario: '🔥 Gran fogata', letrero: '🪧 Leer el letrero', consejo: '🔥 Fuego del Consejo',
   portada: '⛺ Portada del campamento', 'carpa-p': '⛺ Ver la carpa',
 }
@@ -121,6 +123,11 @@ export default function Plaza() {
   const [bolsa, setBolsa] = useState<Bolsa | null>(null)
   const [formado, setFormado] = useState(false)
   const [rechazoCer, setRechazoCer] = useState<string | null>(null)
+  const [culto, setCulto] = useState(false)
+  const [tablero, setTablero] = useState(false)
+  const [programa, setPrograma] = useState<ProgramaVivo | null>(null)
+  const cultoAbierto = useRef(false)
+  cultoAbierto.current = culto
   const marca = useRef<HTMLDivElement>(null)
   const usoPendiente = useRef<Objeto | null>(null)
   const teclas = useRef(new Set<string>())
@@ -129,6 +136,14 @@ export default function Plaza() {
   const miClub = perfil?.club.id ?? 'mi-club'
 
   useEffect(() => { repo.bolsa?.().then(setBolsa).catch(() => undefined) }, [repo])
+  // ¿Hay un programa en vivo en el escenario? (se revisa cada minuto)
+  useEffect(() => {
+    if (!repo.culto) return
+    const ver = () => { repo.culto!.actual().then(setPrograma).catch(() => undefined) }
+    ver()
+    const t = setInterval(ver, 60000)
+    return () => clearInterval(t)
+  }, [repo])
 
   const actualizarLista = useCallback(() => {
     const l = [...otros.current.keys()].filter(id => perfiles.current.has(id)).slice(0, 60)
@@ -293,7 +308,7 @@ export default function Plaza() {
     sfx.click()
     switch (ob.tipo) {
       case 'barco': sfx.zas(); setZarpar(true); break
-      case 'tablero': ir('ranking'); break
+      case 'tablero': setTablero(true); break
       case 'reto':
         if (sabado) setAviso('Feliz sábado: los desafíos descansan hasta el sábado a las 6 p. m. ¡Te esperamos en el culto!')
         else if (hechoHoy) setAviso(`Ya cumpliste el reto de hoy (${reto.nivel.titulo}). Racha: ${rachaVigente(rachaObj)} días. ¡Vuelve mañana!`)
@@ -303,9 +318,7 @@ export default function Plaza() {
         if (sabado) setAviso('La tienda está cerrada por ser sábado. Abre el sábado a las 6 p. m.')
         else setTienda(true)
         break
-      case 'escenario': setAviso(sabado
-        ? 'Feliz sábado: este es el lugar del culto. Pronto los líderes podrán dirigir programas en vivo desde aquí.'
-        : 'Escenario de cultos y programas: pronto los líderes podrán dirigir cultos, predicaciones y presentaciones en vivo.'); break
+      case 'escenario': entrarCulto(); break
       case 'santuario': setAviso(abierto
         ? '¡Lo lograste! Completaste todos los campamentos: la gran fogata del Gran Campamento es tuya.'
         : `La gran fogata es el corazón del Gran Campamento. Su puerta se abre cuando completes todos los campamentos (llevas ${completos} de ${listos}).`); break
@@ -321,7 +334,26 @@ export default function Plaza() {
       }
       case 'carpa-p': setCarpaVista(ob); break
     }
-  }, [abierto, completos, listos, hechoHoy, ir, jugar, reto, rachaObj, sabado, clubDeParcela, asignacion])
+  }, [abierto, completos, listos, hechoHoy, ir, jugar, reto, rachaObj, sabado, clubDeParcela, asignacion, s]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---------- Cámara al escenario: baja desde la vista aérea hasta quedar de frente (como en los juegos de fútbol) ----------
+  const ESC = OBJETOS.find(o => o.tipo === 'escenario')!
+  function entrarCulto() {
+    romperFilas(); setAviso(null); setElegido(null); setHablar(false)
+    const z = capa.current?.parentElement
+    if (!z || menosMovimiento()) { setCulto(true); return }
+    const c = cam.current
+    z.style.transformOrigin = `${(ESC.x + ESC.w / 2) * B * s + c.ox}px ${(ESC.y - 1) * B * s + c.oy}px`
+    sfx.zas()
+    const an = z.animate([{ transform: 'none', filter: 'none' }, { transform: 'scale(2.6)', filter: 'brightness(1.25) blur(1px)' }], { duration: 620, easing: 'cubic-bezier(.55,0,.75,.35)', fill: 'forwards' })
+    an.onfinish = () => { setCulto(true); requestAnimationFrame(() => an.cancel()) }
+  }
+  const salirCulto = () => {
+    setCulto(false)
+    const z = capa.current?.parentElement
+    if (!z || menosMovimiento()) return
+    z.animate([{ transform: 'scale(2.6)', filter: 'brightness(1.25)' }, { transform: 'none', filter: 'none' }], { duration: 560, easing: 'cubic-bezier(.2,.7,.2,1)' })
+  }
   useEffect(() => { if (!aviso) return; const t = setTimeout(() => setAviso(null), 7000); return () => clearTimeout(t) }, [aviso])
 
   // ---------- Bucle de animación: mover, cámara y profundidad ----------
@@ -402,7 +434,7 @@ export default function Plaza() {
     const valida = (k: string) => ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(k)
     const abajo = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.closest('.velo'))) return
+      if (cultoAbierto.current || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.closest('.velo')))) return
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key
       if (valida(k)) { teclas.current.add(k); e.preventDefault(); romperFilas() }
       if ((k === 'Enter' || k === ' ' || k === 'e') && cerca && !(t?.tagName === 'BUTTON')) { e.preventDefault(); usar(cerca) }
@@ -467,6 +499,7 @@ export default function Plaza() {
       yo: () => ({ x: yo.current.x, y: yo.current.y }),
       teletransportar: (x: number, y: number) => { Object.assign(yo.current, { x, y, ruta: [] }); Object.assign(cam.current, { x, y }) },
       asignacion: () => ({ parcelas: [...asignacion.parcelas], carpas: [...asignacion.carpas] }),
+      programa: (p: ProgramaVivo | null) => setPrograma(p),
     }
     return () => { delete w.__plaza }
   }, [actualizarLista, caminar, recibirGesto, asignacion])
@@ -494,6 +527,7 @@ export default function Plaza() {
     .map(([id]) => (id === perfil.id ? yoPublico : perfiles.current.get(id)))
     .filter((x): x is PerfilPublico => !!x)
   const invitar = cer && cer.fase !== 'final' && miParcela !== undefined && !formado && rechazoCer !== `${cer.tipo}-${Math.floor(hora)}`
+  const invitarVisible = !!invitar
 
   return (
     <div className="pantalla plaza">
@@ -519,6 +553,7 @@ export default function Plaza() {
                 <span className="plaza-pj-dentro"><span className="plaza-cuerpo"><PixelAvatar a={v.a} rango="lider" animo="idle" alto={altoPj} /></span></span>
               </div>
             ))}
+            {programa?.estado === 'en_vivo' && <span className="plaza-envivo" style={{ left: (ESC.x + ESC.w / 2) * B * s, top: (ESC.y * B - 34) * s, zIndex: ESC.y * B + ESC.h * B + 3 }}><i className="en-vivo-punto" aria-hidden />EN VIVO</span>}
             <div className="plaza-marca" ref={marca} aria-hidden />
             {lista.map(j => (
               <button key={j.id} className="plaza-pj" ref={el => { const e = otros.current.get(j.id); if (e) { e.el = el; e.cuerpo = el?.querySelector('.plaza-cuerpo') as HTMLElement | null; pintar(e) } }}
@@ -569,9 +604,15 @@ export default function Plaza() {
           : red === 'conectando' ? 'Conectando con los demás clubes…' : modo === 'practica' ? 'Modo práctica: recorres el campamento tú solo' : 'Sin conexión: recorres el campamento tú solo'}
           {luz.fase === 'noche' ? ' · 🌙' : luz.fase === 'atardecer' ? ' · 🌇' : luz.fase === 'amanecer' ? ' · 🌅' : ''}</p>
         {sabado && <p className="plaza-sabado">🕊️ ¡Feliz sábado! Hoy es día de culto: los desafíos y la tienda descansan.</p>}
+        {programa?.estado === 'en_vivo' && !culto && !invitarVisible && (
+          <button className="plaza-envivo-aviso pop" onClick={entrarCulto}>
+            <i className="en-vivo-punto" aria-hidden /><span><b>En vivo en el escenario</b><small>{programa.titulo}</small></span><em>Ver</em>
+          </button>
+        )}
       </div>
 
       {aviso && <div className="plaza-aviso pop" role="status" onClick={() => setAviso(null)}>{aviso}</div>}
+
 
       {invitar && (
         <div className="plaza-ceremonia pop" role="dialog" aria-label="Ceremonia de banderas">
@@ -605,6 +646,10 @@ export default function Plaza() {
       </nav>
 
       {rivales.length > 0 && <DialogoReto rivales={rivales} setRivales={setRivales} libres={lista} onCerrar={() => setRivales([])} />}
+
+      {tablero && <TableroRetos onCerrar={() => setTablero(false)} onRanking={() => ir('ranking')} sabado={sabado} />}
+      {culto && <Culto publico={[{ id: perfil.id, apodo: perfil.apodo, avatar: perfil.avatar, rango: perfil.rango }, ...lista.map(j => ({ id: j.id, apodo: j.apodo, avatar: j.avatar, rango: j.rango }))]}
+        gestos={gestos} onGesto={decir} puedeReaccionar={red === 'vivo'} sabado={sabado} luz={luz} onCerrar={salirCulto} />}
 
       {zarpar && <Travesia texto="Zarpando del" destino="Gran Campamento" color="#F2B90F"
         onFin={() => { marcarTransicion({ tipo: 'alejar', desde: CAMPAMENTO_CENTRAL.id }); ir('campamentos') }} />}

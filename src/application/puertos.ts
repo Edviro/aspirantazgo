@@ -166,6 +166,14 @@ export interface PuertoAdmin {
   darVidas(id: string, cantidad: number): Promise<number>
   /** Regala vidas a todos los miembros de un club. Devuelve a cuántos jugadores. */
   darVidasClub(club: string, cantidad: number): Promise<number>
+  /** Torneos abiertos por ámbito (clubes, asociaciones, uniones o países), opcionalmente solo de un país. */
+  torneos?(): Promise<TorneoAdmin[]>
+  crearTorneo?(d: { titulo: string; ambito: AmbitoTorneo; reto: string; inicia: string; termina: string; pais: string | null }): Promise<string>
+  cancelarTorneo?(id: string): Promise<void>
+  /** Programas (cultos) del escenario: partes, equipo y lo que se proyecta. */
+  programas?(): Promise<ProgramaAdmin[]>
+  guardarPrograma?(p: ProgramaAdmin): Promise<string>
+  estadoPrograma?(id: string, estado: 'en_vivo' | 'terminado' | 'cancelado' | 'programado'): Promise<void>
 }
 
 export interface RepositorioJuego {
@@ -199,6 +207,16 @@ export interface RepositorioJuego {
   directorGuardarAvatar?(id: string, a: AvatarConfig): Promise<void>
   /** Director: bandera del club en pixel art (o null para quitarla). */
   guardarBanderaClub?(bandera: string | null): Promise<void>
+  /** Torneos y retos entre clubes que puede jugar (con su tabla). */
+  torneos?(): Promise<Torneo[]>
+  /** Director: retar a otros clubes y responder a los retos. */
+  clubesParaRetar?(buscar: string): Promise<ClubRetable[]>
+  directorRetar?(d: { rivales: string[]; reto: string; inicia: string; dias: number; titulo: string }): Promise<string>
+  directorRetos?(): Promise<RetoClub[]>
+  directorResponderReto?(id: string, acepta: boolean): Promise<void>
+  directorCancelarReto?(id: string): Promise<void>
+  /** Cultos en vivo en el escenario (null en modo práctica). */
+  readonly culto?: PuertoCulto | null
   borrarMiembro(apodo: string): Promise<void>
   borrarMisDatos(): Promise<void>
   salir(): Promise<void>
@@ -305,7 +323,7 @@ export interface ConexionPlaza {
 export interface JugadorEnLinea { id: string; apodo: string; rango: Rango; avatar?: AvatarConfig; club: string; clubId: string; ocupado?: boolean; /** Posición en la isla (0 a 1). */ x?: number }
 /** Frases fijas para saludarse (no hay chat libre: así se protege a los niños). */
 /** Frases y caritas fijas (no hay chat libre: nadie puede escribir cosas feas ni datos personales). Solo se agregan al final. */
-export const FRASES = ['¡Hola!', '¡Maranata!', '¡Te reto!', '¡Bien jugado!', '¡Vamos club!', '¡Gracias!', '¡Casi!', '¡A practicar!', '👏', '🔥', '😄', '🏆', '¿Jugamos?', '¡Siempre listos!'] as const
+export const FRASES = ['¡Hola!', '¡Maranata!', '¡Te reto!', '¡Bien jugado!', '¡Vamos club!', '¡Gracias!', '¡Casi!', '¡A practicar!', '👏', '🔥', '😄', '🏆', '¿Jugamos?', '¡Siempre listos!', '¡Amén!', '🙏', '🙌'] as const
 /** `otros`: apodos de los demás invitados (si es un reto en grupo). */
 export interface InvitacionDuelo { para: string; de: JugadorEnLinea; codigo: string; nivelId: string; dificultad: Dificultad; otros?: string[] }
 export interface RespuestaDuelo { para: string; de: string; codigo: string; acepta: boolean }
@@ -326,4 +344,50 @@ export interface ConexionPresencia {
   /** Vuelve a pedir quiénes están conectados en otras islas. */
   refrescarOtros(): Promise<void>
   salir(): Promise<void>
+}
+
+// ---------- Torneos: retos entre clubes, asociaciones, uniones y países ----------
+export type AmbitoTorneo = 'clubes' | 'campos' | 'uniones' | 'paises'
+export interface FilaTorneo { nombre: string; pais?: string | null; puntos: number; jugadores: number; mio?: boolean; puesto?: number }
+export interface Torneo {
+  id: string; titulo: string; tipo: 'abierto' | 'clubes'; ambito: AmbitoTorneo; reto: string; inicia: string; termina: string; pais: string | null
+  top: FilaTorneo[]; mio: FilaTorneo | null; grupos: number
+}
+export interface TorneoAdmin {
+  id: string; titulo: string; tipo: 'abierto' | 'clubes'; ambito: AmbitoTorneo; reto: string; inicia: string; termina: string; pais: string | null
+  estado: 'pendiente' | 'activo' | 'cancelado'; clubes: number; top: FilaTorneo[] | null
+}
+export interface RetoClub {
+  id: string; titulo: string; reto: string; inicia: string; termina: string; estado: 'pendiente' | 'activo' | 'cancelado'
+  mio: boolean; mi_respuesta: boolean | null; retador: string; clubes: { nombre: string; acepto: boolean | null }[]
+}
+export interface ClubRetable { id: string; nombre: string; ciudad: string | null; campo: string | null; pais: string | null }
+
+// ---------- Cultos y programas en vivo ----------
+export type TipoParte = 'bienvenida' | 'himno' | 'oracion' | 'lectura' | 'mensaje' | 'especial' | 'anuncios' | 'despedida'
+export type RolPrograma = 'conductor' | 'participante'
+export interface ParteVivo { orden: number; titulo: string; tipo: TipoParte; responsable: string | null; apodo: string | null }
+export interface MiembroPrograma { id: string; apodo: string; rango: Rango; avatar: AvatarConfig; club: string; rol: RolPrograma }
+export interface Dicho { id: number; de: string; apodo: string; texto: string }
+export interface ProgramaVivo {
+  id: string; titulo: string; inicia: string; minutos: number; estado: 'programado' | 'en_vivo'
+  youtube: string | null; parte: number; diapositiva: number; version: number; texto: string | null; total_diapositivas: number | null
+  partes: ParteVivo[]; equipo: MiembroPrograma[]; dichos: Dicho[]
+  mi_rol: RolPrograma | null; mis_partes: { orden: number; diapositivas: string[] }[]
+}
+export interface ProgramaAdmin {
+  id?: string; titulo: string; inicia: string; minutos: number; estado?: string; youtube: string | null
+  partes: { titulo: string; tipo: TipoParte; responsable: string | null; diapositivas: string[] }[]
+  equipo: { id: string; rol: RolPrograma; apodo?: string; club?: string }[]
+}
+export interface AvisosCulto { avisar(version: number): void; salir(): Promise<void> }
+export interface PuertoCulto {
+  actual(): Promise<ProgramaVivo | null>
+  decir(programa: string, texto: string): Promise<number>
+  control(programa: string, parte: number, diapositiva: number): Promise<number>
+  diapositivas(programa: string, orden: number, d: string[]): Promise<number>
+  estado(programa: string, estado: 'en_vivo' | 'terminado'): Promise<void>
+  borrarDicho(programa: string, id: number): Promise<void>
+  /** Aviso instantáneo de "algo cambió" (solo un número): el contenido siempre se pide al servidor. */
+  escuchar(programa: string, onCambio: (version: number) => void): Promise<AvisosCulto>
 }
