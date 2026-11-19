@@ -17,6 +17,13 @@ const DUELO_TIPOS = new Set(['taller', 'quiz', 'vf', 'lluvia', 'inspector', 'ord
 export default function Club() {
   const { perfil, enLinea, ir, desafiar, presencia, conectarPresencia, enviarGesto } = useJuego()
   useEffect(() => { musica('mapa') }, [])
+  // Las otras islas se actualizan cada 30 s mientras miras la isla (no hace falta un canal global)
+  useEffect(() => {
+    if (!presencia) return
+    void presencia.refrescarOtros()
+    const t = setInterval(() => { if (!document.hidden) void presencia.refrescarOtros() }, 30000)
+    return () => clearInterval(t)
+  }, [presencia])
   const [rivales, setRivales] = useState<JugadorEnLinea[]>([])
   const rival = rivales[0] ?? null
   const setRival = (j: JugadorEnLinea | null) => setRivales(j ? [j] : [])

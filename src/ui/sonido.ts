@@ -1,8 +1,8 @@
 import { useJuego } from './estado'
 
 // Efectos sintetizados con WebAudio: cero archivos de audio que descargar.
-let ctx: AudioContext | null = null
-const audio = () => (ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)())
+import { contextoAudio } from './audioCtx'
+const audio = contextoAudio
 
 function tono(freq: number, dur: number, tipo: OscillatorType = 'sine', vol = 0.12, delay = 0) {
   if (!useJuego.getState().sonido) return

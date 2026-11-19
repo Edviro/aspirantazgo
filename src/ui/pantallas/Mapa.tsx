@@ -3,6 +3,7 @@ import { musica } from '../musica'
 import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
 import { useProgreso } from '../progreso'
 import { MEDALLAS } from '../../domain/medallas'
+import { BotonInstalar } from '../componentes/BotonInstalar'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
 import { MUNDOS_JUGABLES } from '../../domain/niveles'
 import { APROBADO, estrellasDeMejor } from '../../domain/puntuacion'
@@ -96,6 +97,7 @@ export default function Mapa() {
           {puedeSalas && <button onClick={() => setUnirse(true)}>Unirme a una sala</button>}
           {puedeSalas && esAdulto && <button onClick={() => ir('director')}>{perfil.club.soy_director ? 'Panel del club' : 'Panel del líder'}</button>}
           {perfil.superadmin && <button onClick={() => ir('admin')}>Panel de administrador</button>}
+          <BotonInstalar variante="menu" />
           <button onClick={toggleMusica}>{conMusica ? 'Apagar música' : 'Encender música'}</button>
           <button onClick={toggleSonido}>{sonido ? 'Silenciar efectos' : 'Activar efectos'}</button>
           <button onClick={() => useJuego.getState().verLegal('privacidad')}>Privacidad y términos</button>

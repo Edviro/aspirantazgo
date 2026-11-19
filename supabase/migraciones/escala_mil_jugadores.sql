@@ -1,0 +1,6 @@
+-- Aplicada en Supabase como "escala_mil_jugadores".
+-- players.visto / players.ocupado + latido(p_token, p_ocupado) cada 60 s e isla_otros(p_token) (máx. 40, primero tu asociación/misión).
+-- Índices: attempts(sala, player_id, started_at desc), sala_jugadores(player_id), salas(anfitrion, creada desc), attempts(challenge_id);
+-- se borraron dos índices duplicados.
+-- Tiempo real: ya no hay canal global. Canal por club (isla-<club>), buzón por jugador (buzon-<id>) y,
+-- en las salas, el avance va solo al anfitrión (avance-<código>), que reparte un resumen cada 3 s.

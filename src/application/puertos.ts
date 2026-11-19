@@ -198,8 +198,12 @@ export interface PuertoSalas {
   reclamarAbandono(codigo: string): Promise<ResultadoDuelo>
   /** Resultado OFICIAL de una ronda de sala, calculado por el servidor con los intentos guardados. */
   resultadoSala(codigo: string, reto: string, desde: string): Promise<FilaSala[]>
-  conectar(codigo: string, yo: JugadorSala, eventos: EventosSala): Promise<ConexionSala>
-  /** Presencia global: quién está conectado ahora (por club) y las invitaciones a duelo. */
+  /**
+   * `avanceEnVivo`: recibir el avance de cada jugador al instante (el anfitrión y los duelos).
+   * En salas grandes los jugadores reciben un resumen del anfitrión cada pocos segundos (así escala a cientos).
+   */
+  conectar(codigo: string, yo: JugadorSala, eventos: EventosSala, avanceEnVivo: boolean): Promise<ConexionSala>
+  /** Tu isla (club) en vivo, las islas vecinas (cada 30 s) y tu buzón de invitaciones. */
   presencia(yo: JugadorEnLinea, eventos: EventosPresencia): Promise<ConexionPresencia>
 }
 
@@ -220,7 +224,12 @@ export interface EventosPresencia {
 export interface ConexionPresencia {
   invitar(i: InvitacionDuelo): Promise<void>
   responder(r: RespuestaDuelo): Promise<void>
-  actualizar(yo: JugadorEnLinea): Promise<void>
+  /** Avisa si estás jugando un nivel (para que no te reten en ese momento). */
+  ocupado(si: boolean): Promise<void>
+  /** Tu posición en la isla (0 a 1). */
+  mover(x: number): Promise<void>
   gesto(de: string, frase: number): Promise<void>
+  /** Vuelve a pedir quiénes están conectados en otras islas. */
+  refrescarOtros(): Promise<void>
   salir(): Promise<void>
 }

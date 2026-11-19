@@ -81,6 +81,9 @@ function yoEnLinea(p: Perfil, ocupado: boolean): JugadorEnLinea {
   return { id: p.id, apodo: p.apodo, rango: p.rango, avatar: p.avatar, club: p.club.nombre, clubId: p.club.id ?? '', ocupado }
 }
 
+let moverT = 0, progresoT = 0, ultimoEnvio = 0
+let pendiente: ProgresoSala | null = null
+
 type Set = (p: Partial<Estado> | ((s: Estado) => Partial<Estado>)) => void
 let conectarSala: (cod: string, rol: 'anfitrion' | 'jugador', tipo: 'sala' | 'duelo', duelo?: EstadoSala['duelo'], irASala?: boolean) => Promise<void>
 
@@ -106,7 +109,7 @@ function crearConectarSala(set: Set, get: () => Estado) {
         const nivel = TODOS_LOS_NIVELES.find(n => n.id === r.nivelId)
         if (nivel) setTimeout(() => { if (get().sala) get().jugar(nivel, true, r.dificultad, r.semilla) }, r.cuentaAtras * 1000)
       },
-    })
+    }, rol === 'anfitrion' || tipo === 'duelo')
     set({ sala: { conexion, rol, tipo, duelo, jugadores: ultimos, progresos: {}, ronda: null, rondaRecibida: 0, cerrada: false }, ...(irASala ? { pantalla: 'sala' as const } : {}) })
   }
 }
@@ -242,10 +245,11 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
     presencia?.gesto(perfil.id, frase).catch(() => undefined)
   },
   moverme: x => {
-    const { presencia, perfil } = get()
     const nx = Math.min(0.92, Math.max(0.08, x))
     set({ miX: nx })
-    if (presencia && perfil) presencia.actualizar({ ...yoEnLinea(perfil, false), x: nx }).catch(() => undefined)
+    // Se avisa como mucho una vez cada 0,7 s (con la última posición): menos mensajes, igual de fluido
+    if (moverT) return
+    moverT = window.setTimeout(() => { moverT = 0; get().presencia?.mover(get().miX).catch(() => undefined) }, 700)
   },
   cancelarReto: () => {
     const reto = get().retoEnviado
@@ -267,14 +271,23 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
   reportarProgreso: (avance, puntaje, segundos) => {
     const { sala, perfil } = get()
     if (!sala || sala.rol !== 'jugador' || !sala.ronda || !perfil) return
-    sala.conexion.enviarProgreso({ id: perfil.id, apodo: perfil.apodo, avance, puntaje, segundos, ronda: sala.ronda.ronda }).catch(() => undefined)
+    const p = { id: perfil.id, apodo: perfil.apodo, avance, puntaje, segundos, ronda: sala.ronda.ronda }
+    // Tu propio avance se ve al instante; a los demás se les envía como mucho cada 1 s (duelo) o 2,5 s (sala).
+    // El resultado final (con puntaje) sale siempre enseguida.
+    set(s => s.sala ? { sala: { ...s.sala, progresos: { ...s.sala.progresos, [p.id]: p } } } : {})
+    pendiente = p
+    const espera = sala.tipo === 'duelo' ? 1000 : 2500
+    const enviar = () => { const x = pendiente; pendiente = null; ultimoEnvio = Date.now(); if (x) get().sala?.conexion.enviarProgreso(x).catch(() => undefined) }
+    clearTimeout(progresoT)
+    if (puntaje !== undefined || Date.now() - ultimoEnvio >= espera) enviar()
+    else progresoT = window.setTimeout(enviar, espera - (Date.now() - ultimoEnvio))
   },
 }))
 
 // Los demás ven si estás jugando (no se les deja retarte en medio de un nivel)
 useJuego.subscribe((s, prev) => {
-  if (s.pantalla !== prev.pantalla && s.presencia && s.perfil && (s.pantalla === 'juego' || prev.pantalla === 'juego')) {
-    s.presencia.actualizar({ ...yoEnLinea(s.perfil, s.pantalla === 'juego'), x: s.miX }).catch(() => undefined)
+  if (s.pantalla !== prev.pantalla && s.presencia && (s.pantalla === 'juego' || prev.pantalla === 'juego')) {
+    s.presencia.ocupado(s.pantalla === 'juego').catch(() => undefined)
   }
 })
 

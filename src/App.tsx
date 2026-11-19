@@ -3,6 +3,7 @@ import { useJuego } from './ui/estado'
 import Intro from './ui/pantallas/Intro'
 import { AvisosDuelo } from './ui/componentes/AvisosDuelo'
 import { AvisoLogro } from './ui/componentes/AvisoLogro'
+import { AyudaInstalar } from './ui/componentes/BotonInstalar'
 import './ui/progreso'
 
 // Las pantallas con 3D se cargan aparte: la portada abre al instante incluso en celulares modestos.
@@ -42,6 +43,7 @@ export default function App() {
       </Suspense>
       <AvisosDuelo />
       <AvisoLogro />
+      <AyudaInstalar />
     </div>
   )
 }

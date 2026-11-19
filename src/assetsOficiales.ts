@@ -36,17 +36,43 @@ export function claveOficial(p: Pieza): string | null {
   }
 }
 
-/** Copias en data: URI, necesarias para dibujar los SVG dentro de texturas 3D (un SVG-imagen no carga archivos externos). */
+/**
+ * Los emblemas oficiales más complejos (40 KB de trazos vectoriales) se convierten UNA vez en imagen
+ * (bitmap) cuando el celular está libre. Así el navegador no recalcula miles de trazos cada vez que
+ * una pieza se mueve o se anima: es lo que más pesaba en celulares sencillos.
+ */
 const enLinea = new Map<string, string>()
 let precarga: Promise<void> | null = null
+const PESADOS = ['avanzada-pionero', 'avanzada-guia', 'avanzada-explorador', 'avanzada-companero', 'avanzada-amigo', 'avanzada-excursionista',
+  'panoleta-gm', 'c4', 'excelencia', 'bautismo', 'pin-gm']
+
+async function rasterizar(k: string, lado: number) {
+  const r = await fetch(`${import.meta.env.BASE_URL}assets/oficial/${k}.svg`)
+  if (!r.ok) return
+  const url = URL.createObjectURL(new Blob([await r.text()], { type: 'image/svg+xml' }))
+  try {
+    const img = new Image(); img.src = url
+    await img.decode()
+    const esc = lado / Math.max(img.naturalWidth || lado, img.naturalHeight || lado)
+    const cv = document.createElement('canvas')
+    cv.width = Math.max(1, Math.round((img.naturalWidth || lado) * esc)); cv.height = Math.max(1, Math.round((img.naturalHeight || lado) * esc))
+    cv.getContext('2d')!.drawImage(img, 0, 0, cv.width, cv.height)
+    const blob: Blob | null = await new Promise(ok => cv.toBlob(ok, 'image/webp', 0.92))
+    if (blob) enLinea.set(k, URL.createObjectURL(blob))
+  } finally { URL.revokeObjectURL(url) }
+}
 
 export function precargarOficiales(): Promise<void> {
-  precarga ??= Promise.all([...DISPONIBLES, 'c5'].map(async k => {
-    try {
-      const txt = await (await fetch(`${import.meta.env.BASE_URL}assets/oficial/${k}.svg`)).text()
-      enLinea.set(k, 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(txt))))
-    } catch { /* se usa la URL normal */ }
-  })).then(() => undefined)
+  precarga ??= new Promise<void>(listo => {
+    const lado = Math.min(512, Math.max(256, Math.round(128 * (window.devicePixelRatio || 1))))
+    const empezar = async () => {
+      for (const k of PESADOS) { try { await rasterizar(k, lado) } catch { /* se usa el SVG normal */ } }
+      listo()
+    }
+    // Cuando el celular esté libre (no compite con la carga del juego)
+    const ric = (window as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => void }).requestIdleCallback
+    if (ric) ric(() => { void empezar() }, { timeout: 4000 }); else setTimeout(() => { void empezar() }, 1500)
+  })
   return precarga
 }
 

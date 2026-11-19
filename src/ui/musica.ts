@@ -1,4 +1,5 @@
 import { useJuego } from './estado'
+import { contextoAudio } from './audioCtx'
 
 /**
  * Música original del juego, compuesta y sintetizada aquí mismo (WebAudio).
@@ -114,31 +115,27 @@ let timer = 0
 
 function audio() {
   if (!ctx) {
-    ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-    // Cadena: voces → (seco + reverb) → compresor → volumen general
+    ctx = contextoAudio()
+    // Cadena: voces → (seco + eco) → compresor → volumen general
     master = ctx.createGain(); master.gain.value = 0
     const comp = ctx.createDynamicsCompressor()
     comp.threshold.value = -20; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25
     comp.connect(master).connect(ctx.destination)
     seco = ctx.createGain(); seco.connect(comp)
     humedo = ctx.createGain(); humedo.gain.value = 0.25
-    const conv = ctx.createConvolver(); conv.buffer = sala(ctx, 2.6)
-    seco.connect(conv).connect(humedo).connect(comp)
-    ruido = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate)
+    // Eco de sala liviano: dos retardos con realimentación y filtro (antes era un "convolver" de 2,6 s,
+    // muy pesado para celulares sencillos: era lo que producía chasquidos en la música)
+    for (const [seg, fb] of [[0.137, 0.42], [0.211, 0.36]] as const) {
+      const d = ctx.createDelay(1), r = ctx.createGain(), f = ctx.createBiquadFilter()
+      d.delayTime.value = seg; r.gain.value = fb; f.type = 'lowpass'; f.frequency.value = 2200
+      seco.connect(d); d.connect(f).connect(r).connect(d); f.connect(humedo)
+    }
+    humedo.connect(comp)
+    ruido = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.2), ctx.sampleRate)
     const d = ruido.getChannelData(0)
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
   }
   return ctx
-}
-
-/** Respuesta de una sala (reverberación) generada: ruido que se apaga poco a poco. */
-function sala(a: AudioContext, seg: number) {
-  const n = a.sampleRate * seg, b = a.createBuffer(2, n, a.sampleRate)
-  for (let c = 0; c < 2; c++) {
-    const d = b.getChannelData(c)
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3.2)
-  }
-  return b
 }
 
 function voz(f: number, t: number, dur: number, tipo: OscillatorType, vol: number, brillo: number, ataque = 0.01, detune = 0, piano = false) {
@@ -174,7 +171,9 @@ function programar() {
   const corchea = 60 / tema.bpm / 2
   const pasos = tema.melodia.map(c => c.split(' '))
   const total = pasos.length * 8
-  while (siguienteT < ctx.currentTime + 0.3) {
+  // Si el celular estuvo ocupado y nos atrasamos, se salta lo perdido en vez de tocarlo todo junto (eso suena a chasquido)
+  if (siguienteT < ctx.currentTime + 0.02) siguienteT = ctx.currentTime + 0.06
+  while (siguienteT < ctx.currentTime + 0.5) {
     const compas = Math.floor(paso / 8) % pasos.length, k = paso % 8
     const sim = pasos[compas][k]
     const nombre = tema.acordes[compas % tema.acordes.length]
@@ -186,7 +185,7 @@ function programar() {
       const dur = largo * corchea * (tema.bateria === 'nada' ? 1 : 0.9)
       const at = tema.piano ? 0.005 : tema.bateria === 'nada' && !tema.timbales ? 0.12 : tema.lead === 'sawtooth' ? 0.04 : 0.01
       voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia, tema.brillo, at, 0, tema.piano)
-      voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia * 0.45, tema.brillo * 0.8, at + 0.01, 7, tema.piano)
+      if (tema.lead === 'triangle' || tema.lead === 'sine') voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia * 0.45, tema.brillo * 0.8, at + 0.01, 7, tema.piano)
       if (tema.octava) voz(hz(midiDe(sim) + 12), siguienteT, dur, 'sine', tema.volMelodia * 0.35, 3000, 0.03)
     }
     // Colchón de acordes (órgano suave)
@@ -237,9 +236,9 @@ export function musica(p: Pista | null) {
   try {
     const a = audio()
     if (a.state === 'suspended') a.resume().catch(() => undefined)
-    if (humedo) humedo.gain.value = TEMAS[p].reverb
+    if (humedo) humedo.gain.value = TEMAS[p].reverb * 0.6
     paso = 0; siguienteT = a.currentTime + 0.12
-    timer = window.setInterval(programar, 50)
+    timer = window.setInterval(programar, 100)
     fundido(permitida() ? 1 : 0, p === 'solemne' || p === 'himno' || p === 'himno_emotivo' ? 2 : 0.8)
   } catch { /* sin audio */ }
 }
@@ -255,5 +254,10 @@ export function pistaDeNivel(tipo: string): Pista {
 useJuego.subscribe((s, prev) => {
   if (s.musica !== prev.musica || s.pausado !== prev.pausado) fundido(s.musica && !s.pausado && actual ? 1 : 0, 0.25)
 })
-document.addEventListener('visibilitychange', () => fundido(!document.hidden && permitida() && actual ? 1 : 0, 0.2))
+// En segundo plano el audio se suspende (no gasta batería ni procesador); al volver, sigue sin saltos
+document.addEventListener('visibilitychange', () => {
+  if (!ctx) return
+  if (document.hidden) { fundido(0, 0.1); setTimeout(() => { if (document.hidden) ctx?.suspend().catch(() => undefined) }, 150) }
+  else ctx.resume().then(() => { siguienteT = Math.max(siguienteT, (ctx?.currentTime ?? 0) + 0.06); fundido(permitida() && actual ? 1 : 0, 0.3) }).catch(() => undefined)
+})
 document.addEventListener('pointerdown', () => { if (ctx && ctx.state === 'suspended' && actual) ctx.resume().catch(() => undefined) })

@@ -8,8 +8,8 @@ export default defineConfig({
     react(),
     // App instalable: se guarda en el celular, abre al instante y carga aunque la señal sea mala.
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'script-defer',
+      registerType: 'prompt',
+      injectRegister: null,
       includeAssets: ['iconos/apple-touch-icon.png'],
       manifest: {
         name: 'Aspirantazgo',
@@ -32,6 +32,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,webp,png,woff2,svg}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
+        // La versión nueva toma el control enseguida; la app recarga sola cuando no estás jugando (main.tsx)
+        skipWaiting: true,
+        clientsClaim: true,
         // Nada de Supabase se guarda en caché: puntajes, salas y cuentas siempre van al servidor.
         navigateFallbackDenylist: [/^\/auth/],
         runtimeCaching: [],

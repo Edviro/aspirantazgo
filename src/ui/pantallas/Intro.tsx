@@ -1,3 +1,4 @@
+import { BotonInstalar } from '../componentes/BotonInstalar'
 import { useEffect, useState } from 'react'
 import { useJuego } from '../estado'
 import { asset, Boton, Cielo } from '../componentes/Comunes'
@@ -45,7 +46,10 @@ export default function Intro() {
         <p className="intro-lema">Aprende el uniforme jugando y compite con tu club</p>
         <div className="intro-carga">
           {listo ? (
-            <Boton className="intro-boton" onClick={entrar}>¡Comenzar aventura!</Boton>
+            <>
+              <Boton className="intro-boton" onClick={entrar}>¡Comenzar aventura!</Boton>
+              <BotonInstalar />
+            </>
           ) : (
             <div className="barra-carga" aria-label="Cargando"><div style={{ width: `${Math.round(avance * 100)}%` }} /></div>
           )}

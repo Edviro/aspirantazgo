@@ -44,7 +44,6 @@ export default function Juego() {
   const [fase, setFase] = useState<'intro' | 'jugando' | 'fin'>(enSala ? 'jugando' : 'intro')
   const [fin, setFin] = useState<FinReto | null>(null)
   const [ronda, setRonda] = useState(0)
-  const [reloj, setReloj] = useState(0)
   const reto = useReto(nivel!, desafio, dificultad)
   const pausado = useJuego(s => s.pausado)
   const puntajeNivel = useJuego(s => (nivel ? s.puntajes[nivel.id] ?? 0 : 0))
@@ -74,11 +73,6 @@ export default function Juego() {
 
   useEffect(() => { if (enSala) { reto.iniciar(); sfx.trompeta() } }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (fase !== 'jugando') return
-    const t = setInterval(() => setReloj(Math.floor(reto.segundos())), 500)
-    return () => clearInterval(t)
-  }, [fase, reto])
 
   const alTerminar = useCallback(async (factores: number[], errores: number) => {
     reanudar()
@@ -101,7 +95,7 @@ export default function Juego() {
   const reglas = DIFICULTADES[dificultad]
 
   const empezar = () => { reto.iniciar(); setFase('jugando'); sfx.trompeta() }
-  const repetir = () => { reanudar(); antes.current = useJuego.getState().puntajes[nivel.id] ?? 0; setFin(null); setRonda(r => r + 1); setFase('intro'); setReloj(0) }
+  const repetir = () => { reanudar(); antes.current = useJuego.getState().puntajes[nivel.id] ?? 0; setFin(null); setRonda(r => r + 1); setFase('intro') }
   const como = COMO_SE_JUEGA[nivel.tipo]
   const props = { dificultad, semilla, onFin: alTerminar }
 
@@ -118,7 +112,7 @@ export default function Juego() {
           </div>
           <strong>{nivel.titulo}</strong>
         </div>
-        <div className="juego-reloj">{Math.floor(reloj / 60)}:{String(reloj % 60).padStart(2, '0')}</div>
+        <RelojJuego activo={fase === 'jugando'} segundos={reto.segundos} key={'reloj' + ronda} />
         {fase === 'jugando' && !enSala && (
           <button className="icono btn-pausa" onClick={pausar} aria-label="Pausar">
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" /><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" /></svg>
@@ -305,4 +299,15 @@ function MedallasFin({ m, nivelId }: { m: NonNullable<FinReto['medallas']>; nive
       {m.nuevas.length === 0 && delNivel.length < 3 && <p className="medallas-total">Próxima medalla: {MEDALLAS.find(d => !delNivel.includes(d.id))?.como}</p>}
     </div>
   )
+}
+
+/** El reloj se actualiza solo (antes re-dibujaba todo el nivel dos veces por segundo). */
+function RelojJuego({ activo, segundos }: { activo: boolean; segundos: () => number }) {
+  const [t, setT] = useState(0)
+  useEffect(() => {
+    if (!activo) return
+    const id = setInterval(() => setT(Math.floor(segundos())), 500)
+    return () => clearInterval(id)
+  }, [activo, segundos])
+  return <div className="juego-reloj">{Math.floor(t / 60)}:{String(t % 60).padStart(2, '0')}</div>
 }
