@@ -1,16 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { musica } from '../musica'
-import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
 import { useProgreso } from '../progreso'
 import { MEDALLAS } from '../../domain/medallas'
-import { BotonInstalar } from '../componentes/BotonInstalar'
+import { MenuPrincipal } from '../componentes/MenuPrincipal'
 import { HudVidas } from '../componentes/Vidas'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
 import { MUNDOS_JUGABLES } from '../../domain/niveles'
 import { APROBADO, estrellasDeMejor } from '../../domain/puntuacion'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
-import { mensajeError } from '../../application/errores'
 import { useJuego } from '../estado'
 import { Boton, Estrellas } from '../componentes/Comunes'
 import { Travesia } from '../componentes/Travesia'
@@ -24,25 +22,13 @@ const RANGO_TXT: Record<string, string> = {
 }
 
 export default function Mapa() {
-  const { perfil, puntajes, jugar, ir, modo, sonido, toggleSonido, musica: conMusica, toggleMusica, salir, dificultad, setDificultad, abrirSala, repo, mundo, enLinea } = useJuego()
+  const { perfil, puntajes, jugar, ir, dificultad, setDificultad, repo, mundo, enLinea } = useJuego()
   const mundoActual = MUNDOS_JUGABLES.find(m => m.id === mundo) ?? MUNDOS_JUGABLES[0]
   const niveles = mundoActual.niveles
   const [sel, setSel] = useState<number | null>(null)
   const [menu, setMenu] = useState(false)
   const rachaObj = useProgreso(st => st.racha)
   useEffect(() => { musica('mapa'); void useProgreso.getState().cargarVidas() }, [])
-  // Si llegó con el enlace o el QR de una sala, entra directo
-  useEffect(() => {
-    const cod = salaDelEnlace()
-    if (!cod || !repo.salas || !useJuego.getState().perfil) return
-    olvidarSalaPendiente()
-    entrarSala(cod)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  const [borrar, setBorrar] = useState(false)
-  const [unirse, setUnirse] = useState(false)
-  const [codigoSala, setCodigoSala] = useState('')
-  const [errorSala, setErrorSala] = useState('')
-  const [conectando, setConectando] = useState(false)
   const [zarpar, setZarpar] = useState(false)
   // Llegando en barco desde el mapa de campamentos: la cámara termina de bajar sobre la isla
   const lienzo = useRef<HTMLDivElement>(null), flash = useRef<HTMLDivElement>(null)
@@ -78,12 +64,6 @@ export default function Mapa() {
   const hechoHoy = rachaObj.ultimo === reto.fecha
   const racha = rachaVigente(rachaObj)
   const vivos = enLinea.filter(j => j.clubId === perfil.club.id && j.id !== perfil.id).length
-  const esAdulto = perfil.grupo_edad === 'adulto'
-
-  const entrarSala = async (codigo: string | null) => {
-    setErrorSala(''); setConectando(true)
-    try { await abrirSala(codigo) } catch (e) { setErrorSala(mensajeError(e)) } finally { setConectando(false) }
-  }
 
   return (
     <div className="pantalla mapa">
@@ -105,24 +85,7 @@ export default function Mapa() {
         </button>
       </header>
 
-      {menu && (
-        <div className="menu pop" onClick={() => setMenu(false)}>
-          <button onClick={() => setZarpar(true)}>Mapa de campamentos</button>
-          <button onClick={() => ir('logros')}>Mis parches</button>
-          <button onClick={() => ir('ranking')}>Ranking</button>
-          <button onClick={() => ir('editor')}>Mi personaje</button>
-          {puedeSalas && <button onClick={() => ir('club')}>Campamento del club en vivo</button>}
-          {puedeSalas && <button onClick={() => setUnirse(true)}>Unirme a una sala</button>}
-          {puedeSalas && esAdulto && <button onClick={() => ir('director')}>{perfil.club.soy_director ? 'Panel del club' : 'Panel del líder'}</button>}
-          {perfil.superadmin && <button onClick={() => ir('admin')}>Panel de administrador</button>}
-          <BotonInstalar variante="menu" />
-          <button onClick={toggleMusica}>{conMusica ? 'Apagar música' : 'Encender música'}</button>
-          <button onClick={toggleSonido}>{sonido ? 'Silenciar efectos' : 'Activar efectos'}</button>
-          <button onClick={() => useJuego.getState().verLegal('privacidad')}>Privacidad y términos</button>
-          <button onClick={() => setBorrar(true)}>Borrar mi cuenta</button>
-          <button onClick={() => salir()}>{modo === 'practica' ? 'Salir del modo práctica' : 'Cerrar sesión'}</button>
-        </div>
-      )}
+      <MenuPrincipal abierto={menu} onCerrar={() => setMenu(false)} onCampamentos={() => setZarpar(true)} textoCampamentos="Mapa de campamentos y Plaza Central" />
 
       <div className="mapa-titulo">
         <h1>{mundoActual.nombre}</h1>
@@ -148,36 +111,6 @@ export default function Mapa() {
 
       {zarpar && <Travesia texto="Zarpando del" destino={mundoActual.nombre} color={campamentoDeMundo(mundoActual.id).color}
         onFin={() => { marcarTransicion({ tipo: 'alejar', desde: campamentoDeMundo(mundoActual.id).id }); ir('campamentos') }} />}
-
-      {errorSala && !unirse && <div className="toast toast-mal" style={{ top: 120 }}>{errorSala}</div>}
-
-      {unirse && (
-        <div className="velo">
-          <form className="resultado pop form-sala" onSubmit={e => { e.preventDefault(); entrarSala(codigoSala.trim().toUpperCase()) }}>
-            <h2>Unirme a una sala</h2>
-            <label htmlFor="codigo-sala">Código que te dio tu líder</label>
-            <input id="codigo-sala" value={codigoSala} onChange={e => setCodigoSala(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5))} placeholder="ABCDE" autoCapitalize="characters" autoComplete="off" />
-            {errorSala && <p className="error">{errorSala}</p>}
-            <div className="fila-botones">
-              <Boton tipo="fantasma" onClick={() => { setUnirse(false); setErrorSala('') }}>Cancelar</Boton>
-              <Boton type="submit" disabled={codigoSala.length !== 5 || conectando}>{conectando ? 'Entrando…' : 'Entrar'}</Boton>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {borrar && (
-        <div className="velo">
-          <div className="resultado pop">
-            <h2>¿Borrar tu cuenta?</h2>
-            <p>Se eliminarán tu apodo, tu personaje y todos tus puntajes. No se puede deshacer.</p>
-            <div className="fila-botones">
-              <Boton tipo="fantasma" onClick={() => setBorrar(false)}>Cancelar</Boton>
-              <Boton tipo="rojo" onClick={async () => { try { await useJuego.getState().repo.borrarMisDatos() } finally { setBorrar(false); await salir() } }}>Borrar todo</Boton>
-            </div>
-          </div>
-        </div>
-      )}
 
       {nivelSel && sel !== null && (
         <div className="hoja pop" role="dialog" aria-label={nivelSel.titulo}>

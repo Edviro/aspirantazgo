@@ -37,8 +37,8 @@ export const CAMPAMENTOS: Campamento[] = [
 ]
 
 export const CAMPAMENTO_CENTRAL: Campamento = {
-  id: 'conquistador', nombre: 'Gran Campamento Conquistador', corto: 'Conquistador', color: '#D7242F', icono: 'triangulo', mundo: null,
-  descripcion: 'El corazón del juego: la fogata, la bandera y el banderín de unidad. Solo llegas al completar todos los campamentos.',
+  id: 'conquistador', nombre: 'Plaza Central', corto: 'Plaza Central', color: '#D7242F', icono: 'triangulo', mundo: null,
+  descripcion: 'El punto de encuentro de todos los clubes: camina, saluda y reta a otros. La fogata del Gran Campamento se enciende al completar todos los campamentos.',
 }
 
 export type EstadoCampamento = 'pronto' | 'abierto' | 'completo'

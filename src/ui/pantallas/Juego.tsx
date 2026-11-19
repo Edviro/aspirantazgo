@@ -40,7 +40,7 @@ function fijasDe(p: { slots: Colocacion[]; caso: PerfilUniforme | null }): Coloc
 }
 
 export default function Juego() {
-  const { nivel, desafio, dificultad, semilla, perfil, ir, jugar, modo, sala } = useJuego()
+  const { nivel, desafio, dificultad, semilla, perfil, ir, jugar, modo, sala, hub } = useJuego()
   const enSala = !!sala && sala.rol === 'jugador'
   const [fase, setFase] = useState<'intro' | 'jugando' | 'fin'>(enSala ? 'jugando' : 'intro')
   const [fin, setFin] = useState<FinReto | null>(null)
@@ -145,7 +145,7 @@ export default function Juego() {
       {fase === 'intro' && (
         <Dialogo npc={nivel.npc} titulo={nivel.titulo} accion={sinVidas ? 'Practicar gratis' : desafio ? '¡Al desafío!' : '¡A practicar!'}
           onAccion={sinVidas ? () => jugar(nivel, false) : empezar}
-          secundaria="Volver" onSecundaria={() => ir('mapa')}>
+          secundaria="Volver" onSecundaria={() => ir(hub)}>
           <p>{nivel.intro}</p>
           <div className="como-juega">
             <b><span aria-hidden>{como.icono}</span> Cómo se juega</b>
@@ -173,7 +173,7 @@ export default function Juego() {
             <div className="pausa-botones">
               <Boton onClick={reanudar}>Seguir jugando</Boton>
               <Boton tipo="fantasma" onClick={repetir}>Empezar de nuevo</Boton>
-              <Boton tipo="fantasma" onClick={() => { reanudar(); ir('mapa') }}>Salir al mapa</Boton>
+              <Boton tipo="fantasma" onClick={() => { reanudar(); ir(hub) }}>Salir</Boton>
             </div>
           </div>
         </div>
@@ -188,7 +188,7 @@ export default function Juego() {
         <FinNivel fin={fin} nivelId={nivel.id} diario={desafio && esRetoDelDia(nivel.id, semilla)} record={desafio && antes.current > 0 && fin.resultado.puntaje > antes.current ? antes.current : null} desafio={desafio} enSala={enSala} multiplicador={reglas.multiplicador} nombreDif={reglas.nombre}
           desbloqueado={desafio && !!siguiente && antes.current < APROBADO && puntajeNivel >= APROBADO ? siguiente.titulo : null}
           numSiguiente={siguiente?.num}
-          onMapa={() => ir('mapa')} onSala={() => ir('sala')} onRepetir={repetir}
+          onMapa={() => ir(hub)} onSala={() => ir('sala')} onRepetir={repetir}
           onDesafio={!desafio ? () => { setFin(null); jugar(nivel, true); repetir() } : undefined}
           onSiguiente={desafio && siguiente && fin.resultado.estrellas > 0 ? () => { jugar(siguiente, true); repetir() } : undefined} />
       )}

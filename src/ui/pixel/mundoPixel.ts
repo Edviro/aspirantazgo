@@ -7,7 +7,8 @@
 import { COL } from './islaPixel'
 
 export interface IslaCamp { x: number; y: number; r: number; color: string; bloqueado: boolean; completo: boolean }
-export interface Central { x: number; y: number; R: number; bloqueado: boolean }
+/** `fogata`: la fogata del santuario se enciende al completar todos los campamentos (la plaza siempre está abierta). */
+export interface Central { x: number; y: number; R: number; bloqueado: boolean; fogata?: boolean }
 
 type P = (x: number, y: number, w: number, h: number, c: string) => void
 
@@ -155,6 +156,8 @@ export function dibujarMundo(ctx: CanvasRenderingContext2D, W: number, H: number
   carpa(p, cx + R * 0.34, arriba, '#1F5FD1', g)
   asta(p, cx - R * 0.12, arriba - 2, 14, '#D7242F', g)
   banderin(p, cx + R * 0.06, arriba, g, frame)
-  fogata(p, cx, cy + R * 0.18, !g, frame)
+  fogata(p, cx, cy + R * 0.18, central.fogata ?? !g, frame)
   if (g) candado(p, cx, cy + R * 0.5, R > 44)
+  // Muelle de la plaza (arriba, en el centro)
+  p(cx - 2, cy - R / 2 - 7, 5, 8, '#1E140C'); p(cx - 1, cy - R / 2 - 7, 3, 8, '#a8703c')
 }

@@ -13,7 +13,7 @@ import { RetoVivo } from '../componentes/RetoVivo'
 
 /** Sala en vivo: el líder elige el nivel, todos juegan a la vez y el avance se ve en tiempo real. */
 export default function Sala() {
-  const { sala, perfil, ir, dejarSala, iniciarRonda, repo } = useJuego()
+  const { sala, perfil, ir, dejarSala, iniciarRonda, repo, hub } = useJuego()
   useEffect(() => { musica('himno_epico') }, [])
   const [podio, setPodio] = useState<FilaSala[] | null>(null)
   const [total, setTotal] = useState<FilaTotalSala[] | null>(null)
@@ -73,7 +73,7 @@ export default function Sala() {
   if (!sala || !perfil) {
     return (
       <div className="pantalla sala"><Cielo />
-        <div className="sala-cuerpo"><p>La sala se cerró.</p><Boton onClick={() => ir('mapa')}>Volver al mapa</Boton></div>
+        <div className="sala-cuerpo"><p>La sala se cerró.</p><Boton onClick={() => ir(hub)}>Volver</Boton></div>
       </div>
     )
   }

@@ -30,7 +30,7 @@ export default function Intro() {
     if (modo) {
       try {
         const p = await repoPara(modo).sesionActual()
-        if (p) { await setSesion(modo, p); ir('mapa'); return }
+        if (p) { await setSesion(modo, p); ir('plaza'); return }
       } catch { /* sin sesión */ }
     }
     ir('acceso')

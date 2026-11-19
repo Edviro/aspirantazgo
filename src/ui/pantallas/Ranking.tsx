@@ -9,7 +9,7 @@ const ALCANCES: [Alcance, string][] = [['mi_club', 'Mi club'], ['jugador', 'Juga
 const BANDERA: Record<string, string> = { PE: '🇵🇪', AR: '🇦🇷', BO: '🇧🇴', BR: '🇧🇷', CL: '🇨🇱', CO: '🇨🇴', EC: '🇪🇨', PY: '🇵🇾', UY: '🇺🇾', VE: '🇻🇪', MX: '🇲🇽', US: '🇺🇸', ES: '🇪🇸' }
 
 export default function Ranking() {
-  const { repo, perfil, ir, modo } = useJuego()
+  const { repo, perfil, ir, modo, hub } = useJuego()
   const modoInicial: Alcance = modo === 'practica' ? 'jugador' : 'mi_club'
   const [alcance, setAlcance] = useState<Alcance>(modoInicial)
   const [miPais, setMiPais] = useState(false)
@@ -29,7 +29,7 @@ export default function Ranking() {
     <div className="pantalla ranking">
       <Cielo />
       <header className="juego-cabeza">
-        <button className="icono" onClick={() => ir('mapa')} aria-label="Volver">
+        <button className="icono" onClick={() => ir(hub)} aria-label="Volver">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         <div className="juego-titulo"><small>Campamento del Uniforme</small><strong>Ranking</strong></div>

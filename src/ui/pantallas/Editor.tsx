@@ -37,7 +37,7 @@ function useAltoAvatar() {
 const limpiar = (s: string) => s.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü ]/g, '').slice(0, 14).toUpperCase()
 
 export default function Editor() {
-  const { perfil, repo, setPerfil, ir } = useJuego()
+  const { perfil, repo, setPerfil, ir, hub } = useJuego()
   const [a, setA] = useState<AvatarConfig>(() => {
     const base: AvatarConfig = { genero: 'm', piel: 2, pelo: 0, colorPelo: 0, ...(perfil?.avatar ?? {}) }
     const validos = PEINADOS[base.genero === 'f' ? 'f' : 'm'].map(x => x.v)
@@ -88,7 +88,7 @@ export default function Editor() {
     }
     setPerfil({ ...perfil, avatar: final, rango, grupo_edad: practica ? (rango === 'conquistador' ? 'menor' : 'adulto') : perfil.grupo_edad })
     setGuardando(false)
-    ir('mapa')
+    ir(hub)
   }
 
   return (

@@ -4,7 +4,7 @@ import { guardarModo, repoLocal, repoPara, type Modo } from '../adapters/contene
 import { TODOS_LOS_NIVELES, type Nivel } from '../domain/niveles'
 import type { Dificultad } from '../domain/tipos'
 
-export type Pantalla = 'intro' | 'acceso' | 'editor' | 'mapa' | 'juego' | 'ranking' | 'legal' | 'director' | 'sala' | 'club' | 'admin' | 'logros' | 'campamentos'
+export type Pantalla = 'intro' | 'acceso' | 'editor' | 'mapa' | 'juego' | 'ranking' | 'legal' | 'director' | 'sala' | 'club' | 'admin' | 'logros' | 'campamentos' | 'plaza'
 
 export interface EstadoSala {
   conexion: ConexionSala
@@ -28,6 +28,8 @@ export interface RetoEnviado {
 
 interface Estado {
   pantalla: Pantalla
+  /** A dónde vuelven los botones de "volver": la Plaza Central o el mapa del campamento (el último visitado). */
+  hub: 'plaza' | 'mapa'
   legalTab: 'privacidad' | 'terminos' | 'padres'
   repo: RepositorioJuego
   modo: Modo | null
@@ -128,6 +130,7 @@ function revisarInicio(set: Set, get: () => Estado, forzar = false) {
 
 export const useJuego = create<Estado>((set, get) => (conectarSala = crearConectarSala(set as Set, get), {
   pantalla: 'intro',
+  hub: 'plaza',
   pausado: false,
   legalTab: 'privacidad',
   repo: repoLocal,
@@ -153,7 +156,7 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
   miX: 0.3,
   mundo: (() => { try { return localStorage.getItem('asp_mundo') || 'uniformes' } catch { return 'uniformes' } })(),
   setMundo: m => { try { localStorage.setItem('asp_mundo', m) } catch { /* */ } set({ mundo: m }) },
-  ir: p => set({ pantalla: p }),
+  ir: p => set(p === 'plaza' || p === 'mapa' ? { pantalla: p, hub: p } : { pantalla: p }),
   verLegal: t => set({ legalTab: t, pantalla: 'legal' }),
   setSesion: async (modo, perfil) => {
     guardarModo(modo)

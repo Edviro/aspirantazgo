@@ -73,7 +73,7 @@ export default function Acceso() {
   useEffect(() => {
     if (!repoEnLinea) return
     repoEnLinea.adultoSinClub().then(e => { if (e) { setAdultoEmail(e); setTab('adulto') } }).catch(() => undefined)
-    repoEnLinea.sesionActual().then(async p => { if (p) { await setSesion('en_linea', p); ir('mapa') } }).catch(() => undefined)
+    repoEnLinea.sesionActual().then(async p => { if (p) { await setSesion('en_linea', p); ir('plaza') } }).catch(() => undefined)
     return cuentas?.alRecuperar(() => { setTab('adulto'); setModoCuenta('nueva') })
   }, [ir, setSesion, cuentas])
 
@@ -137,7 +137,7 @@ export default function Acceso() {
   /** Ya entró con su cuenta: si tiene perfil va al mapa, si no, completa el registro de su club. */
   const continuar = async () => {
     const p = await repoEnLinea!.sesionActual()
-    if (p) { await setSesion('en_linea', p); ir('mapa'); return }
+    if (p) { await setSesion('en_linea', p); ir('plaza'); return }
     setAdultoEmail((await repoEnLinea!.adultoSinClub()) ?? email)
   }
 

@@ -1,10 +1,11 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
-  ConexionPresencia, ConexionSala, EventosPresencia, EventosSala, InicioRonda, InvitacionDuelo, JugadorEnLinea, JugadorSala,
-  FilaSala, FilaTotalSala, ProgresoSala, PuertoSalas, RespuestaDuelo, ResultadoDuelo,
+  ConexionPlaza, ConexionPresencia, ConexionSala, EventosPlaza, EventosPresencia, EventosSala, InicioRonda, InvitacionDuelo, JugadorEnLinea, JugadorSala,
+  FilaSala, FilaTotalSala, ProgresoSala, PresenteEnPlaza, PuertoSalas, PuntoPlaza, RespuestaDuelo, ResultadoDuelo,
 } from '../../application/puertos'
 import { FRASES } from '../../application/puertos'
 import { TODOS_LOS_NIVELES } from '../../domain/niveles'
+import { ALTO as ALTO_PLAZA, ANCHO as ANCHO_PLAZA } from '../../domain/plaza'
 
 type Rpc = <T>(fn: string, args?: Record<string, unknown>) => Promise<T>
 
@@ -41,6 +42,15 @@ function limpiarEnLinea(v: unknown): JugadorEnLinea | null {
     x: typeof o.x === 'number' && Number.isFinite(o.x) ? Math.min(0.92, Math.max(0.08, o.x)) : undefined,
   }
 }
+
+/** Punto válido de la plaza (o null si viene cualquier cosa por el canal). */
+function punto(x: unknown, y: unknown): PuntoPlaza | null {
+  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return null
+  return { x: Math.min(ANCHO_PLAZA, Math.max(0, x)), y: Math.min(ALTO_PLAZA, Math.max(0, y)) }
+}
+const r2 = (v: number) => Math.round(v * 100) / 100
+/** Cuántos caben en un canal de la plaza y cuántos canales hay como máximo. */
+export const CUPO_PLAZA = 40, CANALES_PLAZA = 30
 
 /**
  * Salas en vivo con Supabase Realtime. El servidor crea y valida cada sala (permisos, horario y cupos);
@@ -249,5 +259,97 @@ export class SalasSupabase implements PuertoSalas {
         },
       } satisfies ConexionPresencia
     })().catch(async e => { clearInterval(latidoT); await this.sb.removeChannel(isla).catch(() => undefined); await this.sb.removeChannel(buzon).catch(() => undefined); throw e })
+  }
+
+  perfilesPublicos(ids: string[]): Promise<JugadorEnLinea[]> {
+    const lista = [...new Set(ids)].filter(esId).slice(0, 60)
+    if (!lista.length) return Promise.resolve([])
+    return this.rpc<unknown[]>('perfiles_publicos', { p_token: this.token(), p_ids: lista })
+      .then(r => (Array.isArray(r) ? r : []).map(limpiarEnLinea).filter((j): j is JugadorEnLinea => !!j))
+  }
+
+  /**
+   * Plaza Central: canales `plaza-N` de hasta CUPO_PLAZA jugadores. Se entra al primero con espacio.
+   * Por el canal solo viajan ids y posiciones (el destino de cada caminata, no cada paso): muy pocos mensajes.
+   */
+  async plaza(yo: { id: string; clubId: string }, pos: PuntoPlaza, ev: EventosPlaza): Promise<ConexionPlaza> {
+    if (!esId(yo.id)) throw new Error('SALA_SIN_CONEXION')
+    const suscribir = (c: RealtimeChannel) => new Promise<void>((ok, mal) => {
+      const t = setTimeout(() => mal(new Error('SALA_SIN_CONEXION')), 10000)
+      c.subscribe(estado => {
+        if (estado === 'SUBSCRIBED') { clearTimeout(t); ok() }
+        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') { clearTimeout(t); mal(new Error('SALA_SIN_CONEXION')) }
+      })
+    })
+    for (let n = 1; n <= CANALES_PLAZA; n++) {
+      const canal = this.sb.channel('plaza-' + n, { config: { presence: { key: yo.id }, broadcast: { self: false } } })
+      let elegido = false, primerSync: () => void = () => undefined
+      const sincronizado = new Promise<void>(r => { primerSync = r })
+      const presentes = new Set<string>()
+      const leerPresentes = () => {
+        const lista: PresenteEnPlaza[] = []
+        presentes.clear()
+        for (const [clave, v] of Object.entries(canal.presenceState())) {
+          const m = v[0] as unknown as Record<string, unknown>
+          if (!esId(clave) || clave === yo.id || !m) continue
+          const pt = punto(m.x, m.y)
+          if (!pt) continue
+          presentes.add(clave); lista.push({ id: clave, ...pt })
+          if (lista.length >= 80) break
+        }
+        return lista
+      }
+      canal.on('presence', { event: 'sync' }, () => { primerSync(); const l = leerPresentes(); if (elegido) ev.onPresentes?.(l) })
+      canal.on('broadcast', { event: 'ir' }, ({ payload: p }) => {
+        if (!elegido || !p || !esId(p.id) || !presentes.has(p.id)) return
+        const desde = punto(p.x, p.y), hasta = punto(p.dx, p.dy)
+        if (desde && hasta) ev.onIr?.({ id: p.id, desde, hasta })
+      })
+      canal.on('broadcast', { event: 'gesto' }, ({ payload: p }) => {
+        if (!elegido || !p || !esId(p.de) || !presentes.has(p.de) || typeof p.frase !== 'number' || p.frase < 0 || p.frase >= FRASES.length) return
+        ev.onGesto?.({ de: p.de, frase: Math.floor(p.frase) })
+      })
+      try { await suscribir(canal) } catch (e) { await this.sb.removeChannel(canal).catch(() => undefined); throw e }
+      await Promise.race([sincronizado, new Promise(r => setTimeout(r, 1500))])
+      if (Object.keys(canal.presenceState()).length >= CUPO_PLAZA && n < CANALES_PLAZA) { await this.sb.removeChannel(canal).catch(() => undefined); continue }
+
+      elegido = true
+      let ultimo = 0, pendiente: { desde: PuntoPlaza; hasta: PuntoPlaza } | null = null, tIr = 0
+      let ultimoTrack = 0, posPend: PuntoPlaza | null = null, tTrack = 0
+      const enviarIr = () => {
+        if (!pendiente) return
+        const { desde, hasta } = pendiente; pendiente = null; ultimo = Date.now()
+        canal.send({ type: 'broadcast', event: 'ir', payload: { id: yo.id, x: r2(desde.x), y: r2(desde.y), dx: r2(hasta.x), dy: r2(hasta.y) } }).catch(() => undefined)
+      }
+      const track = () => {
+        if (!posPend) return
+        const p = posPend; posPend = null; ultimoTrack = Date.now()
+        canal.track({ x: r2(p.x), y: r2(p.y) }).catch(() => undefined)
+      }
+      await canal.track({ x: r2(pos.x), y: r2(pos.y) })
+      ev.onPresentes?.(leerPresentes())
+      return {
+        canal: n,
+        ir: (desde, hasta) => {
+          pendiente = { desde, hasta }
+          const espera = 250 - (Date.now() - ultimo)
+          if (espera <= 0) enviarIr()
+          else if (!tIr) tIr = window.setTimeout(() => { tIr = 0; enviarIr() }, espera)
+        },
+        quieto: pos => {
+          posPend = pos
+          const espera = 3000 - (Date.now() - ultimoTrack)
+          if (espera <= 0) track()
+          else if (!tTrack) tTrack = window.setTimeout(() => { tTrack = 0; track() }, espera)
+        },
+        gesto: async frase => { await canal.send({ type: 'broadcast', event: 'gesto', payload: { de: yo.id, frase } }) },
+        salir: async () => {
+          clearTimeout(tIr); clearTimeout(tTrack)
+          await canal.untrack().catch(() => undefined)
+          await this.sb.removeChannel(canal).catch(() => undefined)
+        },
+      }
+    }
+    throw new Error('SALA_SIN_CONEXION')
   }
 }

@@ -1,0 +1,5 @@
+-- Aplicado en Supabase (migración plaza_perfiles_publicos).
+-- Plaza Central (mundo abierto): el canal en vivo (plaza-1, plaza-2, … de hasta 40) solo lleva ids y posiciones.
+-- Lo que se muestra de cada jugador sale de perfiles_publicos(p_token, p_ids uuid[]): apodo, club, rango y avatar
+-- desde la base de datos (nadie puede inventarse un nombre mandándolo por el canal). Requiere sesión; excluye
+-- invitados, cuentas suspendidas y a uno mismo; máximo 60 ids por pedido.

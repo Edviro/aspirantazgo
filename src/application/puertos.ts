@@ -240,6 +240,34 @@ export interface PuertoSalas {
   conectar(codigo: string, yo: JugadorSala, eventos: EventosSala, avanceEnVivo: boolean): Promise<ConexionSala>
   /** Tu isla (club) en vivo, las islas vecinas (cada 30 s) y tu buzón de invitaciones. */
   presencia(yo: JugadorEnLinea, eventos: EventosPresencia): Promise<ConexionPresencia>
+  /**
+   * Plaza Central (mundo abierto): te pone en un canal con espacio (Plaza 1, 2, 3…). El canal solo lleva ids y
+   * posiciones; los nombres y avatares se piden con `perfilesPublicos` (vienen de la base de datos).
+   */
+  plaza(yo: { id: string; clubId: string }, pos: PuntoPlaza, eventos: EventosPlaza): Promise<ConexionPlaza>
+  perfilesPublicos(ids: string[]): Promise<JugadorEnLinea[]>
+}
+
+// ---------- Plaza Central (mundo abierto) ----------
+/** Posición en baldosas del mapa de la plaza. */
+export interface PuntoPlaza { x: number; y: number }
+export interface PresenteEnPlaza { id: string; x: number; y: number }
+export interface EventosPlaza {
+  /** Quiénes están en tu canal y dónde estaban al entrar o al detenerse. */
+  onPresentes?: (lista: PresenteEnPlaza[]) => void
+  /** Alguien empezó a caminar de `desde` hacia `hasta`. */
+  onIr?: (m: { id: string; desde: PuntoPlaza; hasta: PuntoPlaza }) => void
+  onGesto?: (g: { de: string; frase: number }) => void
+}
+export interface ConexionPlaza {
+  /** Número de canal (Plaza 1, Plaza 2…). */
+  canal: number
+  /** Avisa que caminas (se agrupan los envíos: máximo ~4 por segundo). */
+  ir(desde: PuntoPlaza, hasta: PuntoPlaza): void
+  /** Guarda dónde te detuviste, para quien entre después (como mucho cada 3 s). */
+  quieto(pos: PuntoPlaza): void
+  gesto(frase: number): Promise<void>
+  salir(): Promise<void>
 }
 
 // ---------- Presencia y duelos ----------

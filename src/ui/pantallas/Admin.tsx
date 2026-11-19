@@ -33,7 +33,7 @@ function leerTabla(texto: string) {
 
 /** Panel del superadministrador. Cada llamada la vuelve a verificar el servidor: ocultar este botón no es la seguridad, el servidor sí. */
 export default function Admin() {
-  const { perfil, repo, ir, enLinea, abrirSala } = useJuego()
+  const { perfil, repo, ir, enLinea, abrirSala, hub } = useJuego()
   const admin = repo.admin
   const [tab, setTab] = useState<Pestana>('resumen')
   const [resumen, setResumen] = useState<ResumenAdmin | null>(null)
@@ -68,7 +68,7 @@ export default function Admin() {
   if (!perfil?.superadmin || !admin) {
     return (
       <div className="pantalla admin"><Cielo />
-        <div className="director-cuerpo"><section className="tarjeta"><p>No tienes acceso a este panel.</p><Boton onClick={() => ir('mapa')}>Volver</Boton></section></div>
+        <div className="director-cuerpo"><section className="tarjeta"><p>No tienes acceso a este panel.</p><Boton onClick={() => ir(hub)}>Volver</Boton></section></div>
       </div>
     )
   }
@@ -80,7 +80,7 @@ export default function Admin() {
     <div className="pantalla admin">
       <Cielo />
       <header className="juego-cabeza">
-        <button className="icono" onClick={() => ir('mapa')} aria-label="Volver">
+        <button className="icono" onClick={() => ir(hub)} aria-label="Volver">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         <div className="juego-titulo"><small>Superadministrador</small><strong>Control de Aspirantazgo</strong></div>

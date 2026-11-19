@@ -14,7 +14,7 @@ import { IR_AL_CERTIFICADO } from '../componentes/IslaConquistada'
 
 /** Mis parches: la colección de logros, el reto del día y la racha. */
 export default function Logros() {
-  const { ir, jugar, puntajes, perfil } = useJuego()
+  const { ir, jugar, puntajes, perfil, hub } = useJuego()
   useEffect(() => { musica('himno_emotivo') }, [])
   // Viene de la celebración de la isla: baja directo al certificado
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function Logros() {
     <div className="pantalla logros">
       <Cielo />
       <header className="juego-cabeza">
-        <button className="icono" onClick={() => ir('mapa')} aria-label="Volver al mapa">
+        <button className="icono" onClick={() => ir(hub)} aria-label="Volver">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         <div className="juego-titulo"><small>Tu colección</small><strong>Mis parches</strong></div>

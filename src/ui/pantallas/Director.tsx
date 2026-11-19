@@ -12,7 +12,7 @@ const manana = () => { const d = new Date(Date.now() + 86400000); return d.toISO
 
 /** Panel del club: código, solicitudes de práctica (con aprobación), salas y miembros. */
 export default function Director() {
-  const { perfil, repo, ir, verLegal, abrirSala } = useJuego()
+  const { perfil, repo, ir, verLegal, abrirSala, hub } = useJuego()
   const [miembros, setMiembros] = useState<Miembro[]>([])
   const [sesiones, setSesiones] = useState<SesionProgramada[]>([])
   const [copiado, setCopiado] = useState(false)
@@ -53,7 +53,7 @@ export default function Director() {
     <div className="pantalla director">
       <Cielo />
       <header className="juego-cabeza">
-        <button className="icono" onClick={() => ir('mapa')} aria-label="Volver">
+        <button className="icono" onClick={() => ir(hub)} aria-label="Volver">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         <div className="juego-titulo"><small>{director ? 'Panel del director' : 'Panel del líder'}</small><strong>{perfil.club.nombre}</strong></div>
@@ -126,7 +126,7 @@ export default function Director() {
             <p className="ayuda">Si un padre o madre pide borrar los datos de su hijo, elimínalo aquí: se borra al instante junto con sus puntajes.</p>
           </section>
         )}
-        <Boton onClick={() => ir('mapa')}>Ir al mapa</Boton>
+        <Boton onClick={() => ir(hub)}>Volver</Boton>
       </div>
       {borrar && (
         <div className="velo">
