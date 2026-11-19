@@ -38,7 +38,7 @@ export default function Juego() {
   // Puntaje guardado ANTES de esta partida: sirve para saber si acabas de desbloquear el siguiente nivel
   const antes = useRef(puntajeNivel)
   useEffect(() => () => { reanudar(); musica('mapa') }, [])
-  useEffect(() => { musica(fase === 'jugando' ? (enSala ? 'rapido' : pistaDeNivel(nivel?.tipo ?? '')) : fase === 'fin' ? null : 'mapa') }, [fase]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { musica(fase === 'jugando' ? (enSala ? 'himno_epico' : pistaDeNivel(nivel?.tipo ?? '')) : fase === 'fin' ? null : 'mapa') }, [fase]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (fase !== 'jugando' || enSala) return
     const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') (useJuego.getState().pausado ? reanudar : pausar)() }

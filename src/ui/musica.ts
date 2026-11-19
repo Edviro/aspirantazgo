@@ -6,7 +6,7 @@ import { useJuego } from './estado'
  * Tres climas: aventura (mapa), juego (piezas), rápida (trivias y competencias) y solemne (ceremonias).
  */
 
-export type Pista = 'mapa' | 'juego' | 'rapido' | 'solemne' | 'himno'
+export type Pista = 'mapa' | 'juego' | 'rapido' | 'solemne' | 'himno' | 'himno_epico' | 'himno_rapido' | 'himno_aventura' | 'himno_emotivo'
 interface Tema {
   bpm: number
   acordes: string[]
@@ -20,22 +20,42 @@ interface Tema {
   bateria: 'marcha' | 'rapida' | 'nada'
   pad: number
   reverb: number
+  /** Melodía doblada a la octava (más majestuosa). */
+  octava?: boolean
+  /** El bajo baja a la quinta a mitad de compás (como el arreglo del himno). */
+  quinta?: boolean
+  /** Volumen de un arpegio de acompañamiento en corcheas (0 = sin arpegio). */
+  arpegio?: number
+  /** Melodía como piano: ataque rápido y se apaga sola. */
+  piano?: boolean
+  /** Tambores de marcha con redoble al final de cada frase (épico). */
+  timbales?: boolean
+}
+
+// Himno de los Conquistadores (letra y música: Henry T. Bergh). Transcrito de la partitura que envió Eduardo,
+// en La bemol mayor. Primer compás = anacrusa ("Con-"). Todas las versiones usan la misma melodía y armonía.
+const HIMNO = {
+  acordes: ['Ab', 'Ab', 'Ab', 'Ab', 'Db', 'Db', 'Bb', 'Eb', 'Ab', 'Ab', 'Ab', 'Ab', 'Db', 'Db', 'Ab', 'Eb', 'Ab'],
+  melodia: [
+    '. . . . . . Eb4 -',
+    'Ab4 - G4 Ab4 G4 - F4 Eb4', 'C4 - - - C4 - Eb4 -', 'Ab4 - G4 Ab4 Bb4 - Ab4 -', 'Db4 - Eb4 - F4 - - -',
+    'F4 F4 E4 F4 Gb4 - Ab4 -', 'Bb4 - - - Bb4 Ab4 G4 F4', 'Eb4 - E4 - F4 - Db4 -', 'C4 - - - - - Eb4 -',
+    'Ab4 - G4 Ab4 G4 - F4 Eb4', 'C4 - - - - - Eb4 -', 'Ab4 - G4 Ab4 Bb4 - Ab4 -', 'F4 - - - - - F4 -',
+    'Ab4 - Ab4 Ab4 Bb4 - Ab4 -', 'C5 - Ab4 - Db5 - - Bb4', 'Eb5 - - - G4 - - -', 'Ab4 - - - - - . .',
+  ],
 }
 
 const TEMAS: Record<Pista, Tema> = {
-  // Himno de los Conquistadores (letra y música: Henry T. Bergh). Transcrito de la partitura que envió Eduardo,
-  // en La bemol mayor. Primer compás = anacrusa ("Con-").
-  himno: {
-    bpm: 84, lead: 'triangle', brillo: 2200, bajo: 'largo', bateria: 'nada', pad: 0.03, reverb: 0.5, volMelodia: 0.075,
-    acordes: ['Ab', 'Ab', 'Ab', 'Ab', 'Db', 'Db', 'Bb', 'Eb', 'Ab', 'Ab', 'Ab', 'Ab', 'Db', 'Db', 'Ab', 'Eb', 'Ab'],
-    melodia: [
-      '. . . . . . Eb4 -',
-      'Ab4 - G4 Ab4 G4 - F4 Eb4', 'C4 - - - C4 - Eb4 -', 'Ab4 - G4 Ab4 Bb4 - Ab4 -', 'Db4 - Eb4 - F4 - - -',
-      'F4 F4 E4 F4 Gb4 - Ab4 -', 'Bb4 - - - Bb4 Ab4 G4 F4', 'Eb4 - E4 - F4 - Db4 -', 'C4 - - - - - Eb4 -',
-      'Ab4 - G4 Ab4 G4 - F4 Eb4', 'C4 - - - - - Eb4 -', 'Ab4 - G4 Ab4 Bb4 - Ab4 -', 'F4 - - - - - F4 -',
-      'Ab4 - Ab4 Ab4 Bb4 - Ab4 -', 'C5 - Ab4 - Db5 - - Bb4', 'Eb5 - - - G4 - - -', 'Ab4 - - - - - . .',
-    ],
-  },
+  /** Solemne: órgano y eco de iglesia (ceremonias e inicio). */
+  himno: { ...HIMNO, bpm: 84, lead: 'triangle', brillo: 2200, bajo: 'largo', bateria: 'nada', pad: 0.03, reverb: 0.5, volMelodia: 0.075, octava: true, quinta: true },
+  /** Épico: metales, tambores de marcha y redoble (salas y duelos). */
+  himno_epico: { ...HIMNO, bpm: 104, lead: 'sawtooth', brillo: 2400, bajo: 'marcha', bateria: 'nada', pad: 0.026, reverb: 0.3, volMelodia: 0.05, octava: true, timbales: true },
+  /** Rápido: para trivias y competencias locas. */
+  himno_rapido: { ...HIMNO, bpm: 156, lead: 'square', brillo: 3400, bajo: 'galope', bateria: 'rapida', pad: 0, reverb: 0.12, volMelodia: 0.03, arpegio: 0.018 },
+  /** Aventura: marcha alegre para armar uniformes. */
+  himno_aventura: { ...HIMNO, bpm: 112, lead: 'triangle', brillo: 2400, bajo: 'marcha', bateria: 'marcha', pad: 0.012, reverb: 0.2, volMelodia: 0.06, arpegio: 0.012 },
+  /** Emotivo: piano suave y lento (logros y certificado). */
+  himno_emotivo: { ...HIMNO, bpm: 66, lead: 'triangle', brillo: 1700, bajo: 'largo', bateria: 'nada', pad: 0.018, reverb: 0.6, volMelodia: 0.08, piano: true, quinta: true, arpegio: 0.016 },
   mapa: {
     bpm: 112, lead: 'square', brillo: 2600, bajo: 'marcha', bateria: 'marcha', pad: 0.012, reverb: 0.22, volMelodia: 0.03,
     acordes: ['G', 'C', 'D', 'G', 'Em', 'C', 'D', 'G', 'G', 'C', 'Am', 'D', 'G', 'Em', 'C', 'D'],
@@ -121,14 +141,15 @@ function sala(a: AudioContext, seg: number) {
   return b
 }
 
-function voz(f: number, t: number, dur: number, tipo: OscillatorType, vol: number, brillo: number, ataque = 0.01, detune = 0) {
+function voz(f: number, t: number, dur: number, tipo: OscillatorType, vol: number, brillo: number, ataque = 0.01, detune = 0, piano = false) {
   if (!ctx || !seco || !f) return
   const o = ctx.createOscillator(), g = ctx.createGain(), fl = ctx.createBiquadFilter()
   o.type = tipo; o.frequency.setValueAtTime(f, t); o.detune.value = detune
   fl.type = 'lowpass'; fl.frequency.value = brillo; fl.Q.value = 0.7
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + ataque)
-  g.gain.setValueAtTime(vol, t + Math.max(ataque, dur - 0.08)); g.gain.linearRampToValueAtTime(0, t + dur)
-  o.connect(fl).connect(g).connect(seco); o.start(t); o.stop(t + dur + 0.05)
+  if (piano) { g.gain.exponentialRampToValueAtTime(vol * 0.25, t + Math.min(dur, 0.9)); g.gain.linearRampToValueAtTime(0, t + dur + 0.25) }
+  else { g.gain.setValueAtTime(vol, t + Math.max(ataque, dur - 0.08)); g.gain.linearRampToValueAtTime(0, t + dur) }
+  o.connect(fl).connect(g).connect(seco); o.start(t); o.stop(t + dur + (piano ? 0.3 : 0.05))
 }
 
 function golpe(t: number, tipo: 'bombo' | 'caja' | 'plato', fuerza = 1) {
@@ -163,17 +184,26 @@ function programar() {
       let largo = 1
       while (k + largo < 8 && pasos[compas][k + largo] === '-') largo++
       const dur = largo * corchea * (tema.bateria === 'nada' ? 1 : 0.9)
-      voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia, tema.brillo, tema.bateria === 'nada' ? 0.12 : 0.01)
-      voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia * 0.45, tema.brillo * 0.8, 0.02, 7)
-      if (actual === 'himno') voz(hz(midiDe(sim) + 12), siguienteT, dur, 'sine', tema.volMelodia * 0.35, 3000, 0.03)
+      const at = tema.piano ? 0.005 : tema.bateria === 'nada' && !tema.timbales ? 0.12 : tema.lead === 'sawtooth' ? 0.04 : 0.01
+      voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia, tema.brillo, at, 0, tema.piano)
+      voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia * 0.45, tema.brillo * 0.8, at + 0.01, 7, tema.piano)
+      if (tema.octava) voz(hz(midiDe(sim) + 12), siguienteT, dur, 'sine', tema.volMelodia * 0.35, 3000, 0.03)
     }
     // Colchón de acordes (órgano suave)
     if (tema.pad && k === 0) for (const n of notas) voz(hz(n + 12), siguienteT, corchea * 8, 'sawtooth', tema.pad, 900, 0.35, n % 2 ? -6 : 6)
     // Bajo
     if (tema.bajo === 'marcha' && k % 2 === 0) voz(hz(k % 4 === 0 ? notas[0] - 12 : notas[2] - 12), siguienteT, corchea * 0.9, 'triangle', 0.08, 1200)
     if (tema.bajo === 'galope') voz(hz(notas[0] - 12 + (k % 4 === 3 ? 12 : 0)), siguienteT, corchea * 0.7, 'triangle', 0.07, 1400)
-    if (tema.bajo === 'largo' && k === 0) voz(hz(notas[0] - 12), siguienteT, corchea * (actual === 'himno' ? 4 : 8), 'sine', 0.09, 600, 0.2)
-    if (tema.bajo === 'largo' && k === 4 && actual === 'himno') voz(hz(notas[2] - 24), siguienteT, corchea * 4, 'sine', 0.08, 600, 0.2)
+    if (tema.bajo === 'largo' && k === 0) voz(hz(notas[0] - 12), siguienteT, corchea * (tema.quinta ? 4 : 8), 'sine', 0.09, 600, 0.2)
+    if (tema.bajo === 'largo' && k === 4 && tema.quinta) voz(hz(notas[2] - 24), siguienteT, corchea * 4, 'sine', 0.08, 600, 0.2)
+    // Arpegio de acompañamiento (sube y baja por el acorde)
+    if (tema.arpegio && compas > 0) { const orden = [0, 1, 2, 1]; voz(hz(notas[orden[k % 4]] + 12), siguienteT, corchea * 0.85, 'triangle', tema.arpegio, 2000, 0.005, 0, true) }
+    // Timbales de marcha con redoble al cerrar cada frase de 4 compases
+    if (tema.timbales) {
+      if (k === 0 || k === 4) golpe(siguienteT, 'bombo', 1.3)
+      if (k === 2 || k === 6) golpe(siguienteT, 'caja', 0.9)
+      if (compas % 4 === 0 && k >= 6) { golpe(siguienteT, 'caja', 0.7); golpe(siguienteT + corchea / 2, 'caja', 0.8) }
+    }
     // Batería
     if (tema.bateria === 'marcha') {
       if (k === 0 || k === 4) golpe(siguienteT, 'bombo')
@@ -210,15 +240,15 @@ export function musica(p: Pista | null) {
     if (humedo) humedo.gain.value = TEMAS[p].reverb
     paso = 0; siguienteT = a.currentTime + 0.12
     timer = window.setInterval(programar, 50)
-    fundido(permitida() ? 1 : 0, p === 'solemne' || p === 'himno' ? 2 : 0.8)
+    fundido(permitida() ? 1 : 0, p === 'solemne' || p === 'himno' || p === 'himno_emotivo' ? 2 : 0.8)
   } catch { /* sin audio */ }
 }
 
 /** Qué pista va con cada tipo de nivel: competencias rápidas, piezas tranquilas, ceremonias solemnes. */
 export function pistaDeNivel(tipo: string): Pista {
   if (tipo === 'ceremonia') return 'himno'
-  if (tipo === 'quiz' || tipo === 'vf' || tipo === 'lluvia' || tipo === 'frase' || tipo === 'parejas') return 'rapido'
-  return 'juego'
+  if (tipo === 'quiz' || tipo === 'vf' || tipo === 'lluvia' || tipo === 'frase' || tipo === 'parejas') return 'himno_rapido'
+  return 'himno_aventura'
 }
 
 // Silenciar o pausar al instante cuando cambia la preferencia o se pausa el juego

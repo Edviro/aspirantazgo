@@ -14,7 +14,7 @@ import { useProgreso } from '../progreso'
 /** Sala en vivo: el líder elige el nivel, todos juegan a la vez y el avance se ve en tiempo real. */
 export default function Sala() {
   const { sala, perfil, ir, dejarSala, iniciarRonda, repo } = useJuego()
-  useEffect(() => { musica('rapido') }, [])
+  useEffect(() => { musica('himno_epico') }, [])
   const [oficial, setOficial] = useState<ResultadoDuelo | null>(null)
   const [podio, setPodio] = useState<FilaSala[] | null>(null)
   const pedirPodio = () => {
