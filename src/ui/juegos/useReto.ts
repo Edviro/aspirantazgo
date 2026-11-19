@@ -7,7 +7,7 @@ import type { ResultadoServidor } from '../../application/puertos'
 import { useJuego } from '../estado'
 import { ahora, reanudar } from '../reloj'
 
-export interface FinReto { resultado: ResultadoReto; servidor: ResultadoServidor | null; aviso?: string }
+export interface FinReto { resultado: ResultadoReto; servidor: ResultadoServidor | null; aviso?: string; /** Racha si esta partida cumplió el reto del día. */ diario?: number }
 
 /**
  * Caso de uso "jugar un reto": cronometra, abre el intento en el servidor (que guarda la hora real)
@@ -22,7 +22,9 @@ export function useReto(nivel: Nivel, desafio: boolean, dificultad: Dificultad) 
   const iniciar = useCallback(() => {
     reanudar()
     t0.current = ahora()
-    intento.current = desafio ? repo.iniciarReto(nivel.id, dificultad).catch(() => null) : Promise.resolve(null)
+    const sala = useJuego.getState().sala
+    const codigoSala = sala && sala.rol === 'jugador' && sala.ronda ? sala.conexion.codigo : null
+    intento.current = desafio ? repo.iniciarReto(nivel.id, dificultad, codigoSala).catch(() => null) : Promise.resolve(null)
     useJuego.getState().reportarProgreso(0)
   }, [desafio, nivel.id, repo, dificultad])
 

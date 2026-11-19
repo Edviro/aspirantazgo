@@ -50,6 +50,10 @@ export interface FilaRanking {
   rango?: Rango | null
 }
 
+export interface Estadisticas { duelos_jugados: number; duelos_ganados: number; partidas: number; salas: number }
+
+export interface ResultadoDuelo { terminado: boolean; ganador: string | null; jugadores: { id: string; puntaje: number | null; segundos: number | null }[] }
+
 export interface ResultadoServidor {
   puntaje: number
   mejor: number
@@ -140,7 +144,9 @@ export interface RepositorioJuego {
   guardarAvatar(a: AvatarConfig): Promise<void>
   /** Solo adultos: actualizar el rango cuando reciben una investidura. */
   cambiarRango(r: Rango): Promise<void>
-  iniciarReto(reto: string, dificultad: Dificultad): Promise<string>
+  /** Si se juega dentro de una sala o duelo, el intento queda ligado a ella (el servidor valida el resultado). */
+  iniciarReto(reto: string, dificultad: Dificultad, sala?: string | null): Promise<string>
+  estadisticas(): Promise<Estadisticas>
   terminarReto(intento: string, puntaje: number): Promise<ResultadoServidor>
   misPuntajes(): Promise<Record<string, number>>
   ranking(alcance: Alcance, pais?: string): Promise<FilaRanking[]>
@@ -182,6 +188,7 @@ export interface PuertoSalas {
   entrar(codigo: string): Promise<{ codigo: string; tipo: 'sala' | 'duelo'; anfitrion: boolean }>
   cerrar(codigo: string): Promise<void>
   crearDuelo(rivalId: string): Promise<string>
+  resultadoDuelo(codigo: string): Promise<ResultadoDuelo>
   conectar(codigo: string, yo: JugadorSala, eventos: EventosSala): Promise<ConexionSala>
   /** Presencia global: quién está conectado ahora (por club) y las invitaciones a duelo. */
   presencia(yo: JugadorEnLinea, eventos: EventosPresencia): Promise<ConexionPresencia>

@@ -2,6 +2,7 @@ import type { TipoNivel } from '../domain/niveles'
 
 /** Instrucciones cortas que se muestran antes de cada juego. Son pasos: van en orden. */
 export const COMO_SE_JUEGA: Record<TipoNivel, { icono: string; pasos: string[] }> = {
+  memoria: { icono: '🃏', pasos: ['Toca dos cartas para darles la vuelta.', 'Si la pieza y el lugar donde va coinciden, se quedan descubiertas.', 'Si no, se vuelven a tapar: recuerda dónde estaba cada una. Menos intentos, más puntos.'] },
   lluvia: { icono: '🌧️', pasos: [
     'Arriba aparece qué atrapar, por ejemplo "lo que va en la manga derecha".',
     'Toca solo esos emblemas antes de que lleguen al suelo.',

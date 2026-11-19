@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
-  Alcance, AvatarConfig, CatalogoOrg, ClubAdmin, ClubLista, FilaRanking, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
+  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubLista, FilaRanking, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
   RegistroAdulto, RepositorioJuego, ResultadoServidor, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
 import type { Dificultad, Rango } from '../../domain/tipos'
@@ -126,7 +126,12 @@ export class RepositorioSupabase implements RepositorioJuego {
   async guardarAvatar(a: AvatarConfig) { await this.rpc('guardar_avatar', { p_token: this.token, p_avatar: a }) }
   async cambiarRango(r: Rango) { await this.rpc('cambiar_rango', { p_token: this.token, p_rango: r }) }
 
-  iniciarReto(reto: string, dificultad: Dificultad) { return this.rpc<string>('iniciar_reto', { p_token: this.token, p_reto: reto, p_dificultad: dificultad }) }
+  iniciarReto(reto: string, dificultad: Dificultad, sala?: string | null) {
+    return sala
+      ? this.rpc<string>('iniciar_reto_sala', { p_token: this.token, p_reto: reto, p_dificultad: dificultad, p_sala: sala })
+      : this.rpc<string>('iniciar_reto', { p_token: this.token, p_reto: reto, p_dificultad: dificultad })
+  }
+  estadisticas() { return this.rpc<Estadisticas>('mis_estadisticas', { p_token: this.token }) }
 
   terminarReto(intento: string, puntaje: number) {
     return this.rpc<ResultadoServidor>('terminar_reto', { p_token: this.token, p_intento: intento, p_puntaje: puntaje })

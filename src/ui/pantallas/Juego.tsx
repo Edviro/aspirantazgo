@@ -17,10 +17,13 @@ import { Ordenar } from '../juegos/Ordenar'
 import { Frase } from '../juegos/Frase'
 import { Parejas } from '../juegos/Parejas'
 import { Ceremonia } from '../juegos/Ceremonia'
+import { Memoria } from '../juegos/Memoria'
 import { useReto, type FinReto } from '../juegos/useReto'
 import { sfx } from '../sonido'
 import { musica } from '../musica'
 import { APROBADO } from '../../domain/puntuacion'
+import { esRetoDelDia, useProgreso } from '../progreso'
+import { rachaVigente } from '../../domain/diario'
 
 export default function Juego() {
   const { nivel, desafio, dificultad, semilla, perfil, ir, jugar, modo, sala } = useJuego()
@@ -60,10 +63,12 @@ export default function Juego() {
   const alTerminar = useCallback(async (factores: number[], errores: number) => {
     reanudar()
     const r = await reto.terminar(factores, errores)
-    setFin(r)
+    // Reto del día: si lo apruebas, suma a tu racha
+    const diario = desafio && esRetoDelDia(nivel!.id, semilla) && r.resultado.estrellas >= 1 && useProgreso.getState().cumplirDiario()
+    setFin({ ...r, diario: diario ? rachaVigente(useProgreso.getState().racha) : undefined })
     setFase('fin')
     if (r.resultado.estrellas >= 1) sfx.nivel(); else sfx.mal()
-  }, [reto])
+  }, [reto, desafio, nivel, semilla])
 
   if (!nivel || !perfil) return null
   const siguiente = mundoDeNivel(nivel.id).niveles.find(n => n.num === nivel.num + 1)
@@ -105,6 +110,7 @@ export default function Juego() {
         {fase !== 'intro' && nivel.tipo === 'ceremonia' && <Ceremonia onFin={alTerminar} />}
         {fase !== 'intro' && nivel.tipo === 'lluvia' && <Lluvia {...props} />}
         {fase !== 'intro' && nivel.tipo === 'ordenar' && <Ordenar {...props} />}
+        {fase !== 'intro' && nivel.tipo === 'memoria' && <Memoria {...props} />}
       </main>
 
       {fase === 'intro' && (
@@ -193,6 +199,9 @@ function FinNivel({ fin, desafio, enSala, multiplicador, nombreDif, desbloqueado
           <div><b>{r.errores}</b><small>errores</small></div>
           <div><b>{Math.round(r.segundos)}s</b><small>tiempo</small></div>
         </div>
+        {fin.diario !== undefined && (
+          <div className="fin-desbloqueo fin-diario"><b>¡Reto del día cumplido!</b><span>Racha: {fin.diario} {fin.diario === 1 ? 'día' : 'días'} seguidos</span></div>
+        )}
         {desbloqueado && (
           <div className="fin-desbloqueo"><b>¡Nivel {numSiguiente} desbloqueado!</b><span>{desbloqueado}</span></div>
         )}

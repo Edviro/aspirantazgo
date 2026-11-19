@@ -1,7 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   ConexionPresencia, ConexionSala, EventosPresencia, EventosSala, InicioRonda, InvitacionDuelo, JugadorEnLinea, JugadorSala,
-  ProgresoSala, PuertoSalas, RespuestaDuelo,
+  ProgresoSala, PuertoSalas, RespuestaDuelo, ResultadoDuelo,
 } from '../../application/puertos'
 import { TODOS_LOS_NIVELES } from '../../domain/niveles'
 
@@ -54,6 +54,7 @@ export class SalasSupabase implements PuertoSalas {
   entrar(codigo: string) { return this.rpc<{ codigo: string; tipo: 'sala' | 'duelo'; anfitrion: boolean }>('entrar_sala', { p_token: this.token(), p_codigo: codigo }) }
   async cerrar(codigo: string) { await this.rpc('cerrar_sala', { p_token: this.token(), p_codigo: codigo }) }
   crearDuelo(rivalId: string) { return this.rpc<string>('crear_duelo', { p_token: this.token(), p_rival: rivalId }) }
+  resultadoDuelo(codigo: string) { return this.rpc<ResultadoDuelo>('resultado_duelo', { p_token: this.token(), p_codigo: codigo }) }
 
   conectar(codigo: string, yo: JugadorSala, ev: EventosSala): Promise<ConexionSala> {
     if (!esCodigo(codigo)) return Promise.reject(new Error('SALA_NO_EXISTE'))

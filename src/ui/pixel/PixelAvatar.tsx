@@ -24,7 +24,7 @@ function sprite(opts: ReturnType<typeof opcionesDe>, brazoArriba: boolean) {
  * camisa caqui o blanca, saco negro del departamental, pañoleta de GM, torzal, galón y botones de clase.
  */
 export function PixelAvatar({ a, rango = 'conquistador', animo = 'idle', alto = 180, className }: {
-  a: AvatarConfig; rango?: Rango; animo?: 'idle' | 'saluda' | 'celebra'; alto?: number; className?: string
+  a: AvatarConfig; rango?: Rango; animo?: 'idle' | 'saluda' | 'celebra' | 'voto'; alto?: number; className?: string
 }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const opts = useMemo(() => opcionesDe(a, rango), [a, rango])
@@ -40,9 +40,9 @@ export function PixelAvatar({ a, rango = 'conquistador', animo = 'idle', alto = 
     const fase = Math.random() * 6
     const pintar = (t: number) => {
       const s = t / 1000 + fase
-      const salto = reducir ? 0 : animo === 'celebra' ? Math.round(Math.abs(Math.sin(s * 5)) * 3) : Math.round((Math.sin(s * 2) + 1) * 0.5)
+      const salto = reducir || animo === 'voto' ? 0 : animo === 'celebra' ? Math.round(Math.abs(Math.sin(s * 5)) * 3) : Math.round((Math.sin(s * 2) + 1) * 0.5)
       // al saludar, la mano sube y baja (dos cuadros), nunca un brazo extra
-      const mano = animo === 'celebra' || (animo === 'saluda' && Math.floor(s * 2.2) % 2 === 0)
+      const mano = animo === 'celebra' || animo === 'voto' || (animo === 'saluda' && Math.floor(s * 2.2) % 2 === 0)
       ctx.clearRect(0, 0, PX_W, PX_H)
       ctx.drawImage(mano ? arriba : quieto, 0, 1 - salto)
       raf = requestAnimationFrame(pintar)

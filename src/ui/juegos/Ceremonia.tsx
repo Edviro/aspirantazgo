@@ -1,11 +1,10 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Sparkles } from '@react-three/drei'
-import * as THREE from 'three'
+import { useEffect, useState } from 'react'
 import { IDEALES } from '../../domain/aspirantazgo'
+import { pieza } from '../../domain/uniformes'
 import { useJuego } from '../estado'
-import { Avatar3D, Panoleta3D } from '../tres/Avatar3D'
-import { Escenario } from '../tres/Escenario'
+import { PixelAvatar } from '../pixel/PixelAvatar'
+import { Campamento } from '../pixel/Campamento'
+import { PiezaIcono } from '../componentes/Insignias'
 import { Boton, Confeti } from '../componentes/Comunes'
 import { sfx } from '../sonido'
 
@@ -19,36 +18,14 @@ const LINEAS = [
   'y amigo de la humanidad.',
 ]
 
-function PanoletaQueBaja({ activa, onLlego }: { activa: boolean; onLlego: () => void }) {
-  const ref = useRef<THREE.Group>(null)
-  const llego = useRef(false)
-  useFrame((_, dt) => {
-    const g = ref.current
-    if (!g || !activa) return
-    g.position.y = THREE.MathUtils.lerp(g.position.y, 1.43 + 0.32, Math.min(1, dt * 1.6))
-    g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, 0, Math.min(1, dt * 2))
-    if (!llego.current && g.position.y < 1.43 + 0.36) { llego.current = true; onLlego() }
-  })
-  return (
-    <group ref={ref} position={[0, 4.2, 0.05]} rotation={[0, Math.PI * 3, 0]}>
-      <Panoleta3D />
-      <Sparkles count={30} scale={[0.8, 0.8, 0.8]} size={5} speed={0.8} color="#FFE07A" />
-    </group>
-  )
-}
-
-function Encuadre() {
-  const { camera } = useThree()
-  useEffect(() => { camera.lookAt(0, 1.25, 0) }, [camera])
-  return null
-}
-
 /** La ceremonia: posición para el voto, el voto línea por línea y la pañoleta que baja hasta tu cuello. */
 export function Ceremonia({ onFin }: { onFin: (f: number[], e: number) => void }) {
   const { perfil, repo, setPerfil } = useJuego()
   const [fase, setFase] = useState<Fase>('posicion')
   const [linea, setLinea] = useState(0)
   const [puesta, setPuesta] = useState(false)
+  // Personaje en escala entera (múltiplo de 64) según el alto de la pantalla
+  const [alto] = useState(() => (window.innerHeight >= 800 ? 256 : window.innerHeight >= 600 ? 192 : 128))
 
   useEffect(() => {
     if (fase !== 'final') return
@@ -66,24 +43,19 @@ export function Ceremonia({ onFin }: { onFin: (f: number[], e: number) => void }
 
   return (
     <div className="ceremonia">
-      <div className="ceremonia-escena">
-        <Canvas dpr={[1, 1.75]} camera={{ position: [0, 2.1, 6.4], fov: 38 }}>
-          <Encuadre />
-          <color attach="background" args={['#0B1430']} />
-          <fog attach="fog" args={['#0B1430', 8, 18]} />
-          <ambientLight intensity={0.8} />
-          <spotLight position={[0, 6, 3]} angle={0.45} penumbra={0.6} intensity={60} color="#FFF1C9" />
-          <directionalLight position={[-3, 4, 2]} intensity={1.2} />
-          <Suspense fallback={null}>
-            <Escenario p={[0, 0, -0.3]} monumento={false} />
-            <group position={[0, 0.32, 0.1]} scale={0.78}>
-              <Avatar3D a={perfil.avatar} rango={perfil.rango} sinPanoleta={!puesta}
-                animo={fase === 'final' ? 'celebra' : fase === 'voto' || fase === 'panoleta' ? 'voto' : 'idle'} />
-              {!puesta && <PanoletaQueBaja activa={fase === 'panoleta'} onLlego={() => { setPuesta(true); setTimeout(() => setFase('final'), 600) }} />}
-            </group>
-          </Suspense>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}><circleGeometry args={[9, 48]} /><meshStandardMaterial color="#1F5A2E" /></mesh>
-        </Canvas>
+      <div className="ceremonia-escena ceremonia-pixel">
+        <Campamento />
+        <div className="ceremonia-foco" aria-hidden />
+        <div className="ceremonia-avatar">
+          <PixelAvatar a={{ ...perfil.avatar, panoleta: puesta }} rango={perfil.rango}
+            animo={fase === 'final' ? 'celebra' : fase === 'voto' || fase === 'panoleta' ? 'voto' : 'idle'} alto={alto} />
+          {fase === 'panoleta' && !puesta && (
+            <div className="panoleta-baja" onAnimationEnd={() => { setPuesta(true); sfx.perfecto(); setTimeout(() => setFase('final'), 700) }}>
+              <PiezaIcono p={pieza.panoleta(false)} size={110} />
+              <i className="chispas" />
+            </div>
+          )}
+        </div>
       </div>
 
       {fase === 'final' && <Confeti cantidad={120} />}

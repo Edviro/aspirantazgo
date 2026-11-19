@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { musica } from '../musica'
+import { useProgreso } from '../progreso'
+import { rachaVigente, retoDelDia } from '../../domain/diario'
 import { MUNDOS_JUGABLES } from '../../domain/niveles'
 import { APROBADO, estrellasDeMejor } from '../../domain/puntuacion'
 import { DIFICULTADES } from '../../domain/dificultad'
@@ -19,6 +21,7 @@ export default function Mapa() {
   const niveles = mundoActual.niveles
   const [sel, setSel] = useState<number | null>(null)
   const [menu, setMenu] = useState(false)
+  const rachaObj = useProgreso(st => st.racha)
   useEffect(() => { musica('mapa') }, [])
   const [borrar, setBorrar] = useState(false)
   const [unirse, setUnirse] = useState(false)
@@ -44,6 +47,9 @@ export default function Mapa() {
   const total = Object.values(puntajes).reduce((a, b) => a + b, 0)
   const nivelSel = sel !== null ? niveles[sel] : null
   const puedeSalas = !!repo.salas
+  const reto = retoDelDia()
+  const hechoHoy = rachaObj.ultimo === reto.fecha
+  const racha = rachaVigente(rachaObj)
   const vivos = enLinea.filter(j => j.clubId === perfil.club.id && j.id !== perfil.id).length
   const esAdulto = perfil.grupo_edad === 'adulto'
 
@@ -72,6 +78,7 @@ export default function Mapa() {
 
       {menu && (
         <div className="menu pop" onClick={() => setMenu(false)}>
+          <button onClick={() => ir('logros')}>Mis parches</button>
           <button onClick={() => ir('ranking')}>Ranking</button>
           <button onClick={() => ir('editor')}>Mi personaje</button>
           {puedeSalas && <button onClick={() => ir('club')}>Isla del club en vivo</button>}
@@ -96,6 +103,13 @@ export default function Mapa() {
           ))}
         </div>}
       </div>
+
+      <button className={`reto-dia ${hechoHoy ? 'hecho' : ''}`} onClick={() => (hechoHoy ? ir('logros') : jugar(reto.nivel, true, 'medio', reto.semilla))}
+        aria-label={`Reto del día: ${reto.nivel.titulo}${hechoHoy ? ', cumplido' : ''}. Racha de ${racha} días`}>
+        <span className="reto-dia-tit">Reto del día</span>
+        <b>{reto.nivel.titulo}</b>
+        <span className="reto-dia-racha"><i aria-hidden />{racha} {racha === 1 ? 'día' : 'días'}{hechoHoy ? ' · ¡cumplido!' : ''}</span>
+      </button>
 
       <nav className="mapa-acciones">
         {puedeSalas ? <Boton tipo="azul" onClick={() => ir('club')}>Isla en vivo{vivos > 0 ? ` (${vivos})` : ''}</Boton>

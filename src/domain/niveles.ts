@@ -3,7 +3,7 @@ import type { Colocacion, PanelId, PerfilUniforme, Pieza, Rango } from './tipos'
 import type { Afirmacion, Pregunta } from './quiz'
 import { BANCO_CLUB, BANCO_EMBLEMA, BANCO_MARANATA, BANCO_PALABRA, PAREJAS_IDEALES, RONDAS_LEY, RONDAS_VOTO, VF_IDEALES, type RondaFrase } from './aspirantazgo'
 
-export type TipoNivel = 'taller' | 'inspector' | 'quiz' | 'vf' | 'lluvia' | 'ordenar' | 'frase' | 'parejas' | 'ceremonia'
+export type TipoNivel = 'taller' | 'inspector' | 'quiz' | 'vf' | 'lluvia' | 'ordenar' | 'frase' | 'parejas' | 'ceremonia' | 'memoria'
 export type Npc = 'trompeta' | 'lectora' | 'nudo'
 
 export interface Nivel {
@@ -40,7 +40,8 @@ const sinAccesorios = (u: Colocacion[]) => u.filter(c => c.pieza.tipo !== 'corre
 export const MUNDO_UNIFORMES = {
   id: 'uniformes',
   nombre: 'Isla del Uniforme',
-  niveles: [
+  // El número de cada nivel sale de su orden en esta lista
+  niveles: ([
     {
       id: 'u12-lluvia', num: 1, titulo: 'Lluvia de insignias', subtitulo: 'Atrapa solo las que te piden',
       tipo: 'lluvia', rango: 'conquistador', paneles: [], parSeg: 50, npc: 'nudo',
@@ -112,6 +113,12 @@ export const MUNDO_UNIFORMES = {
       objetivo: () => [],
     },
     {
+      id: 'u17-memoria', num: 0, titulo: 'Memoria del uniforme', subtitulo: 'Une cada pieza con su lugar',
+      tipo: 'memoria', rango: 'conquistador', paneles: [], parSeg: 70, npc: 'lectora',
+      intro: 'Las cartas están boca abajo. Voltea dos: si la pieza y su lugar coinciden, se quedan. ¡Recuerda dónde vio cada una!',
+      objetivo: () => [],
+    },
+    {
       id: 'u15-bandera', num: 10, titulo: 'La bandera del club', subtitulo: 'Cuatro partes, C1 al centro y el nombre',
       tipo: 'taller', rango: 'conquistador', paneles: ['bandera'], parSeg: 35, npc: 'trompeta',
       intro: 'Arma la bandera oficial de 128 × 90 cm: pinta las cuatro partes, pon el C1 al centro y el nombre del club donde va.',
@@ -165,7 +172,7 @@ export const MUNDO_UNIFORMES = {
       objetivo: (n, c) => uniformeCorrecto(perfilDemo('gm_master', n, c)),
       caso: rnd => perfilAleatorio((['guia_mayor', 'gm_master', 'gm_master_avanzado'] as Rango[])[Math.floor(rnd() * 3)], rnd),
     },
-  ] as Nivel[],
+  ] as Nivel[]).map((n, i) => ({ ...n, num: i + 1 })),
 }
 
 export const MUNDO_ASPIRANTAZGO = {

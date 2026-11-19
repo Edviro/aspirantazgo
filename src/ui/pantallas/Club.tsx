@@ -10,7 +10,7 @@ import type { JugadorEnLinea } from '../../application/puertos'
 import { mensajeError } from '../../application/errores'
 
 const RANGO: Record<string, string> = { conquistador: 'Conquistador', lider: 'Líder', guia_mayor: 'Guía Mayor', gm_master: 'GM Máster', gm_master_avanzado: 'GM Máster Avanzado' }
-const DUELO_TIPOS = new Set(['taller', 'quiz', 'vf', 'lluvia', 'inspector', 'ordenar', 'frase'])
+const DUELO_TIPOS = new Set(['taller', 'quiz', 'vf', 'lluvia', 'inspector', 'ordenar', 'frase', 'memoria'])
 
 /** La isla de tu club: quién está conectado ahora, con su personaje, y a quién puedes retar (de tu club o de otra isla). */
 export default function Club() {

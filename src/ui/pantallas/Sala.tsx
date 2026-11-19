@@ -5,10 +5,13 @@ import { PixelAvatar } from '../pixel/PixelAvatar'
 import { MUNDOS_JUGABLES, MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
+import type { ResultadoDuelo } from '../../application/puertos'
+import { useProgreso } from '../progreso'
 
 /** Sala en vivo: el líder elige el nivel, todos juegan a la vez y el avance se ve en tiempo real. */
 export default function Sala() {
-  const { sala, perfil, ir, dejarSala, iniciarRonda } = useJuego()
+  const { sala, perfil, ir, dejarSala, iniciarRonda, repo } = useJuego()
+  const [oficial, setOficial] = useState<ResultadoDuelo | null>(null)
   const [nivelId, setNivelId] = useState(MUNDO_UNIFORMES.niveles[1].id)
   const [dif, setDif] = useState<Dificultad>('medio')
   const [cuenta, setCuenta] = useState<number | null>(null)
@@ -31,6 +34,19 @@ export default function Sala() {
       (b.prog?.puntaje ?? -1) - (a.prog?.puntaje ?? -1) || (b.prog?.avance ?? 0) - (a.prog?.avance ?? 0))
   }, [jugadores, sala?.progresos])
 
+  // Duelo: cuando los dos avisan que terminaron, se pide el resultado OFICIAL al servidor (calculado con los intentos guardados)
+  const esDuelo = sala?.tipo === 'duelo'
+  const ambosAvisaron = esDuelo && !!perfil && !!sala?.duelo && sala.progresos[perfil.id]?.puntaje !== undefined && sala.progresos[sala.duelo.rival.id]?.puntaje !== undefined
+  useEffect(() => {
+    if (!ambosAvisaron || !sala || oficial?.terminado || !repo.salas) return
+    let vivo = true, intentos = 0
+    const pedir = () => repo.salas!.resultadoDuelo(sala.conexion.codigo)
+      .then(r => { if (!vivo) return; if (r.terminado) { setOficial(r); useProgreso.getState().refrescarStats() } else if (++intentos < 6) setTimeout(pedir, 1500) })
+      .catch(() => undefined)
+    pedir()
+    return () => { vivo = false }
+  }, [ambosAvisaron]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!sala || !perfil) {
     return (
       <div className="pantalla sala"><Cielo />
@@ -48,8 +64,11 @@ export default function Sala() {
   const salirSala = async () => { await dejarSala(); ir(duelo ? 'club' : 'mapa') }
   const yoProg = sala.progresos[perfil.id], rivalProg = duelo ? sala.progresos[duelo.rival.id] : undefined
   const dueloFin = !!duelo && yoProg?.puntaje !== undefined && rivalProg?.puntaje !== undefined
-  const gane = dueloFin && (yoProg!.puntaje! > rivalProg!.puntaje! || (yoProg!.puntaje === rivalProg!.puntaje && (yoProg!.segundos ?? 0) < (rivalProg!.segundos ?? 0)))
-  const empate = dueloFin && yoProg!.puntaje === rivalProg!.puntaje && yoProg!.segundos === rivalProg!.segundos
+  const ptsOf = (id: string) => oficial?.jugadores.find(j => j.id === id)?.puntaje ?? undefined
+  const misPts = ptsOf(perfil.id) ?? yoProg?.puntaje, susPts = duelo ? ptsOf(duelo.rival.id) ?? rivalProg?.puntaje : undefined
+  const gane = oficial ? oficial.ganador === perfil.id
+    : dueloFin && (yoProg!.puntaje! > rivalProg!.puntaje! || (yoProg!.puntaje === rivalProg!.puntaje && (yoProg!.segundos ?? 0) < (rivalProg!.segundos ?? 0)))
+  const empate = oficial ? oficial.ganador === null : dueloFin && yoProg!.puntaje === rivalProg!.puntaje && yoProg!.segundos === rivalProg!.segundos
 
   return (
     <div className="pantalla sala">
@@ -77,10 +96,11 @@ export default function Sala() {
           <section className={`parche duelo-vs ${dueloFin ? (empate ? 'empate' : gane ? 'gane' : 'perdi') : ''}`}>
             {dueloFin && <div className="fin-titular"><span>{empate ? '¡Empate!' : gane ? '¡Ganaste el duelo!' : `Ganó ${duelo.rival.apodo}`}</span></div>}
             <div className="reto-vs">
-              <div><PixelAvatar a={perfil.avatar} rango={perfil.rango} animo={dueloFin && gane ? 'celebra' : 'idle'} alto={128} /><b>{perfil.apodo}</b><span className="pts">{yoProg?.puntaje ?? (ronda ? `${Math.round((yoProg?.avance ?? 0) * 100)}%` : '…')}</span></div>
+              <div><PixelAvatar a={perfil.avatar} rango={perfil.rango} animo={dueloFin && gane ? 'celebra' : 'idle'} alto={128} /><b>{perfil.apodo}</b><span className="pts">{misPts ?? (ronda ? `${Math.round((yoProg?.avance ?? 0) * 100)}%` : '…')}</span></div>
               <b className="vs">VS</b>
-              <div><PixelAvatar a={duelo.rival.avatar ?? {}} rango={duelo.rival.rango} animo={dueloFin && !gane && !empate ? 'celebra' : 'idle'} alto={128} /><b>{duelo.rival.apodo}</b><span className="pts">{rivalProg?.puntaje ?? (ronda ? `${Math.round((rivalProg?.avance ?? 0) * 100)}%` : '…')}</span></div>
+              <div><PixelAvatar a={duelo.rival.avatar ?? {}} rango={duelo.rival.rango} animo={dueloFin && !gane && !empate ? 'celebra' : 'idle'} alto={128} /><b>{duelo.rival.apodo}</b><span className="pts">{susPts ?? (ronda ? `${Math.round((rivalProg?.avance ?? 0) * 100)}%` : '…')}</span></div>
             </div>
+            {dueloFin && <p className="verificado">{oficial ? 'Resultado verificado por el servidor' : 'Verificando el resultado…'}</p>}
             {!ronda && <p>Esperando a que {duelo.rival.apodo} entre…</p>}
             {ronda && !dueloFin && <p>{yoProg?.puntaje !== undefined ? `Terminaste. Esperando a ${duelo.rival.apodo}…` : '¡A jugar!'}</p>}
             {sala.cerrada && !dueloFin && <p>{duelo.rival.apodo} salió del duelo.</p>}

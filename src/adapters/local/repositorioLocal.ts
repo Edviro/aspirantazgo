@@ -5,7 +5,7 @@ import type { Rango } from '../../domain/tipos'
  * Adaptador de "modo práctica": todo queda en este dispositivo. Sin cuenta, sin servidor, sin ranking público.
  * También permite jugar sin conexión.
  */
-const K = { perfil: 'asp_local_perfil', puntos: 'asp_local_puntos', intentos: 'asp_local_intentos' }
+const K = { perfil: 'asp_local_perfil', puntos: 'asp_local_puntos', intentos: 'asp_local_intentos', stats: 'asp_local_stats' }
 
 const leer = <T>(k: string, d: T): T => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) as T : d } catch { return d } }
 const escribir = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch { /* sin almacenamiento */ } }
@@ -60,6 +60,7 @@ export class RepositorioLocal implements RepositorioJuego {
     return { puntaje, mejor, puesto: 1 }
   }
 
+  async estadisticas() { return leer(K.stats, { duelos_jugados: 0, duelos_ganados: 0, partidas: 0, salas: 0 }) }
   async misPuntajes() { return leer<Record<string, number>>(K.puntos, {}) }
 
   async ranking(alcance: Alcance): Promise<FilaRanking[]> {
