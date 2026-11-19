@@ -1234,3 +1234,124 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
   box-shadow: var(--golpe); animation: pop .4s cubic-bezier(.2,1.5,.4,1) 1.5s both; }
 .isla-ganada .fila-botones { margin-top: 16px; }
 @media (prefers-reduced-motion: reduce) { .isla-rayos, .isla-ganada-parche, .isla-ganada-parche svg, .isla-ganada-avatar { animation: none; } }
+
+/* Trivia: la explicación se va sola (barra que se vacía); tocarla adelanta */
+.quiz-porque.auto { cursor: pointer; grid-template-columns: 1fr; overflow: hidden; animation: subePorque .28s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes subePorque { from { translate: 0 30px; opacity: 0; } }
+.quiz-auto { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: rgba(30,20,12,.12); }
+.quiz-auto i { display: block; height: 100%; background: currentColor; transform-origin: left; animation: vaciar linear both; }
+.quiz-porque.bien .quiz-auto { color: #2FB463; } .quiz-porque.mal .quiz-auto { color: var(--rojo); }
+@keyframes vaciar { to { transform: scaleX(0); } }
+.juego-zona.pausado .quiz-auto i { animation-play-state: paused; }
+
+/* ---- Capa de emoción (combos, chispas, sellos) ---- */
+.capa-emocion { position: fixed; inset: 0; z-index: 70; pointer-events: none; overflow: hidden; }
+.emocion-texto { position: fixed; translate: -50% -50%; font-family: var(--titulo); font-size: clamp(1.4rem, 3.4vw, 2.1rem); letter-spacing: 1px; white-space: nowrap; color: #FFE58A;
+  -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); animation: saltaTexto .95s cubic-bezier(.2,1.4,.4,1) both; }
+.emocion-texto.mal { color: #FF6B73; animation-duration: .9s; }
+@keyframes saltaTexto { 0% { opacity: 0; scale: .3; } 18% { opacity: 1; scale: 1.25; } 35% { scale: 1; } 75% { opacity: 1; } 100% { opacity: 0; translate: -50% -150%; } }
+.emocion-chispa { position: fixed; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border: 2px solid var(--ink); rotate: 45deg; animation: chispa .65s cubic-bezier(.1,.8,.3,1) both; }
+@keyframes chispa { to { transform: rotate(var(--a)) translateX(var(--d)) scale(.2); opacity: 0; } }
+.emocion-combo { position: fixed; right: max(14px, env(safe-area-inset-right)); top: 84px; display: flex; flex-direction: column; align-items: center; line-height: .9;
+  padding: 6px 12px 8px; background: var(--oro); color: var(--ink); border: var(--borde); border-radius: 12px; box-shadow: var(--golpe); rotate: 4deg; animation: comboPop .35s cubic-bezier(.2,1.8,.4,1) both; }
+.emocion-combo small { font-weight: 900; font-size: .68rem; letter-spacing: 1px; text-transform: uppercase; }
+.emocion-combo b { font-family: var(--titulo); font-weight: 400; font-size: 2rem; }
+.emocion-combo.caliente { background: #FF8A1E; }
+.emocion-combo.fuego { background: var(--rojo); color: #fff; box-shadow: var(--golpe), 0 0 22px 6px rgba(255,138,30,.65); }
+.emocion-combo.fuego b { text-shadow: 2px 2px 0 var(--ink); }
+@keyframes comboPop { 0% { scale: 1.7; rotate: -10deg; } 100% { scale: 1; } }
+.emocion-sello { position: fixed; inset: 0; display: grid; place-items: center; }
+.emocion-sello span { font-family: var(--titulo); font-size: clamp(2.6rem, 10vw, 5rem); letter-spacing: 3px; color: #fff; padding: 6px 28px; background: var(--rojo); border: 4px solid var(--ink);
+  box-shadow: 8px 9px 0 var(--ink); rotate: -6deg; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; animation: sello 1.15s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes sello { 0% { scale: 3; opacity: 0; } 14% { scale: .92; opacity: 1; } 22% { scale: 1; } 78% { scale: 1; opacity: 1; } 100% { scale: .8; opacity: 0; } }
+.emocion-rojo { position: fixed; inset: 0; box-shadow: inset 0 0 90px 24px rgba(215,36,47,.55); animation: rojo .45s ease-out both; }
+@keyframes rojo { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .emocion-texto, .emocion-sello span, .emocion-combo { animation-duration: .01s; } .emocion-chispa { display: none; } }
+.quiz-reloj.urgente { animation: latido .5s ease-in-out infinite; }
+.quiz-reloj.urgente div { background: #FF2D3A; }
+
+/* ---- Isla del club v2: escena grande, filas de profundidad, globos legibles y pizarra de mensajes ---- */
+.club-escena { flex-basis: clamp(230px, 42dvh, 460px); }
+.club-pj { transition: left 2.2s linear, translate .3s; }
+.club-pj.carril-0 { z-index: 6; bottom: calc(var(--alto-pj, 128px) * -.42); }
+.club-pj.carril-1 { z-index: 5; bottom: calc(var(--alto-pj, 128px) * -.2); }
+.club-pj.carril-1 .club-cuerpo-pj { scale: .9; transform-origin: bottom; }
+.club-pj.carril-2 { z-index: 4; bottom: 0; }
+.club-pj.carril-2 .club-cuerpo-pj { scale: .82; transform-origin: bottom; }
+.club-pj.carril-2 .club-sombra, .club-pj.carril-1 .club-sombra { scale: .85; }
+.club-pj.habla { z-index: 9; }
+.club-pj:not(.camina) .club-cuerpo-pj > * { animation: respira 2.6s ease-in-out infinite; }
+.club-pj.carril-1:not(.camina) .club-cuerpo-pj > * { animation-delay: -.9s; }
+.club-pj.carril-2:not(.camina) .club-cuerpo-pj > * { animation-delay: -1.7s; }
+@keyframes respira { 50% { translate: 0 -2px; } }
+.club-sombra { width: calc(var(--alto-pj, 128px) * .42); }
+.club-nombre { font-size: clamp(.74rem, 1.1vw, .92rem); padding: 1px 8px; max-width: 150px; }
+.globo-frase { font-size: clamp(.95rem, 1.5vw, 1.3rem); padding: 5px 14px; border-width: 3px; border-radius: 14px; box-shadow: 3px 4px 0 var(--ink); margin-bottom: 10px;
+  animation: globoFrase 4.2s cubic-bezier(.2,1.4,.4,1) both; transform-origin: bottom center; }
+.globo-frase.emoji { font-size: clamp(1.8rem, 3vw, 2.6rem); padding: 2px 12px; line-height: 1.15; }
+@keyframes globoFrase { 0% { opacity: 0; scale: .3; translate: 0 14px; } 6% { opacity: 1; scale: 1.15; translate: 0 0; } 11% { scale: 1; } 88% { opacity: 1; } 100% { opacity: 0; translate: 0 -10px; } }
+.club-pizarra { position: absolute; left: 12px; top: 10px; z-index: 30; margin: 0; padding: 8px 12px; list-style: none; display: grid; gap: 4px; width: min(300px, 46%);
+  background: rgba(16,32,79,.94); color: #fff; border: var(--borde); border-radius: 12px; box-shadow: var(--golpe); pointer-events: none; font-size: .9rem; }
+.club-pizarra li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: entraMensaje .35s cubic-bezier(.2,1.4,.4,1) both; }
+.club-pizarra li:not(:first-child) { opacity: .72; font-size: .82rem; }
+.club-pizarra b { color: var(--oro); }
+.club-pizarra li.mio b { color: #8FE3AE; }
+@keyframes entraMensaje { from { opacity: 0; translate: -14px 0; } }
+@container app (max-width: 560px) { .club-pizarra { display: none; } }
+.frases { align-items: center; gap: 8px; padding: 10px 14px; justify-content: safe center; }
+.frases-titulo { flex: none; color: var(--oro); font-family: var(--titulo); letter-spacing: 1px; font-size: 1.05rem; }
+.frases-caritas { flex: none; display: flex; gap: 6px; padding-left: 8px; border-left: 2px dashed rgba(255,255,255,.3); }
+.frases button { position: relative; font-size: clamp(.86rem, 1.1vw, 1rem); padding: 7px 14px; transition: translate .1s, background .2s; }
+.frases button.emoji { font-size: 1.3rem; padding: 2px 10px; line-height: 1.3; }
+.frases button:hover:not(:disabled) { background: var(--oro); translate: 0 -2px; box-shadow: 2px 4px 0 var(--ink); }
+.frases button:disabled { opacity: .5; cursor: default; }
+.frases button.enviada { opacity: 1; background: #48CF7C; animation: enviada .4s cubic-bezier(.2,1.8,.4,1) both; }
+.frases button.enviada small { position: absolute; left: 50%; top: -12px; translate: -50% 0; background: var(--ink); color: #fff; font-size: .62rem; padding: 1px 6px; border-radius: 6px; white-space: nowrap; }
+@keyframes enviada { 0% { scale: .8; } 60% { scale: 1.12; } }
+@media (prefers-reduced-motion: reduce) { .club-pj .club-cuerpo-pj > * { animation: none !important; } }
+
+/* ---- Carrera en vivo (franja dentro del nivel cuando juegas en sala o reto) ---- */
+.carrera-mini { flex: none; display: flex; gap: 6px; align-items: center; padding: 6px max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left)); background: #10204F; border-bottom: var(--borde); overflow: hidden; }
+.cm-jugador { flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 6px; align-items: center;
+  background: var(--papel); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 10px; padding: 3px 8px; box-shadow: 2px 2px 0 var(--ink); max-width: 240px; }
+.cm-jugador.yo { background: var(--oro); }
+.cm-jugador.listo { background: #8FE3AE; }
+.cm-pos { grid-row: 1 / span 2; font-family: var(--titulo); font-size: 1.3rem; line-height: 1; }
+.cm-nombre { font-weight: 900; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cm-dato { font-family: var(--titulo); font-size: .95rem; letter-spacing: .5px; }
+.cm-pista { grid-column: 2 / span 2; height: 7px; background: rgba(30,20,12,.18); border-radius: 99px; overflow: hidden; }
+.cm-pista i { display: block; height: 100%; background: var(--rojo); border-radius: 99px; transition: width .6s cubic-bezier(.2,1.2,.4,1); }
+.cm-jugador.yo .cm-pista i { background: var(--ink); }
+.cm-total { flex: none; color: var(--suave); font-weight: 900; font-size: .8rem; }
+
+/* ---- Reto en grupo ---- */
+.reto-vs.grupo { flex-wrap: wrap; gap: 10px 14px; }
+.reto-quien { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 76px; }
+.reto-quien b { font-size: .9rem; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.estado-reto { font-size: .72rem; font-weight: 900; padding: 1px 8px; border-radius: 99px; border: 2px solid var(--ink); background: var(--papel); color: var(--ink); }
+.estado-reto.listo { background: #48CF7C; } .estado-reto.acepto { background: var(--oro); } .estado-reto.no { background: #FF8C93; }
+.reto-quien.espera canvas { animation: latido 1.2s ease-in-out infinite; }
+.reto-quien.no { opacity: .55; }
+.quitar-rival { position: absolute; top: -4px; right: 0; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--ink); background: var(--rojo); color: #fff; font-weight: 900; line-height: 1; padding: 0; }
+.sumar-rivales { display: grid; gap: 6px; margin: 4px 0 10px; text-align: left; }
+.sumar-rivales > span { font-weight: 900; font-size: .85rem; }
+.sumar-rivales .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sumar-rivales .chips button { border: 2.5px solid var(--ink); background: var(--papel); color: var(--ink); border-radius: 99px; padding: 4px 12px; font-weight: 900; box-shadow: 2px 2px 0 var(--ink); }
+.sumar-rivales .chips button:hover { background: var(--oro); }
+.sumar-rivales small { font-weight: 700; opacity: .7; }
+.reto-grupo-nota { background: rgba(255,194,14,.18); border: 2px dashed var(--oro); border-radius: 10px; padding: 6px 10px; }
+.reto-grupo-cta { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: linear-gradient(135deg, #7A1F3D, #B3141E); }
+.reto-grupo-cta h3 { margin: 0 0 2px; } .reto-grupo-cta p { margin: 0; }
+.arena-grupo { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 10px 0 14px; }
+.arena-jugador { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px; background: rgba(255,255,255,.08); border: 2.5px solid var(--ink); border-radius: 14px; }
+.arena-jugador.yo { background: rgba(255,194,14,.2); }
+.arena-jugador.punta { box-shadow: 0 0 0 3px var(--oro), 4px 5px 0 var(--ink); }
+.arena-jugador.ausente { opacity: .45; filter: grayscale(.8); }
+.arena-jugador b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arena-jugador .pts { font-family: var(--titulo); font-size: 1.25rem; color: #fff; text-shadow: 2px 2px 0 var(--ink); }
+.corona { position: absolute; top: -14px; font-size: 1.6rem; animation: flotar 1.6s ease-in-out infinite; }
+.mini-pista { display: block; width: 100%; min-width: 90px; height: 10px; background: rgba(0,0,0,.35); border: 2px solid var(--ink); border-radius: 99px; overflow: hidden; }
+.mini-pista i { display: block; height: 100%; background: linear-gradient(90deg, var(--oro), #48CF7C); transition: width .6s cubic-bezier(.2,1.2,.4,1); }
+.reto-vs .ausente { opacity: .45; filter: grayscale(.8); }
+.duelo-vs .podio-pixel { height: auto; min-height: 0; padding-top: 4px; }
+.duelo-vs .carrera.oficial { text-align: left; margin: 10px 0 12px; }

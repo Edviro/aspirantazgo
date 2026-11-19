@@ -1,0 +1,6 @@
+-- Retos de 2 a 4 jugadores (aplicada en Supabase como "retos_en_grupo" y "retos_en_grupo_fix_posicion").
+-- salas.invitados uuid[]  : rivales invitados (hasta 3)
+-- salas.iniciada          : momento del primer intento; después ya no entra nadie nuevo (RETO_YA_EMPEZO)
+-- crear_reto_grupo(p_token, p_rivales uuid[]) → código; crear_duelo(p_token, p_rival) ahora lo usa por dentro.
+-- resultado_duelo / reclamar_abandono / mis_estadisticas generalizados a N jugadores con _tabla_duelo y _ganador_duelo
+-- (funciones internas sin permiso para anon/authenticated).

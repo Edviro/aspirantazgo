@@ -55,7 +55,11 @@ export class SalasSupabase implements PuertoSalas {
   abrir(sesionId?: string | null) { return this.rpc<{ codigo: string; cupo: number }>('abrir_sala', { p_token: this.token(), p_sesion: sesionId ?? null }) }
   entrar(codigo: string) { return this.rpc<{ codigo: string; tipo: 'sala' | 'duelo'; anfitrion: boolean }>('entrar_sala', { p_token: this.token(), p_codigo: codigo }) }
   async cerrar(codigo: string) { await this.rpc('cerrar_sala', { p_token: this.token(), p_codigo: codigo }) }
-  crearDuelo(rivalId: string) { return this.rpc<string>('crear_duelo', { p_token: this.token(), p_rival: rivalId }) }
+  crearReto(rivalIds: string[]) {
+    const ids = [...new Set(rivalIds)].filter(esId).slice(0, 3)
+    if (!ids.length) return Promise.reject(new Error('RIVAL_INVALIDO'))
+    return this.rpc<string>('crear_reto_grupo', { p_token: this.token(), p_rivales: ids })
+  }
   resultadoSala(codigo: string, reto: string, desde: string) { return this.rpc<FilaSala[]>('resultado_sala', { p_token: this.token(), p_codigo: codigo, p_reto: reto, p_desde: desde }) }
   reclamarAbandono(codigo: string) { return this.rpc<ResultadoDuelo>('reclamar_abandono', { p_token: this.token(), p_codigo: codigo }) }
   resultadoDuelo(codigo: string) { return this.rpc<ResultadoDuelo>('resultado_duelo', { p_token: this.token(), p_codigo: codigo }) }
@@ -70,7 +74,8 @@ export class SalasSupabase implements PuertoSalas {
       for (const v of Object.values(estado)) {
         const j = v[0] as unknown as Record<string, unknown>
         if (!j || !esId(j.id)) continue
-        lista.push({ id: j.id as string, apodo: texto(j.apodo, 16), club: texto(j.club, 60), avatar: limpiarAvatar(j.avatar), anfitrion: j.anfitrion === true })
+        lista.push({ id: j.id as string, apodo: texto(j.apodo, 16), club: texto(j.club, 60), avatar: limpiarAvatar(j.avatar), anfitrion: j.anfitrion === true,
+          rango: (RANGOS.has(j.rango as string) ? j.rango : 'conquistador') as JugadorSala['rango'] })
       }
       ev.onJugadores?.(lista)
     })
@@ -123,7 +128,8 @@ export class SalasSupabase implements PuertoSalas {
     canal.on('broadcast', { event: 'invitacion' }, ({ payload: p }) => {
       if (!p || p.para !== yo.id || !esCodigo(p.codigo) || !NIVELES.has(p.nivelId) || !DIFS.has(p.dificultad)) return
       const de = limpiarEnLinea(p.de)
-      if (de) ev.onInvitacion?.({ para: yo.id, de, codigo: p.codigo, nivelId: p.nivelId, dificultad: p.dificultad } as InvitacionDuelo)
+      const otros = Array.isArray(p.otros) ? p.otros.slice(0, 3).map((x: unknown) => texto(x, 16)).filter(Boolean) : undefined
+      if (de) ev.onInvitacion?.({ para: yo.id, de, codigo: p.codigo, nivelId: p.nivelId, dificultad: p.dificultad, otros } as InvitacionDuelo)
     })
     canal.on('broadcast', { event: 'gesto' }, ({ payload: p }) => {
       if (!p || !esId(p.de) || typeof p.frase !== 'number' || p.frase < 0 || p.frase >= FRASES.length) return

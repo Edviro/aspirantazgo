@@ -17,7 +17,9 @@ const DUELO_TIPOS = new Set(['taller', 'quiz', 'vf', 'lluvia', 'inspector', 'ord
 export default function Club() {
   const { perfil, enLinea, ir, desafiar, presencia, conectarPresencia, enviarGesto } = useJuego()
   useEffect(() => { musica('mapa') }, [])
-  const [rival, setRival] = useState<JugadorEnLinea | null>(null)
+  const [rivales, setRivales] = useState<JugadorEnLinea[]>([])
+  const rival = rivales[0] ?? null
+  const setRival = (j: JugadorEnLinea | null) => setRivales(j ? [j] : [])
   const [nivelId, setNivelId] = useState(MUNDOS_JUGABLES[0].niveles.find(n => n.tipo === 'quiz')?.id ?? MUNDOS_JUGABLES[0].niveles[0].id)
   const [dif, setDif] = useState<Dificultad>('medio')
   const [error, setError] = useState('')
@@ -37,10 +39,12 @@ export default function Club() {
   }, [enLinea, perfil])
 
   if (!perfil) return null
+  // Quienes se pueden sumar a un reto: conectados que no están jugando (primero los de tu club)
+  const libres = [...mios, ...otras.flatMap(g => g.jugadores)].filter(j => !j.ocupado)
   const enviar = async () => {
-    if (!rival) return
+    if (!rivales.length) return
     setError(''); setEnviando(true)
-    try { await desafiar(rival, nivelId, dif); setRival(null) } catch (e) { setError(mensajeError(e)) } finally { setEnviando(false) }
+    try { await desafiar(rivales, nivelId, dif); setRival(null) } catch (e) { setError(mensajeError(e)) } finally { setEnviando(false) }
   }
 
   const tarjeta = (j: JugadorEnLinea) => (
@@ -63,15 +67,19 @@ export default function Club() {
       </header>
 
       <EscenaClub perfil={perfil} otros={mios} onRetar={j => { setError(''); setRival(j) }} />
-      <div className="frases" role="group" aria-label="Frases rápidas">
-        {FRASES.map((f, i) => <button key={f} onClick={() => enviarGesto(i)}>{f}</button>)}
-      </div>
+      <BarraFrases onEnviar={enviarGesto} />
 
       <div className="club-cuerpo">
         {!presencia && (
           <section className="tarjeta">
             <p>No estás conectado a la isla en vivo.</p>
             <Boton onClick={() => conectarPresencia().catch(e => setError(mensajeError(e)))}>Conectarme</Boton>
+          </section>
+        )}
+        {libres.length >= 2 && (
+          <section className="tarjeta reto-grupo-cta">
+            <div><h3>Reto en grupo</h3><p>Juega contra 2 o 3 personas a la vez. Al final sale el podio.</p></div>
+            <Boton tipo="rojo" onClick={() => { setError(''); setRivales(libres.slice(0, 2)) }}>Armar reto</Boton>
           </section>
         )}
         <section className="tarjeta">
@@ -96,13 +104,28 @@ export default function Club() {
 
       {rival && (
         <div className="velo">
-          <div className="resultado pop reto-form" role="dialog" aria-modal="true" aria-label={`Retar a ${rival.apodo}`}>
-            <h2>Retar a {rival.apodo}</h2>
-            <div className="reto-vs">
-              <PixelAvatar a={perfil.avatar} rango={perfil.rango} alto={96} />
-              <b>VS</b>
-              <PixelAvatar a={rival.avatar ?? {}} rango={rival.rango} alto={96} />
+          <div className="resultado pop reto-form" role="dialog" aria-modal="true" aria-label={rivales.length > 1 ? `Reto de ${rivales.length + 1} jugadores` : `Retar a ${rival.apodo}`}>
+            <h2>{rivales.length > 1 ? `Reto de ${rivales.length + 1} jugadores` : `Retar a ${rival.apodo}`}</h2>
+            <div className={`reto-vs ${rivales.length > 1 ? 'grupo' : ''}`}>
+              <div className="reto-quien"><PixelAvatar a={perfil.avatar} rango={perfil.rango} alto={rivales.length > 1 ? 76 : 96} /><b>Tú</b></div>
+              {rivales.length === 1 && <b>VS</b>}
+              {rivales.map(r => (
+                <div key={r.id} className="reto-quien">
+                  <PixelAvatar a={r.avatar ?? {}} rango={r.rango} alto={rivales.length > 1 ? 76 : 96} /><b>{r.apodo}</b>
+                  {rivales.length > 1 && <button className="quitar-rival" onClick={() => setRivales(l => l.filter(x => x.id !== r.id))} aria-label={`Quitar a ${r.apodo}`}>×</button>}
+                </div>
+              ))}
             </div>
+            {rivales.length < 3 && libres.filter(j => !rivales.some(r => r.id === j.id)).length > 0 && (
+              <div className="sumar-rivales">
+                <span>Suma más jugadores (hasta 4 en total):</span>
+                <div className="chips">
+                  {libres.filter(j => !rivales.some(r => r.id === j.id)).slice(0, 12).map(j => (
+                    <button key={j.id} onClick={() => setRivales(l => (l.length < 3 ? [...l, j] : l))}>+ {j.apodo}{j.clubId !== perfil.club.id ? <small> · {j.club}</small> : null}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             <label className="campo-select">Nivel del duelo
               <select value={nivelId} onChange={e => setNivelId(e.target.value)}>
                 {MUNDOS_JUGABLES.map(m => (
@@ -117,7 +140,7 @@ export default function Club() {
                 <button key={d} className={dif === d ? 'on' : ''} onClick={() => setDif(d)}>{DIFICULTADES[d].nombre}</button>
               ))}
             </div>
-            <p className="ayuda">Los dos juegan el mismo nivel, con las mismas piezas, al mismo tiempo. Gana quien saque más puntos.</p>
+            <p className="ayuda">{rivales.length > 1 ? 'Todos juegan' : 'Los dos juegan'} el mismo nivel, con las mismas piezas, al mismo tiempo. Gana quien saque más puntos{rivales.length > 1 ? ' y al final sale el podio' : ''}.</p>
             {error && <p className="error" role="alert">{error}</p>}
             <div className="fila-botones">
               <Boton tipo="fantasma" onClick={() => setRival(null)}>Cancelar</Boton>
@@ -126,6 +149,30 @@ export default function Club() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Frases rápidas: al tocar una, se ve que se envió y todas descansan 2,5 s (evita el spam). */
+function BarraFrases({ onEnviar }: { onEnviar: (i: number) => void }) {
+  const [enviada, setEnviada] = useState<{ i: number; t: number } | null>(null)
+  useEffect(() => {
+    if (!enviada) return
+    const t = setTimeout(() => setEnviada(null), 2500)
+    return () => clearTimeout(t)
+  }, [enviada])
+  const esEmoji = (f: string) => /^\p{Extended_Pictographic}$/u.test(f)
+  const boton = (f: string, i: number) => (
+    <button key={f} className={`${esEmoji(f) ? 'emoji' : ''} ${enviada?.i === i ? 'enviada' : ''}`} disabled={!!enviada}
+      onClick={() => { onEnviar(i); setEnviada({ i, t: Date.now() }) }} aria-label={esEmoji(f) ? `Enviar ${f}` : undefined}>
+      {f}{enviada?.i === i && <span className="ok-enviada" aria-label="enviado"> ✓</span>}
+    </button>
+  )
+  return (
+    <div className="frases" role="group" aria-label="Frases rápidas para tu club">
+      <span className="frases-titulo">Di algo:</span>
+      {FRASES.map((f, i) => (esEmoji(f) ? null : boton(f, i)))}
+      <span className="frases-caritas">{FRASES.map((f, i) => (esEmoji(f) ? boton(f, i) : null))}</span>
     </div>
   )
 }

@@ -9,7 +9,7 @@ import { sfx } from '../sonido'
 
 /** Invitaciones a duelo que llegan y el "esperando respuesta" del que retó. Se muestran en cualquier pantalla menos en medio de un nivel. */
 export function AvisosDuelo() {
-  const { invitacion, retoEnviado, pantalla, perfil, responderInvitacion, cancelarReto } = useJuego()
+  const { invitacion, retoEnviado, pantalla, perfil, responderInvitacion, cancelarReto, empezarReto, sala } = useJuego()
   const [error, setError] = useState('')
   const [espera, setEspera] = useState(0)
 
@@ -23,9 +23,16 @@ export function AvisosDuelo() {
   useEffect(() => {
     if (retoEnviado?.estado !== 'esperando') return
     setEspera(30)
-    const t = setInterval(() => setEspera(s => { if (s <= 1) { clearInterval(t); cancelarReto(); return 0 } return s - 1 }), 1000)
+    // Al acabarse el tiempo: si alguien ya entró, se juega con ellos; si no, se cancela
+    const t = setInterval(() => setEspera(s => {
+      if (s > 1) return s - 1
+      clearInterval(t)
+      const dentro = useJuego.getState().sala?.jugadores.some(j => j.id !== perfil?.id)
+      if (dentro) empezarReto(); else cancelarReto()
+      return 0
+    }), 1000)
     return () => clearInterval(t)
-  }, [retoEnviado?.estado, retoEnviado?.codigo, cancelarReto])
+  }, [retoEnviado?.estado, retoEnviado?.codigo, cancelarReto, empezarReto, perfil?.id])
 
   if (!perfil || pantalla === 'juego') return null
 
@@ -41,6 +48,9 @@ export function AvisosDuelo() {
             <PixelAvatar a={perfil.avatar} rango={perfil.rango} alto={96} />
           </div>
           <p><b>{invitacion.de.apodo}</b> ({invitacion.de.club}) te reta a <b>{nivel?.titulo ?? 'un nivel'}</b> en dificultad {DIFICULTADES[invitacion.dificultad].nombre.toLowerCase()}.</p>
+          {invitacion.otros && invitacion.otros.length > 0 && (
+            <p className="reto-grupo-nota">Reto de {invitacion.otros.length + 2} jugadores: también invitó a <b>{invitacion.otros.join(', ')}</b>.</p>
+          )}
           {error && <p className="error" role="alert">{error}</p>}
           <div className="fila-botones">
             <Boton tipo="fantasma" onClick={() => responderInvitacion(false)}>Ahora no</Boton>
@@ -52,24 +62,39 @@ export function AvisosDuelo() {
   }
 
   if (retoEnviado) {
+    const dentro = new Set(sala?.jugadores.map(j => j.id) ?? [])
+    const listos = retoEnviado.rivales.filter(r => dentro.has(r.id)).length
+    const estado = (id: string) => dentro.has(id) ? { t: '¡Listo!', c: 'listo' } : retoEnviado.respuestas[id] === false ? { t: 'No puede', c: 'no' } : retoEnviado.respuestas[id] ? { t: 'Entrando…', c: 'acepto' } : { t: 'Pensando…', c: 'espera' }
+    const grupo = retoEnviado.rivales.length > 1
     return (
       <div className="velo velo-duelo">
         <div className="resultado pop reto-form" role="status">
           {retoEnviado.estado === 'esperando' ? (
             <>
-              <h2>Esperando a {retoEnviado.rival.apodo}…</h2>
-              <div className="reto-vs">
-                <PixelAvatar a={perfil.avatar} rango={perfil.rango} alto={96} />
-                <b>VS</b>
-                <PixelAvatar a={retoEnviado.rival.avatar ?? {}} rango={retoEnviado.rival.rango} alto={96} />
+              <h2>{grupo ? `Reto de ${retoEnviado.rivales.length + 1} jugadores` : `Esperando a ${retoEnviado.rivales[0].apodo}…`}</h2>
+              <div className={`reto-vs ${grupo ? 'grupo' : ''}`}>
+                <div className="reto-quien"><PixelAvatar a={perfil.avatar} rango={perfil.rango} alto={grupo ? 76 : 96} /><b>Tú</b><span className="estado-reto listo">¡Listo!</span></div>
+                {!grupo && <b>VS</b>}
+                {retoEnviado.rivales.map(r => {
+                  const e = estado(r.id)
+                  return (
+                    <div key={r.id} className={`reto-quien ${e.c}`}>
+                      <PixelAvatar a={r.avatar ?? {}} rango={r.rango} animo={e.c === 'listo' ? 'saluda' : 'idle'} alto={grupo ? 76 : 96} />
+                      <b>{r.apodo}</b><span className={`estado-reto ${e.c}`}>{e.t}</span>
+                    </div>
+                  )
+                })}
               </div>
-              <p>Le enviamos tu reto. Si no responde en {espera} s, se cancela solo.</p>
-              <Boton tipo="fantasma" onClick={cancelarReto}>Cancelar reto</Boton>
+              <p>{grupo ? `Empieza cuando entren todos. En ${espera} s se juega con los que estén listos.` : `Le enviamos tu reto. Si no responde en ${espera} s, se cancela solo.`}</p>
+              <div className="fila-botones">
+                <Boton tipo="fantasma" onClick={cancelarReto}>Cancelar reto</Boton>
+                {grupo && listos > 0 && <Boton tipo="rojo" onClick={empezarReto}>¡Empezar ya! ({listos + 1})</Boton>}
+              </div>
             </>
           ) : (
             <>
-              <h2>{retoEnviado.rival.apodo} no aceptó</h2>
-              <p>Puede que esté ocupado. Prueba con otra persona o más tarde.</p>
+              <h2>{grupo ? 'Nadie pudo aceptar' : `${retoEnviado.rivales[0].apodo} no aceptó`}</h2>
+              <p>Puede que estén ocupados. Prueba con otras personas o más tarde.</p>
               <Boton onClick={cancelarReto}>Entendido</Boton>
             </>
           )}

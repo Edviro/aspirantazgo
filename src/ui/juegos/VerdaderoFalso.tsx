@@ -6,6 +6,7 @@ import type { Dificultad } from '../../domain/tipos'
 import { Figura } from '../componentes/Figura'
 import { useJuego } from '../estado'
 import { sfx } from '../sonido'
+import { useAutoAvance } from './useAutoAvance'
 
 /** Verdadero o falso a ritmo rápido: la racha de aciertos suma más. */
 export function VerdaderoFalso({ dificultad, semilla, banco, onFin }: { dificultad: Dificultad; semilla: number | null; banco?: Afirmacion[]; onFin: (f: number[], e: number) => void }) {
@@ -33,10 +34,13 @@ export function VerdaderoFalso({ dificultad, semilla, banco, onFin }: { dificult
     factores.current.push(ok ? Math.min(1, (0.6 + 0.4 * (resta / limite)) * (1 + Math.min(nuevaRacha, 5) * 0.04)) : 0)
     if (ok) sfx.bien(); else sfx.mal()
     setResp({ ok })
-    setTimeout(avanzar, ok ? 900 : 2200)
   }
 
+  // Pasa sola a la siguiente (la pausa congela la espera)
+  useAutoAvance(resp ? (resp.ok ? 900 : 2400) : null, i, avanzar)
   const pausado = useJuego(st => st.pausado)
+  // Últimos 3 segundos: tic-tac
+  useEffect(() => { if (!resp && resta > 0 && resta <= 3) sfx.tic() }, [resta]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (pausado) return
     if (resp) return

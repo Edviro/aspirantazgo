@@ -54,7 +54,7 @@ export interface FilaRanking {
 
 export interface Estadisticas { duelos_jugados: number; duelos_ganados: number; partidas: number; salas: number }
 
-export interface ResultadoDuelo { terminado: boolean; ganador: string | null; abandono?: boolean; jugadores: { id: string; puntaje: number | null; segundos: number | null }[] }
+export interface ResultadoDuelo { terminado: boolean; ganador: string | null; abandono?: boolean; jugadores: { id: string; puntaje: number | null; segundos: number | null; posicion?: number | null }[] }
 
 export interface FilaSala { id: string; apodo: string; club: string; avatar: AvatarConfig | null; rango: Rango; puntaje: number; segundos: number; posicion: number }
 
@@ -166,7 +166,7 @@ export interface RepositorioJuego {
 }
 
 // ---------- Salas en tiempo real ----------
-export interface JugadorSala { id: string; apodo: string; club: string; avatar?: AvatarConfig; anfitrion?: boolean }
+export interface JugadorSala { id: string; apodo: string; club: string; avatar?: AvatarConfig; anfitrion?: boolean; rango?: Rango }
 export interface InicioRonda { ronda: number; nivelId: string; dificultad: Dificultad; semilla: number; cuentaAtras: number }
 export interface ProgresoSala { id: string; apodo: string; avance: number; puntaje?: number; segundos?: number; ronda: number }
 
@@ -191,7 +191,8 @@ export interface PuertoSalas {
   /** El servidor valida que la sala exista, tenga cupo y que puedas entrar. */
   entrar(codigo: string): Promise<{ codigo: string; tipo: 'sala' | 'duelo'; anfitrion: boolean }>
   cerrar(codigo: string): Promise<void>
-  crearDuelo(rivalId: string): Promise<string>
+  /** Reto de 2 a 4 jugadores: tú más 1 a 3 rivales. Devuelve el código de la sala del reto. */
+  crearReto(rivalIds: string[]): Promise<string>
   resultadoDuelo(codigo: string): Promise<ResultadoDuelo>
   /** Si el rival se desconectó, el servidor puede darte la victoria (lo valida con los tiempos guardados). */
   reclamarAbandono(codigo: string): Promise<ResultadoDuelo>
@@ -205,8 +206,10 @@ export interface PuertoSalas {
 // ---------- Presencia y duelos ----------
 export interface JugadorEnLinea { id: string; apodo: string; rango: Rango; avatar?: AvatarConfig; club: string; clubId: string; ocupado?: boolean; /** Posición en la isla (0 a 1). */ x?: number }
 /** Frases fijas para saludarse (no hay chat libre: así se protege a los niños). */
-export const FRASES = ['¡Hola!', '¡Maranata!', '¡Te reto!', '¡Bien jugado!', '¡Vamos club!', '¡Gracias!', '¡Casi!', '¡A practicar!'] as const
-export interface InvitacionDuelo { para: string; de: JugadorEnLinea; codigo: string; nivelId: string; dificultad: Dificultad }
+/** Frases y caritas fijas (no hay chat libre: nadie puede escribir cosas feas ni datos personales). Solo se agregan al final. */
+export const FRASES = ['¡Hola!', '¡Maranata!', '¡Te reto!', '¡Bien jugado!', '¡Vamos club!', '¡Gracias!', '¡Casi!', '¡A practicar!', '👏', '🔥', '😄', '🏆', '¿Jugamos?', '¡Siempre listos!'] as const
+/** `otros`: apodos de los demás invitados (si es un reto en grupo). */
+export interface InvitacionDuelo { para: string; de: JugadorEnLinea; codigo: string; nivelId: string; dificultad: Dificultad; otros?: string[] }
 export interface RespuestaDuelo { para: string; de: string; codigo: string; acepta: boolean }
 export interface EventosPresencia {
   onLista?: (j: JugadorEnLinea[]) => void

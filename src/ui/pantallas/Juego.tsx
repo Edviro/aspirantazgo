@@ -25,6 +25,8 @@ import { APROBADO } from '../../domain/puntuacion'
 import { esRetoDelDia, useProgreso } from '../progreso'
 import { rachaVigente } from '../../domain/diario'
 import { IslaConquistada } from '../componentes/IslaConquistada'
+import { CapaEmocion } from '../componentes/CapaEmocion'
+import { CarreraMini } from '../componentes/CarreraMini'
 
 export default function Juego() {
   const { nivel, desafio, dificultad, semilla, perfil, ir, jugar, modo, sala } = useJuego()
@@ -108,6 +110,8 @@ export default function Juego() {
         )}
       </header>
 
+      {enSala && <CarreraMini />}
+
       <main className={`juego-zona ${pausado ? 'pausado' : ''}`} key={ronda} aria-hidden={pausado || undefined}>
         {fase !== 'intro' && nivel.tipo === 'taller' && <Taller nivel={nivel} slots={partida!.slots} blanca={esAdulto(partida!.caso?.rango ?? nivel.rango)} desafio={desafio} dificultad={dificultad} caso={partida!.caso ? describirCaso(partida!.caso) : undefined} onFin={alTerminar} />}
         {fase !== 'intro' && nivel.tipo === 'inspector' && <Inspector nivel={nivel} base={partida!.slots} rango={partida!.caso?.rango ?? nivel.rango} {...props} />}
@@ -120,6 +124,8 @@ export default function Juego() {
         {fase !== 'intro' && nivel.tipo === 'ordenar' && <Ordenar {...props} />}
         {fase !== 'intro' && nivel.tipo === 'memoria' && <Memoria {...props} />}
       </main>
+
+      {fase === 'jugando' && nivel.tipo !== 'ceremonia' && <CapaEmocion key={ronda} />}
 
       {fase === 'intro' && (
         <Dialogo npc={nivel.npc} titulo={nivel.titulo} accion={desafio ? '¡Al desafío!' : '¡A practicar!'} onAccion={empezar}

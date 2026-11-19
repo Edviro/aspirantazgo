@@ -2,20 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { useJuego } from '../estado'
 import { musica } from '../musica'
 import { Boton, Cielo, Confeti } from '../componentes/Comunes'
-import { PixelAvatar } from '../pixel/PixelAvatar'
 import { CodigoQR, enlaceSala } from '../componentes/CodigoQR'
 import { MUNDOS_JUGABLES, MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
-import type { FilaSala, ResultadoDuelo } from '../../application/puertos'
+import type { FilaSala } from '../../application/puertos'
 import { Podio } from '../componentes/Podio'
-import { useProgreso } from '../progreso'
+import { RetoVivo } from '../componentes/RetoVivo'
 
 /** Sala en vivo: el líder elige el nivel, todos juegan a la vez y el avance se ve en tiempo real. */
 export default function Sala() {
   const { sala, perfil, ir, dejarSala, iniciarRonda, repo } = useJuego()
   useEffect(() => { musica('himno_epico') }, [])
-  const [oficial, setOficial] = useState<ResultadoDuelo | null>(null)
   const [podio, setPodio] = useState<FilaSala[] | null>(null)
   const pedirPodio = () => {
     const s = useJuego.getState().sala
@@ -55,40 +53,6 @@ export default function Sala() {
     return () => clearTimeout(t)
   }, [finTodos]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Duelo: cuando los dos avisan que terminaron, se pide el resultado OFICIAL al servidor (calculado con los intentos guardados)
-  const esDuelo = sala?.tipo === 'duelo'
-  const ambosAvisaron = esDuelo && !!perfil && !!sala?.duelo && sala.progresos[perfil.id]?.puntaje !== undefined && sala.progresos[sala.duelo.rival.id]?.puntaje !== undefined
-  useEffect(() => {
-    if (!ambosAvisaron || !sala || oficial?.terminado || !repo.salas) return
-    let vivo = true, intentos = 0
-    const pedir = () => repo.salas!.resultadoDuelo(sala.conexion.codigo)
-      .then(r => { if (!vivo) return; if (r.terminado) { setOficial(r); useProgreso.getState().refrescarStats() } else if (++intentos < 6) setTimeout(pedir, 1500) })
-      .catch(() => undefined)
-    pedir()
-    return () => { vivo = false }
-  }, [ambosAvisaron]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Abandono: si el rival se desconectó y tú ya terminaste, cuenta 40 s y pide la victoria al servidor
-  const rivalPresente = !!sala?.duelo && sala.jugadores.some(j => j.id === sala.duelo!.rival.id)
-  const yoTermine = !!perfil && sala?.progresos[perfil.id]?.puntaje !== undefined
-  const [espera, setEspera] = useState<number | null>(null)
-  useEffect(() => {
-    if (!esDuelo || !sala?.ronda || rivalPresente || !yoTermine || oficial?.terminado || !repo.salas) { setEspera(null); return }
-    let resta = 40, vivo = true
-    setEspera(resta)
-    const t = setInterval(() => {
-      resta -= 1
-      if (!vivo) return
-      setEspera(Math.max(0, resta))
-      if (resta <= 0 && resta % 20 === 0) {
-        repo.salas!.reclamarAbandono(sala.conexion.codigo)
-          .then(r => { if (vivo && r.terminado) { setOficial(r); useProgreso.getState().refrescarStats() } })
-          .catch(() => undefined)
-      }
-    }, 1000)
-    return () => { vivo = false; clearInterval(t) }
-  }, [esDuelo, !!sala?.ronda, rivalPresente, yoTermine, oficial?.terminado]) // eslint-disable-line react-hooks/exhaustive-deps
-
   if (!sala || !perfil) {
     return (
       <div className="pantalla sala"><Cielo />
@@ -105,23 +69,15 @@ export default function Sala() {
   const todosTerminaron = !!ronda && jugadores.length > 0 && terminaron === jugadores.length
   const copiar = async () => { try { await navigator.clipboard.writeText(sala.conexion.codigo); setCopiado(true); setTimeout(() => setCopiado(false), 1400) } catch { /* */ } }
   const salirSala = async () => { await dejarSala(); ir(duelo ? 'club' : 'mapa') }
-  const yoProg = sala.progresos[perfil.id], rivalProg = duelo ? sala.progresos[duelo.rival.id] : undefined
-  const dueloFin = (!!duelo && yoProg?.puntaje !== undefined && rivalProg?.puntaje !== undefined) || !!oficial?.terminado
-  const ptsOf = (id: string) => oficial?.jugadores.find(j => j.id === id)?.puntaje ?? undefined
-  const misPts = ptsOf(perfil.id) ?? yoProg?.puntaje, susPts = duelo ? ptsOf(duelo.rival.id) ?? rivalProg?.puntaje : undefined
-  const gane = oficial ? oficial.ganador === perfil.id
-    : dueloFin && (yoProg!.puntaje! > rivalProg!.puntaje! || (yoProg!.puntaje === rivalProg!.puntaje && (yoProg!.segundos ?? 0) < (rivalProg!.segundos ?? 0)))
-  const empate = oficial ? oficial.ganador === null : dueloFin && yoProg!.puntaje === rivalProg!.puntaje && yoProg!.segundos === rivalProg!.segundos
-
   return (
     <div className="pantalla sala">
       <Cielo />
-      {(duelo ? dueloFin && gane : todosTerminaron) && <Confeti cantidad={60} />}
+      {!duelo && todosTerminaron && <Confeti cantidad={60} />}
       <header className="juego-cabeza">
         <button className="icono" onClick={salirSala} aria-label="Salir de la sala">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
-        <div className="juego-titulo"><strong>{duelo ? `Duelo contra ${duelo.rival.apodo}` : anfitrion ? 'Tu sala en vivo' : 'Sala en vivo'}</strong></div>
+        <div className="juego-titulo"><strong>{duelo ? (duelo.rivales.length > 1 || jugadores.length > 2 ? `Reto de ${Math.max(jugadores.length, duelo.rivales.length + 1)} jugadores` : `Duelo contra ${duelo.rivales[0]?.apodo ?? ''}`) : anfitrion ? 'Tu sala en vivo' : 'Sala en vivo'}</strong></div>
         {!duelo && <button className="codigo-sala" onClick={copiar} aria-label="Copiar código de la sala">{copiado ? '¡Copiado!' : sala.conexion.codigo}</button>}
       </header>
 
@@ -139,22 +95,7 @@ export default function Sala() {
           </section>
         )}
 
-        {duelo && (
-          <section className={`parche duelo-vs ${dueloFin ? (empate ? 'empate' : gane ? 'gane' : 'perdi') : ''}`}>
-            {dueloFin && <div className="fin-titular"><span>{empate ? '¡Empate!' : gane ? '¡Ganaste el duelo!' : `Ganó ${duelo.rival.apodo}`}</span></div>}
-            <div className="reto-vs">
-              <div><PixelAvatar a={perfil.avatar} rango={perfil.rango} animo={dueloFin && gane ? 'celebra' : 'idle'} alto={128} /><b>{perfil.apodo}</b><span className="pts">{misPts ?? (ronda ? `${Math.round((yoProg?.avance ?? 0) * 100)}%` : '…')}</span></div>
-              <b className="vs">VS</b>
-              <div><PixelAvatar a={duelo.rival.avatar ?? {}} rango={duelo.rival.rango} animo={dueloFin && !gane && !empate ? 'celebra' : 'idle'} alto={128} /><b>{duelo.rival.apodo}</b><span className="pts">{susPts ?? (ronda ? `${Math.round((rivalProg?.avance ?? 0) * 100)}%` : '…')}</span></div>
-            </div>
-            {dueloFin && <p className="verificado">{oficial?.abandono ? `${duelo.rival.apodo} se desconectó: ganas por abandono` : oficial ? 'Resultado verificado por el servidor' : 'Verificando el resultado…'}</p>}
-            {espera !== null && !dueloFin && <p className="aviso-abandono">{duelo.rival.apodo} se desconectó. {espera > 0 ? `Si no vuelve en ${espera} s, ganas por abandono.` : 'Comprobando con el servidor…'}</p>}
-            {!ronda && <p>Esperando a que {duelo.rival.apodo} entre…</p>}
-            {ronda && !dueloFin && <p>{yoProg?.puntaje !== undefined ? `Terminaste. Esperando a ${duelo.rival.apodo}…` : '¡A jugar!'}</p>}
-            {sala.cerrada && !dueloFin && <p>{duelo.rival.apodo} salió del duelo.</p>}
-            <Boton onClick={salirSala}>Volver a la isla</Boton>
-          </section>
-        )}
+        {duelo && <RetoVivo sala={sala} onSalir={salirSala} />}
 
         {!anfitrion && !ronda && !duelo && (
           <section className="parche sala-espera">
@@ -228,7 +169,7 @@ export default function Sala() {
           </section>
         )}
 
-        {!anfitrion && ronda && nivelRonda && (
+        {!anfitrion && !duelo && ronda && nivelRonda && (
           <p className="ayuda centro">Cuando termines tu ronda, aquí verás cómo van los demás.</p>
         )}
       </div>

@@ -15,11 +15,16 @@ export interface EstadoSala {
   rondaRecibida: number
   cerrada: boolean
   tipo: 'sala' | 'duelo'
-  /** En un duelo: contra quién y qué se juega. El retador da la señal de inicio. */
-  duelo?: { rival: JugadorEnLinea; nivelId: string; dificultad: Dificultad; retador: boolean }
+  /** En un reto (2 a 4 jugadores): contra quiénes y qué se juega. El retador da la señal de inicio. */
+  duelo?: { rivales: JugadorEnLinea[]; nivelId: string; dificultad: Dificultad; retador: boolean }
 }
 
-export interface RetoEnviado { rival: JugadorEnLinea; codigo: string; nivelId: string; dificultad: Dificultad; estado: 'esperando' | 'rechazado' }
+export interface RetoEnviado {
+  rivales: JugadorEnLinea[]
+  /** Lo que respondió cada invitado (id → sí/no). Sin respuesta = todavía pensando. */
+  respuestas: Record<string, boolean>
+  codigo: string; nivelId: string; dificultad: Dificultad; estado: 'esperando' | 'rechazado'
+}
 
 interface Estado {
   pantalla: Pantalla
@@ -55,7 +60,9 @@ interface Estado {
   invitacion: InvitacionDuelo | null
   retoEnviado: RetoEnviado | null
   conectarPresencia: () => Promise<void>
-  desafiar: (rival: JugadorEnLinea, nivelId: string, dificultad: Dificultad) => Promise<void>
+  desafiar: (rivales: JugadorEnLinea[], nivelId: string, dificultad: Dificultad) => Promise<void>
+  /** El retador arranca el reto con los que ya entraron (sin esperar a los demás). */
+  empezarReto: () => void
   responderInvitacion: (acepta: boolean) => Promise<void>
   cancelarReto: () => void
   /** Globitos con frases: id del jugador → frase y momento. */
@@ -82,18 +89,14 @@ function crearConectarSala(set: Set, get: () => Estado) {
     const { repo, perfil } = get()
     if (!repo.salas || !perfil) throw new Error('SALA_SIN_CONEXION')
     await get().dejarSala()
-    const yo: JugadorSala = { id: perfil.id, apodo: perfil.apodo, club: perfil.club.nombre, avatar: perfil.avatar, anfitrion: rol === 'anfitrion' }
+    const yo: JugadorSala = { id: perfil.id, apodo: perfil.apodo, club: perfil.club.nombre, avatar: perfil.avatar, anfitrion: rol === 'anfitrion', rango: perfil.rango }
     let ultimos: JugadorSala[] = []
     const conexion = await repo.salas.conectar(cod, yo, {
       onJugadores: j => {
         ultimos = j
         set(s => s.sala ? { sala: { ...s.sala, jugadores: j } } : {})
-        // Duelo: en cuanto el rival entra, el retador da la señal de inicio
-        const s = get().sala
-        if (s?.tipo === 'duelo' && s.duelo?.retador && !s.ronda && j.some(x => x.id === s.duelo!.rival.id)) {
-          set({ retoEnviado: null, pantalla: 'sala' })
-          s.conexion.iniciarRonda({ ronda: 1, nivelId: s.duelo.nivelId, dificultad: s.duelo.dificultad, semilla: 1 + Math.floor(Math.random() * 1e9), cuentaAtras: 3 })
-        }
+        // Reto: cuando entraron todos los que siguen invitados, el retador da la señal de inicio
+        revisarInicio(set, get)
       },
       onProgreso: p => set(s => s.sala && (!s.sala.ronda || p.ronda === s.sala.ronda.ronda) ? { sala: { ...s.sala, progresos: { ...s.sala.progresos, [p.id]: p } } } : {}),
       onCerrada: () => set(s => s.sala ? { sala: { ...s.sala, cerrada: true } } : {}),
@@ -106,6 +109,18 @@ function crearConectarSala(set: Set, get: () => Estado) {
     })
     set({ sala: { conexion, rol, tipo, duelo, jugadores: ultimos, progresos: {}, ronda: null, rondaRecibida: 0, cerrada: false }, ...(irASala ? { pantalla: 'sala' as const } : {}) })
   }
+}
+
+/** El retador arranca cuando ya entraron todos los invitados que no dijeron que no (o cuando él lo decide con `forzar`). */
+function revisarInicio(set: Set, get: () => Estado, forzar = false) {
+  const s = get().sala, reto = get().retoEnviado
+  if (s?.tipo !== 'duelo' || !s.duelo?.retador || s.ronda) return
+  const dentro = new Set(s.jugadores.map(x => x.id))
+  const pendientes = s.duelo.rivales.filter(r => reto?.respuestas[r.id] !== false)
+  const entraron = pendientes.filter(r => dentro.has(r.id))
+  if (entraron.length === 0 || (!forzar && entraron.length < pendientes.length)) return
+  set({ retoEnviado: null, pantalla: 'sala' })
+  s.conexion.iniciarRonda({ ronda: 1, nivelId: s.duelo.nivelId, dificultad: s.duelo.dificultad, semilla: 1 + Math.floor(Math.random() * 1e9), cuentaAtras: 3 })
 }
 
 export const useJuego = create<Estado>((set, get) => (conectarSala = crearConectarSala(set as Set, get), {
@@ -186,21 +201,29 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
       onGesto: g => set(s => ({ gestos: { ...s.gestos, [g.de]: { frase: g.frase, t: Date.now() } } })),
       onRespuesta: r => {
         const reto = get().retoEnviado
-        if (!reto || reto.codigo !== r.codigo) return
-        if (r.acepta) set({ retoEnviado: null })
-        else { set({ retoEnviado: { ...reto, estado: 'rechazado' } }); get().dejarSala() }
+        if (!reto || reto.codigo !== r.codigo || !reto.rivales.some(x => x.id === r.de)) return
+        const respuestas = { ...reto.respuestas, [r.de]: r.acepta }
+        // Todos dijeron que no: se cancela. Si no, se espera a que entren los que aceptaron.
+        if (reto.rivales.every(x => respuestas[x.id] === false)) { set({ retoEnviado: { ...reto, respuestas, estado: 'rechazado' } }); get().dejarSala(); return }
+        set({ retoEnviado: { ...reto, respuestas } })
+        revisarInicio(set as Set, get)
       },
     })
     set({ presencia: conexion })
   },
-  desafiar: async (rival, nivelId, dificultad) => {
+  desafiar: async (rivales, nivelId, dificultad) => {
     const { repo, presencia, perfil } = get()
     if (!repo.salas || !presencia || !perfil) throw new Error('SALA_SIN_CONEXION')
-    const codigo = await repo.salas.crearDuelo(rival.id)
-    set({ retoEnviado: { rival, codigo, nivelId, dificultad, estado: 'esperando' } })
-    await conectarSala(codigo, 'jugador', 'duelo', { rival, nivelId, dificultad, retador: true }, false)
-    await presencia.invitar({ para: rival.id, de: yoEnLinea(perfil, false), codigo, nivelId, dificultad })
+    const lista = rivales.filter((r, i) => rivales.findIndex(x => x.id === r.id) === i).slice(0, 3)
+    const codigo = await repo.salas.crearReto(lista.map(r => r.id))
+    set({ retoEnviado: { rivales: lista, respuestas: {}, codigo, nivelId, dificultad, estado: 'esperando' } })
+    await conectarSala(codigo, 'jugador', 'duelo', { rivales: lista, nivelId, dificultad, retador: true }, false)
+    for (const r of lista) {
+      const otros = lista.filter(x => x.id !== r.id).map(x => x.apodo)
+      await presencia.invitar({ para: r.id, de: yoEnLinea(perfil, false), codigo, nivelId, dificultad, otros: otros.length ? otros : undefined })
+    }
   },
+  empezarReto: () => revisarInicio(set as Set, get, true),
   responderInvitacion: async acepta => {
     const { invitacion: inv, presencia, perfil, repo } = get()
     if (!inv || !perfil) return
@@ -208,7 +231,7 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
     await presencia?.responder({ para: inv.de.id, de: perfil.id, codigo: inv.codigo, acepta }).catch(() => undefined)
     if (!acepta || !repo.salas) return
     await repo.salas.entrar(inv.codigo)
-    await conectarSala(inv.codigo, 'jugador', 'duelo', { rival: inv.de, nivelId: inv.nivelId, dificultad: inv.dificultad, retador: false })
+    await conectarSala(inv.codigo, 'jugador', 'duelo', { rivales: [inv.de], nivelId: inv.nivelId, dificultad: inv.dificultad, retador: false })
   },
   enviarGesto: frase => {
     const { presencia, perfil, gestos } = get()
