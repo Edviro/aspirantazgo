@@ -3,6 +3,7 @@ import { useJuego } from '../estado'
 import { asset, Boton, Cielo } from '../componentes/Comunes'
 import { modoGuardado, repoPara } from '../../adapters/contenedor'
 import { sfx } from '../sonido'
+import { musica } from '../musica'
 
 const PRECARGA = ['logo-alas', 'emblema-c1', 'npc-trompeta', 'npc-lectora', 'npc-nudo', 'bandera', 'esp-orientacion']
 
@@ -23,6 +24,7 @@ export default function Intro() {
 
   const entrar = async () => {
     sfx.trompeta()
+    musica('mapa')
     const modo = modoGuardado()
     if (modo) {
       try {

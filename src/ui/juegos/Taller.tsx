@@ -201,6 +201,7 @@ export function Taller({ nivel, slots, blanca, desafio, dificultad, caso, onFin 
     const id = ++contador.current
     setZas({ id, x: cx, y: cy, t: ONOMATOPEYAS[id % ONOMATOPEYAS.length], r: (id % 2 ? -1 : 1) * (6 + (id % 3) * 3) })
     setTimeout(() => setZas(z => (z?.id === id ? null : z)), 700)
+    sfx.zas()
     setColocadas(c => ({ ...c, [it.id]: { slot: r.slot, x: s.x, y: s.y, calidad: 'perfecto', n: Date.now(), desde: escalaDrag(it.pieza) } }))
     sfx.bien()
     if (!desafio) avisar(s.regla, 'bien')

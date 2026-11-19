@@ -15,6 +15,9 @@ const memoria: Record<string, number> = {}
 export class RepositorioLocal implements RepositorioJuego {
   readonly enLinea = false
   readonly salas = null
+  readonly cuentas = null
+  readonly lider = null
+  readonly admin = null
 
   async sesionActual() { return leer<Perfil | null>(K.perfil, null) }
   async adultoSinClub() { return null }
@@ -30,9 +33,6 @@ export class RepositorioLocal implements RepositorioJuego {
 
   async unirseNino(): Promise<Perfil> { throw new Error('Sin conexión') }
   async entrarNino(): Promise<Perfil> { throw new Error('Sin conexión') }
-  async enviarEnlaceAdulto() { throw new Error('Sin conexión') }
-  async crearClub(): Promise<Perfil> { throw new Error('Sin conexión') }
-  async unirseAdulto(): Promise<Perfil> { throw new Error('Sin conexión') }
 
   async cambiarRango(r: Rango) {
     const p = leer<Perfil | null>(K.perfil, null)

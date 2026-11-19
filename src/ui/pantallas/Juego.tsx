@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { mundoDeNivel, prepararNivel } from '../../domain/niveles'
 import { describirCaso } from '../../domain/uniformes'
 import { COMO_SE_JUEGA } from '../comoSeJuega'
@@ -19,6 +19,8 @@ import { Parejas } from '../juegos/Parejas'
 import { Ceremonia } from '../juegos/Ceremonia'
 import { useReto, type FinReto } from '../juegos/useReto'
 import { sfx } from '../sonido'
+import { musica } from '../musica'
+import { APROBADO } from '../../domain/puntuacion'
 
 export default function Juego() {
   const { nivel, desafio, dificultad, semilla, perfil, ir, jugar, modo, sala } = useJuego()
@@ -29,7 +31,11 @@ export default function Juego() {
   const [reloj, setReloj] = useState(0)
   const reto = useReto(nivel!, desafio, dificultad)
   const pausado = useJuego(s => s.pausado)
-  useEffect(() => () => reanudar(), [])
+  const puntajeNivel = useJuego(s => (nivel ? s.puntajes[nivel.id] ?? 0 : 0))
+  // Puntaje guardado ANTES de esta partida: sirve para saber si acabas de desbloquear el siguiente nivel
+  const antes = useRef(puntajeNivel)
+  useEffect(() => () => { reanudar(); musica('mapa') }, [])
+  useEffect(() => { musica(fase === 'jugando' ? 'juego' : fase === 'fin' ? null : 'mapa') }, [fase])
   useEffect(() => {
     if (fase !== 'jugando' || enSala) return
     const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') (useJuego.getState().pausado ? reanudar : pausar)() }
@@ -56,7 +62,7 @@ export default function Juego() {
     const r = await reto.terminar(factores, errores)
     setFin(r)
     setFase('fin')
-    if (r.resultado.estrellas >= 2) sfx.victoria(); else sfx.bien()
+    if (r.resultado.estrellas >= 1) sfx.nivel(); else sfx.mal()
   }, [reto])
 
   if (!nivel || !perfil) return null
@@ -64,7 +70,7 @@ export default function Juego() {
   const reglas = DIFICULTADES[dificultad]
 
   const empezar = () => { reto.iniciar(); setFase('jugando'); sfx.trompeta() }
-  const repetir = () => { reanudar(); setFin(null); setRonda(r => r + 1); setFase('intro'); setReloj(0) }
+  const repetir = () => { reanudar(); antes.current = useJuego.getState().puntajes[nivel.id] ?? 0; setFin(null); setRonda(r => r + 1); setFase('intro'); setReloj(0) }
   const como = COMO_SE_JUEGA[nivel.tipo]
   const props = { dificultad, semilla, onFin: alTerminar }
 
@@ -136,35 +142,74 @@ export default function Juego() {
       )}
 
       {fase === 'fin' && fin && (
-        <div className="velo">
-          {fin.resultado.estrellas >= 2 && <Confeti />}
-          <div className="resultado pop">
-            <h2>{fin.resultado.estrellas === 3 ? '¡Impecable!' : fin.resultado.estrellas === 2 ? '¡Muy bien!' : fin.resultado.estrellas === 1 ? '¡Aprobado!' : '¡Sigue practicando!'}</h2>
-            <Estrellas n={fin.resultado.estrellas} grande />
-            <div className="resultado-puntos"><span>{fin.resultado.puntaje}</span><small>puntos{desafio && reglas.multiplicador !== 1 ? ` (x${String(reglas.multiplicador).replace('.', ',')} por ${reglas.nombre})` : ''}</small></div>
-            <div className="resultado-datos">
-              <div><b>{Math.round(fin.resultado.precision * 100)}%</b><small>precisión</small></div>
-              <div><b>{fin.resultado.errores}</b><small>errores</small></div>
-              <div><b>{Math.round(fin.resultado.segundos)}s</b><small>tiempo</small></div>
-            </div>
-            {fin.servidor && <p className="resultado-servidor">Tu mejor marca: <b>{fin.servidor.mejor}</b>. Puesto <b>#{fin.servidor.puesto}</b> en este nivel.</p>}
-            {!desafio && <p className="nota">La práctica no cuenta para el ranking. Juega el desafío para competir.</p>}
-            {fin.aviso && <p className="nota aviso">{fin.aviso}</p>}
-            <div className="fila-botones">
-              {enSala ? (
-                <Boton onClick={() => ir('sala')}>Ver la sala</Boton>
-              ) : (
-                <>
-                  <Boton tipo="fantasma" onClick={() => ir('mapa')}>Mapa</Boton>
-                  <Boton tipo="azul" onClick={repetir}>Repetir</Boton>
-                  {!desafio && <Boton onClick={() => { setFin(null); jugar(nivel, true); repetir() }}>Desafío</Boton>}
-                  {desafio && siguiente && fin.resultado.estrellas > 0 && <Boton onClick={() => { jugar(siguiente, true); repetir() }}>Siguiente</Boton>}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <FinNivel fin={fin} desafio={desafio} enSala={enSala} multiplicador={reglas.multiplicador} nombreDif={reglas.nombre}
+          desbloqueado={desafio && !!siguiente && antes.current < APROBADO && puntajeNivel >= APROBADO ? siguiente.titulo : null}
+          numSiguiente={siguiente?.num}
+          onMapa={() => ir('mapa')} onSala={() => ir('sala')} onRepetir={repetir}
+          onDesafio={!desafio ? () => { setFin(null); jugar(nivel, true); repetir() } : undefined}
+          onSiguiente={desafio && siguiente && fin.resultado.estrellas > 0 ? () => { jugar(siguiente, true); repetir() } : undefined} />
       )}
+    </div>
+  )
+}
+
+function useContador(meta: number, ms = 1100) {
+  const [v, setV] = useState(0)
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setV(meta); return }
+    let raf = 0; const t0 = performance.now()
+    const paso = (t: number) => { const k = Math.min(1, (t - t0) / ms); setV(Math.round(meta * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(paso) }
+    raf = requestAnimationFrame(paso)
+    return () => cancelAnimationFrame(raf)
+  }, [meta, ms])
+  return v
+}
+
+/** Pantalla de fin de nivel: titular de cómic, estrellas una a una, puntaje que sube y desbloqueo del siguiente nivel. */
+function FinNivel({ fin, desafio, enSala, multiplicador, nombreDif, desbloqueado, numSiguiente, onMapa, onSala, onRepetir, onDesafio, onSiguiente }: {
+  fin: FinReto; desafio: boolean; enSala: boolean; multiplicador: number; nombreDif: string; desbloqueado: string | null; numSiguiente?: number
+  onMapa: () => void; onSala: () => void; onRepetir: () => void; onDesafio?: () => void; onSiguiente?: () => void
+}) {
+  const r = fin.resultado
+  const puntos = useContador(r.puntaje)
+  const aprobado = r.estrellas >= 1
+  useEffect(() => {
+    if (!desbloqueado) return
+    const t = setTimeout(() => sfx.desbloqueo(), 1500)
+    return () => clearTimeout(t)
+  }, [desbloqueado])
+  const titular = !aprobado ? '¡Casi lo logras!' : desafio ? '¡Nivel completado!' : '¡Práctica completada!'
+  const sub = r.estrellas === 3 ? 'Impecable, como en el manual.' : r.estrellas === 2 ? '¡Muy bien hecho!' : r.estrellas === 1 ? 'Aprobado. ¡Ve por las 3 estrellas!' : 'Practica un poco más y vuelve a intentarlo.'
+  return (
+    <div className="velo">
+      {aprobado && <Confeti />}
+      <div className={`fin-nivel ${aprobado ? 'ok' : 'casi'}`} role="dialog" aria-modal="true" aria-label={titular}>
+        <div className="fin-titular"><span>{titular}</span></div>
+        <p className="fin-sub">{sub}</p>
+        <Estrellas n={r.estrellas} grande />
+        <div className="resultado-puntos"><span>{puntos}</span><small>puntos{desafio && multiplicador !== 1 ? ` (x${String(multiplicador).replace('.', ',')} por ${nombreDif})` : ''}</small></div>
+        <div className="resultado-datos">
+          <div><b>{Math.round(r.precision * 100)}%</b><small>precisión</small></div>
+          <div><b>{r.errores}</b><small>errores</small></div>
+          <div><b>{Math.round(r.segundos)}s</b><small>tiempo</small></div>
+        </div>
+        {desbloqueado && (
+          <div className="fin-desbloqueo"><b>¡Nivel {numSiguiente} desbloqueado!</b><span>{desbloqueado}</span></div>
+        )}
+        {fin.servidor && <p className="resultado-servidor">Tu mejor marca: <b>{fin.servidor.mejor}</b>. Puesto <b>#{fin.servidor.puesto}</b> en este nivel.</p>}
+        {!desafio && <p className="nota">La práctica no cuenta para el ranking ni desbloquea niveles. Juega el desafío para avanzar.</p>}
+        {fin.aviso && <p className="nota aviso">{fin.aviso}</p>}
+        <div className="fila-botones">
+          {enSala ? <Boton onClick={onSala}>Ver resultados</Boton> : (
+            <>
+              <Boton tipo="fantasma" onClick={onMapa}>Mapa</Boton>
+              <Boton tipo="azul" onClick={onRepetir}>Repetir</Boton>
+              {onDesafio && <Boton onClick={onDesafio}>Ir al desafío</Boton>}
+              {onSiguiente && <Boton onClick={onSiguiente}>Siguiente nivel</Boton>}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

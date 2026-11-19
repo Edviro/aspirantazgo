@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { musica } from '../musica'
 import { MUNDOS_JUGABLES } from '../../domain/niveles'
 import { APROBADO, estrellasDeMejor } from '../../domain/puntuacion'
 import { DIFICULTADES } from '../../domain/dificultad'
@@ -13,11 +14,12 @@ const RANGO_TXT: Record<string, string> = {
 }
 
 export default function Mapa() {
-  const { perfil, puntajes, jugar, ir, modo, sonido, toggleSonido, salir, dificultad, setDificultad, abrirSala, repo, mundo, setMundo } = useJuego()
+  const { perfil, puntajes, jugar, ir, modo, sonido, toggleSonido, musica: conMusica, toggleMusica, salir, dificultad, setDificultad, abrirSala, repo, mundo, setMundo, enLinea } = useJuego()
   const mundoActual = MUNDOS_JUGABLES.find(m => m.id === mundo) ?? MUNDOS_JUGABLES[0]
   const niveles = mundoActual.niveles
   const [sel, setSel] = useState<number | null>(null)
   const [menu, setMenu] = useState(false)
+  useEffect(() => { musica('mapa') }, [])
   const [borrar, setBorrar] = useState(false)
   const [unirse, setUnirse] = useState(false)
   const [codigoSala, setCodigoSala] = useState('')
@@ -42,6 +44,7 @@ export default function Mapa() {
   const total = Object.values(puntajes).reduce((a, b) => a + b, 0)
   const nivelSel = sel !== null ? niveles[sel] : null
   const puedeSalas = !!repo.salas
+  const vivos = enLinea.filter(j => j.clubId === perfil.club.id && j.id !== perfil.id).length
   const esAdulto = perfil.grupo_edad === 'adulto'
 
   const entrarSala = async (codigo: string | null) => {
@@ -71,10 +74,12 @@ export default function Mapa() {
         <div className="menu pop" onClick={() => setMenu(false)}>
           <button onClick={() => ir('ranking')}>Ranking</button>
           <button onClick={() => ir('editor')}>Mi personaje</button>
+          {puedeSalas && <button onClick={() => ir('club')}>Isla del club en vivo</button>}
           {puedeSalas && <button onClick={() => setUnirse(true)}>Unirme a una sala</button>}
-          {puedeSalas && esAdulto && <button onClick={() => entrarSala(null)}>Crear sala en vivo</button>}
-          {perfil.club.soy_director && <button onClick={() => ir('director')}>Panel del club</button>}
-          <button onClick={toggleSonido}>{sonido ? 'Silenciar sonido' : 'Activar sonido'}</button>
+          {puedeSalas && esAdulto && <button onClick={() => ir('director')}>{perfil.club.soy_director ? 'Panel del club' : 'Panel del líder'}</button>}
+          {perfil.superadmin && <button onClick={() => ir('admin')}>Panel de administrador</button>}
+          <button onClick={toggleMusica}>{conMusica ? 'Apagar música' : 'Encender música'}</button>
+          <button onClick={toggleSonido}>{sonido ? 'Silenciar efectos' : 'Activar efectos'}</button>
           <button onClick={() => useJuego.getState().verLegal('privacidad')}>Privacidad y términos</button>
           <button onClick={() => setBorrar(true)}>Borrar mi cuenta</button>
           <button onClick={() => salir()}>{modo === 'practica' ? 'Salir del modo práctica' : 'Cerrar sesión'}</button>
@@ -93,7 +98,7 @@ export default function Mapa() {
       </div>
 
       <nav className="mapa-acciones">
-        {puedeSalas ? <Boton tipo="azul" onClick={() => (esAdulto ? entrarSala(null) : setUnirse(true))}>{esAdulto ? 'Crear sala' : 'Sala en vivo'}</Boton>
+        {puedeSalas ? <Boton tipo="azul" onClick={() => ir('club')}>Isla en vivo{vivos > 0 ? ` (${vivos})` : ''}</Boton>
           : <Boton tipo="azul" onClick={() => ir('ranking')}>Ranking</Boton>}
         <Boton onClick={() => setSel(actual)}>Jugar nivel {actual + 1}</Boton>
       </nav>
@@ -105,11 +110,11 @@ export default function Mapa() {
           <form className="resultado pop form-sala" onSubmit={e => { e.preventDefault(); entrarSala(codigoSala.trim().toUpperCase()) }}>
             <h2>Unirme a una sala</h2>
             <label htmlFor="codigo-sala">Código que te dio tu líder</label>
-            <input id="codigo-sala" value={codigoSala} onChange={e => setCodigoSala(e.target.value.toUpperCase().slice(0, 4))} placeholder="ABCD" autoCapitalize="characters" autoComplete="off" />
+            <input id="codigo-sala" value={codigoSala} onChange={e => setCodigoSala(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5))} placeholder="ABCDE" autoCapitalize="characters" autoComplete="off" />
             {errorSala && <p className="error">{errorSala}</p>}
             <div className="fila-botones">
               <Boton tipo="fantasma" onClick={() => { setUnirse(false); setErrorSala('') }}>Cancelar</Boton>
-              <Boton type="submit" disabled={codigoSala.length !== 4 || conectando}>{conectando ? 'Entrando…' : 'Entrar'}</Boton>
+              <Boton type="submit" disabled={codigoSala.length !== 5 || conectando}>{conectando ? 'Entrando…' : 'Entrar'}</Boton>
             </div>
           </form>
         </div>

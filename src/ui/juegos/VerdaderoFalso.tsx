@@ -3,6 +3,7 @@ import { mezclarVF, type Afirmacion } from '../../domain/quiz'
 import { DIFICULTADES } from '../../domain/dificultad'
 import { azar } from '../../domain/azar'
 import type { Dificultad } from '../../domain/tipos'
+import { Figura } from '../componentes/Figura'
 import { useJuego } from '../estado'
 import { sfx } from '../sonido'
 
@@ -60,9 +61,10 @@ export function VerdaderoFalso({ dificultad, semilla, banco, onFin }: { dificult
         {racha >= 2 && <span className="racha">Racha x{racha}</span>}
         <span className={`vf-reloj ${resta <= 3 ? 'urgente' : ''}`}>{resta}s</span>
       </div>
-      <div className={`vf-tarjeta ${resp ? (resp.ok ? 'ok' : 'no') : ''}`} key={i}>
-        <p>{f.t}</p>
-        {resp && <small>{resp.ok ? '¡Correcto! ' : `Es ${f.v ? 'verdadero' : 'falso'}. `}{f.porque}</small>}
+      <div className={`vf-tarjeta ${resp ? (resp.ok ? 'ok' : 'no') : ''}`}>
+        <Figura key={'f' + i} img={f.img} ilus={f.ilus} alto={110} />
+        <p key={i}>{f.t}</p>
+        <small className={resp ? 'ver' : ''}>{resp ? <>{resp.ok ? '¡Correcto! ' : `Es ${f.v ? 'verdadero' : 'falso'}. `}{f.porque}</> : ' '}</small>
       </div>
       <div className="vf-botones">
         <button className="vf-si" onClick={() => responder(true)} disabled={!!resp}>Verdadero</button>

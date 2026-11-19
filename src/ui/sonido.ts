@@ -29,5 +29,14 @@ export const sfx = {
   mal: () => { tono(200, 0.18, 'sawtooth', 0.07); vibrar(80) },
   click: () => tono(880, 0.04, 'sine', 0.05),
   victoria: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tono(f, 0.22, 'triangle', 0.1, i * 0.11)),
+  /** Letrero nuevo (lluvia): campanita de dos tonos */
+  aviso: () => { tono(1175, 0.12, 'triangle', 0.09); tono(1568, 0.22, 'triangle', 0.09, 0.12) },
+  /** ¡Nivel completado! */
+  nivel: () => {
+    [523, 659, 784, 1047].forEach((f, i) => tono(f, 0.16, 'square', 0.05, i * 0.1))
+    tono(1047, 0.5, 'square', 0.05, 0.45); tono(1319, 0.5, 'triangle', 0.07, 0.45); tono(784, 0.5, 'triangle', 0.06, 0.45)
+  },
+  desbloqueo: () => [880, 1109, 1319, 1760].forEach((f, i) => tono(f, 0.12, 'triangle', 0.07, i * 0.06)),
+  zas: () => { tono(1400, 0.05, 'square', 0.04); tono(700, 0.09, 'triangle', 0.08, 0.03) },
   trompeta: () => [392, 523, 659, 784].forEach((f, i) => tono(f, i === 3 ? 0.45 : 0.14, 'sawtooth', 0.05, i * 0.15)),
 }
