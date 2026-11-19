@@ -10,7 +10,7 @@ function centrado(ctx: CanvasRenderingContext2D, t: string, y: number, max: numb
   ctx.fillText(t, ctx.canvas.width / 2, y)
 }
 
-/** Sello dorado tipo roseta con cintas: "Isla del Uniforme · Aprobado". */
+/** Sello dorado tipo roseta con cintas: "Campamento del Uniforme · Aprobado". */
 function sello(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.save(); ctx.translate(x, y)
   // Cintas
@@ -25,7 +25,7 @@ function sello(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.beginPath(); ctx.arc(0, 0, 76, 0, Math.PI * 2); ctx.fillStyle = '#FFD54A'; ctx.fill(); ctx.lineWidth = 3; ctx.stroke()
   ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.arc(0, 0, 66, 0, Math.PI * 2); ctx.strokeStyle = '#9A6B00'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([])
   ctx.fillStyle = TINTA; ctx.textAlign = 'center'
-  ctx.font = '22px Bangers, Impact, sans-serif'; ctx.fillText('ISLA DEL', 0, -24); ctx.fillText('UNIFORME', 0, 0)
+  ctx.font = '22px Bangers, Impact, sans-serif'; ctx.font = '19px Bangers, Impact, sans-serif'; ctx.fillText('CAMPAMENTO', 0, -24); ctx.font = '22px Bangers, Impact, sans-serif'; ctx.fillText('DEL UNIFORME', 0, 0)
   ctx.font = '30px Bangers, Impact, sans-serif'; ctx.fillStyle = '#B3141E'; ctx.fillText('APROBADO', 0, 34)
   ctx.fillStyle = TINTA; ctx.font = '18px sans-serif'; ctx.fillText('★ ★ ★', 0, 56)
   ctx.restore()
@@ -61,7 +61,7 @@ export async function dibujarCertificado(d: DatosCertificado): Promise<HTMLCanva
   ctx.lineJoin = 'round'; ctx.lineWidth = 12; ctx.strokeStyle = TINTA; ctx.strokeText('CERTIFICADO', 800, 420)
   ctx.fillStyle = '#D7242F'; ctx.fillText('CERTIFICADO', 800, 420)
   ctx.font = '700 30px Nunito, sans-serif'; ctx.fillStyle = '#5C4A2A'
-  ctx.fillText('Aspirantazgo · Isla del Uniforme', 800, 470)
+  ctx.fillText('Aspirantazgo · Campamento del Uniforme', 800, 470)
   ctx.font = '700 34px Nunito, sans-serif'; ctx.fillStyle = TINTA
   ctx.fillText('Se otorga a', 800, 560)
   ctx.font = '96px Bangers, Impact, sans-serif'; ctx.fillStyle = '#0E4B45'
@@ -71,7 +71,7 @@ export async function dibujarCertificado(d: DatosCertificado): Promise<HTMLCanva
   centrado(ctx, `Club ${d.club}`, 750, 1250)
   if (d.campo && d.campo !== '-') { ctx.font = '700 28px Nunito, sans-serif'; ctx.fillStyle = '#5C4A2A'; centrado(ctx, d.campo, 792, 1200) }
   ctx.font = '700 30px Nunito, sans-serif'; ctx.fillStyle = TINTA
-  ctx.fillText('por completar todos los niveles de la Isla del Uniforme', 800, 860)
+  ctx.fillText('por completar todos los niveles del Campamento del Uniforme', 800, 860)
   ctx.fillText('y demostrar que conoce el uniforme oficial de Conquistadores.', 800, 900)
   // Firma y fecha
   ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(470, 985); ctx.lineTo(760, 985); ctx.moveTo(840, 985); ctx.lineTo(1130, 985); ctx.stroke()

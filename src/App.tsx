@@ -19,6 +19,7 @@ const Sala = lazy(() => import('./ui/pantallas/Sala'))
 const Club = lazy(() => import('./ui/pantallas/Club'))
 const Admin = lazy(() => import('./ui/pantallas/Admin'))
 const Logros = lazy(() => import('./ui/pantallas/Logros'))
+const Campamentos = lazy(() => import('./ui/pantallas/Campamentos'))
 const FinInvitado = lazy(() => import('./ui/pantallas/FinInvitado'))
 
 function Cargando() {
@@ -47,6 +48,7 @@ export default function App() {
         {pantalla === 'club' && <Club />}
         {pantalla === 'admin' && <Admin />}
         {pantalla === 'logros' && <Logros />}
+        {pantalla === 'campamentos' && <Campamentos />}
       </Suspense>
       <AvisosDuelo />
       <AvisoLogro />

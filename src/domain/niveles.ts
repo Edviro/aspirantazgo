@@ -39,7 +39,7 @@ const sinAccesorios = (u: Colocacion[]) => u.filter(c => c.pieza.tipo !== 'corre
 
 export const MUNDO_UNIFORMES = {
   id: 'uniformes',
-  nombre: 'Isla del Uniforme',
+  nombre: 'Campamento del Uniforme',
   // El número de cada nivel sale de su orden en esta lista
   niveles: ([
     {
@@ -177,12 +177,12 @@ export const MUNDO_UNIFORMES = {
 
 export const MUNDO_ASPIRANTAZGO = {
   id: 'aspirantazgo',
-  nombre: 'Isla del Aspirantazgo',
+  nombre: 'Campamento del Aspirantazgo',
   niveles: [
     {
       id: 'a01-bienvenida', num: 1, titulo: 'Bienvenido al club', subtitulo: 'Lo primero que debe saber un aspirante',
       tipo: 'quiz', rango: 'conquistador', paneles: [], parSeg: 60, npc: 'nudo', banco: BANCO_CLUB,
-      intro: '¡Bienvenido a la Isla del Aspirantazgo! Al final del camino te espera tu pañoleta. Empecemos por lo básico del club.',
+      intro: '¡Bienvenido al Campamento del Aspirantazgo! Al final del camino te espera tu pañoleta. Empecemos por lo básico del club.',
       objetivo: () => [],
     },
     {
@@ -247,17 +247,6 @@ export const MUNDO_ASPIRANTAZGO = {
 export const MUNDOS_JUGABLES = [MUNDO_UNIFORMES]
 export const TODOS_LOS_NIVELES: Nivel[] = MUNDOS_JUGABLES.flatMap(m => m.niveles)
 export const mundoDeNivel = (id: string) => MUNDOS_JUGABLES.find(m => m.niveles.some(n => n.id === id)) ?? MUNDO_UNIFORMES
-
-/** Mundos del mapa general. Solo Uniformes está abierto por ahora. */
-export const MUNDOS = [
-  { id: 'aspirantazgo', nombre: 'Isla del Aspirantazgo', abierto: false, color: '#D7242F' },
-  { id: 'uniformes', nombre: 'Isla del Uniforme', abierto: true, color: '#F6C21C' },
-  { id: 'regulares', nombre: 'Clases Regulares', abierto: false, color: '#1F5FD1' },
-  { id: 'especialidades', nombre: 'Especialidades', abierto: false, color: '#1E9A4B' },
-  { id: 'avanzadas', nombre: 'Clases Avanzadas', abierto: false, color: '#7A1F3D' },
-  { id: 'historia', nombre: 'Historia', abierto: false, color: '#9AA0A6' },
-  { id: 'ideales', nombre: 'Ideales', abierto: false, color: '#F6C21C' },
-]
 
 /** Prepara una partida: el caso (si el nivel lo usa) y las piezas objetivo. */
 export function prepararNivel(n: Nivel, nombre: string, club: string, unidad: string, rnd: () => number): { slots: Colocacion[]; caso: PerfilUniforme | null } {

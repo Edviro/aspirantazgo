@@ -69,7 +69,7 @@ export default function Club() {
         <button className="icono" onClick={() => ir('mapa')} aria-label="Volver al mapa">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
-        <div className="juego-titulo"><small>Isla del club</small><strong>{perfil.club.nombre}</strong></div>
+        <div className="juego-titulo"><small>Campamento del club</small><strong>{perfil.club.nombre}</strong></div>
         <span className="en-vivo"><i />{mios.length + 1} en línea</span>
       </header>
 
@@ -79,7 +79,7 @@ export default function Club() {
       <div className="club-cuerpo">
         {!presencia && (
           <section className="tarjeta">
-            <p>No estás conectado a la isla en vivo.</p>
+            <p>No estás conectado al campamento del club en vivo.</p>
             <Boton onClick={() => conectarPresencia().catch(e => setError(mensajeError(e)))}>Conectarme</Boton>
           </section>
         )}
@@ -97,7 +97,7 @@ export default function Club() {
           </ul>
         </section>
         <section className="tarjeta">
-          <h3>Otras islas ({otras.reduce((a, g) => a + g.jugadores.length, 0)} jugadores)</h3>
+          <h3>Otros clubes ({otras.reduce((a, g) => a + g.jugadores.length, 0)} jugadores)</h3>
           {otras.length === 0 && <p className="vacio">No hay otros clubes conectados en este momento.</p>}
           {otras.slice(0, verOtras ? 50 : 4).map(g => (
             <div key={g.club} className="otra-isla">
@@ -105,7 +105,7 @@ export default function Club() {
               <ul className="lista-vivo">{g.jugadores.slice(0, 8).map(tarjeta)}</ul>
             </div>
           ))}
-          {otras.length > 4 && <button className="enlace" onClick={() => setVerOtras(v => !v)}>{verOtras ? 'Ver menos' : `Ver las ${otras.length} islas`}</button>}
+          {otras.length > 4 && <button className="enlace" onClick={() => setVerOtras(v => !v)}>{verOtras ? 'Ver menos' : `Ver los ${otras.length} clubes`}</button>}
         </section>
       </div>
 

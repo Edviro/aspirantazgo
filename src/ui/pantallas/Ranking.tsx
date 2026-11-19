@@ -32,7 +32,7 @@ export default function Ranking() {
         <button className="icono" onClick={() => ir('mapa')} aria-label="Volver">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
-        <div className="juego-titulo"><small>Isla del Uniforme</small><strong>Ranking</strong></div>
+        <div className="juego-titulo"><small>Campamento del Uniforme</small><strong>Ranking</strong></div>
         <button className={`chip-pais ${miPais ? 'on' : ''}`} onClick={() => setMiPais(v => !v)}>{miPais ? (BANDERA[perfil?.club.pais ?? ''] ?? '🏳️') + ' Mi país' : '🌎 Mundial'}</button>
       </header>
       <div className="tabs ranking-tabs" role="tablist">

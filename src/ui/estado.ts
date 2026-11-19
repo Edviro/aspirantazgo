@@ -4,7 +4,7 @@ import { guardarModo, repoLocal, repoPara, type Modo } from '../adapters/contene
 import { TODOS_LOS_NIVELES, type Nivel } from '../domain/niveles'
 import type { Dificultad } from '../domain/tipos'
 
-export type Pantalla = 'intro' | 'acceso' | 'editor' | 'mapa' | 'juego' | 'ranking' | 'legal' | 'director' | 'sala' | 'club' | 'admin' | 'logros'
+export type Pantalla = 'intro' | 'acceso' | 'editor' | 'mapa' | 'juego' | 'ranking' | 'legal' | 'director' | 'sala' | 'club' | 'admin' | 'logros' | 'campamentos'
 
 export interface EstadoSala {
   conexion: ConexionSala

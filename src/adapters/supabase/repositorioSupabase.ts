@@ -76,6 +76,8 @@ export class RepositorioSupabase implements RepositorioJuego {
       resumen: () => rpc<ResumenAdmin>('admin_resumen'),
       jugadores: buscar => rpc<JugadorAdmin[]>('admin_jugadores', { p_buscar: buscar || null, p_limite: 300 }),
       async bloquear(id, bloqueado) { await rpc('admin_bloquear', { p_id: id, p_bloqueado: bloqueado }) },
+      async darVidas(id, cantidad) { return (await rpc<{ vidas: number }>('admin_dar_vidas', { p_id: id, p_cantidad: cantidad })).vidas },
+      darVidasClub: (club, cantidad) => rpc<number>('admin_dar_vidas_club', { p_club: club, p_cantidad: cantidad }),
       async borrarJugador(id) { await rpc('admin_borrar_jugador', { p_id: id }) },
       clubes: buscar => rpc<ClubAdmin[]>('admin_clubes', { p_buscar: buscar || null }),
       async borrarClub(id) { await rpc('admin_borrar_club', { p_id: id }) },
@@ -117,8 +119,8 @@ export class RepositorioSupabase implements RepositorioJuego {
     return r.perfil
   }
 
-  async entrarInvitado(codigo: string, nombre: string, club: string) {
-    const r = await this.rpc<{ token: string; perfil: Perfil; codigo: string }>('entrar_invitado', { p_codigo: codigo, p_nombre: nombre, p_club: club })
+  async entrarInvitado(codigo: string, nombre: string, club: string, clubId: string | null = null) {
+    const r = await this.rpc<{ token: string; perfil: Perfil; codigo: string }>('entrar_invitado', { p_codigo: codigo, p_nombre: nombre, p_club: club, p_club_id: clubId })
     guardarToken(r.token)
     return { perfil: r.perfil, codigo: r.codigo }
   }

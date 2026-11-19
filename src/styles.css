@@ -156,9 +156,6 @@ a { color: var(--oro); cursor: pointer; text-decoration: underline; text-underli
 .menu button:hover { background: rgba(255,255,255,.08); }
 .mapa-titulo { position: absolute; top: calc(64px + env(safe-area-inset-top)); left: 50%; translate: -50% 0; z-index: 10; pointer-events: none; text-align: center; }
 @container app (min-width: 760px) { .mapa-titulo { top: calc(12px + env(safe-area-inset-top)); } }
-.islas { display: flex; gap: 6px; margin-top: 8px; pointer-events: auto; }
-.islas button { border: 0; border-radius: 10px; padding: 7px 12px; font-weight: 900; font-size: .85rem; background: rgba(10,18,45,.75); color: var(--crema); box-shadow: inset 0 0 0 2px rgba(255,255,255,.15); }
-.islas button.on { background: var(--rojo); color: var(--oro); box-shadow: inset 0 0 0 2px var(--oro); outline: 2px dashed rgba(255,213,102,.5); outline-offset: -5px; }
 .mapa-titulo h1 { position: relative; margin: 0; padding: 9px 26px 8px; font-family: 'Press Start 2P', monospace; font-weight: 400; font-size: clamp(.62rem, 2.6vw, .95rem); line-height: 1.3; color: #FFE58A; white-space: nowrap;
   background: #2a4fae; box-shadow: inset 0 3px 0 #4f78d6, inset 0 -3px 0 #1a3478, 0 0 0 3px #1E140C, 0 5px 0 3px #1E140C; text-shadow: 2px 2px 0 #1E140C; }
 .mapa-titulo h1::before, .mapa-titulo h1::after { content: ''; position: absolute; top: 9px; width: 14px; height: calc(100% - 4px); background: #1d3a8a; box-shadow: 0 0 0 3px #1E140C; z-index: -1; }
@@ -739,8 +736,6 @@ body {
 .hud-txt small { color: #6B5530; }
 .hud-puntos { font-size: 1.3rem; letter-spacing: 1px; }
 .hud-puntos span { color: #C27400; }
-.islas button { background: var(--papel); color: var(--ink); border: 2.5px solid var(--ink); box-shadow: 2px 3px 0 var(--ink); font-family: var(--titulo); font-weight: 400; font-size: 1rem; letter-spacing: 1px; }
-.islas button.on { background: var(--rojo); color: #fff; outline: 0; box-shadow: 2px 3px 0 var(--ink); }
 
 /* ---------- Diálogo del NPC: globo de cómic ---------- */
 .dialogo-cuerpo { background: #FFFBEE; color: var(--ink); border: var(--borde); border-radius: 22px; box-shadow: var(--golpe-g); position: relative; }
@@ -1438,3 +1433,94 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
 .aviso-sala-invitado { display: block; width: 100%; margin: 0 0 10px; padding: 8px 12px; border: 2px dashed var(--oro); border-radius: 10px; background: rgba(255,194,14,.15); color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .fin-invitado { text-align: center; }
 .fila-investidura .hueco.con-logo { overflow: visible; }
+
+/* =====================================================================
+   MAPA DE CAMPAMENTOS — triángulo central y seis campamentos alrededor
+   ===================================================================== */
+.campamentos { background: #10306E; }
+.campamentos .hud { position: relative; top: auto; left: auto; right: auto; margin: calc(10px + env(safe-area-inset-top)) 10px 0; }
+.campamentos-titulo { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.campamentos-titulo small { font-family: 'Press Start 2P', monospace; font-size: .46rem; color: #FFE58A; letter-spacing: .5px; }
+.campamentos-titulo strong { font-family: var(--titulo); font-weight: 400; font-size: 1.7rem; letter-spacing: 1.5px; color: #fff; text-shadow: 2px 3px 0 var(--ink); }
+.mundo-pixel { position: relative; flex: 1; min-height: 0; overflow: hidden; margin: 8px 10px 0; border: var(--borde); border-radius: 16px; box-shadow: var(--golpe); background: #1d4f9c; }
+.mundo-capa { position: absolute; left: 0; top: 0; image-rendering: pixelated; pointer-events: none; }
+.mundo-isla { position: absolute; translate: -50% -50%; border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; z-index: 2; }
+.mundo-isla::after { content: ''; position: absolute; inset: -5px; border-radius: inherit; border: 3px dashed transparent; transition: border-color .15s; }
+.mundo-isla:hover::after { border-color: rgba(255,255,255,.55); }
+.mundo-isla.sel::after { border-color: #fff; animation: mundoSel 1.6s linear infinite; }
+.mundo-isla:focus-visible { outline: 3px solid var(--oro); outline-offset: 4px; }
+.mundo-isla.central { border-radius: 0; }
+.mundo-isla.central::after { inset: -8px -8px auto; height: 0; border: 0; border-top: 3px dashed transparent; border-radius: 0; animation: none; }
+.mundo-isla.central.sel::after { border-top-color: #fff; }
+@keyframes mundoSel { to { transform: rotate(360deg); } }
+.mundo-etiqueta { position: absolute; left: 50%; top: calc(100% + 4px); translate: -50% 0; white-space: nowrap; pointer-events: none;
+  font-family: 'Press Start 2P', monospace; font-size: clamp(.42rem, 1.5vw, .58rem); line-height: 1; padding: 5px 7px; color: #fff; background: var(--ink); box-shadow: 0 0 0 2px var(--c, #fff); }
+.mundo-isla.pronto .mundo-etiqueta { color: #c9c9c4; box-shadow: 0 0 0 2px #6f6f69; }
+.mundo-isla.sel .mundo-etiqueta { background: var(--c); color: var(--ink); box-shadow: 0 0 0 2px var(--ink), 3px 3px 0 2px var(--ink); }
+.mundo-isla.pronto.sel .mundo-etiqueta { background: #c9c9c4; }
+.mundo-etiqueta.central { top: 0; translate: -50% -55%; z-index: 1; background: #D7242F; color: #FFE58A; box-shadow: 0 0 0 2px var(--ink); }
+.mundo-isla.central.sel .mundo-etiqueta { background: #FFE58A; color: #7A0F18; }
+
+.mundo-panel { flex: none; position: relative; width: min(560px, calc(100% - 20px)); margin: 10px auto calc(10px + env(safe-area-inset-bottom)); padding: 12px 14px 14px;
+  background: var(--fieltro); border: var(--borde); border-radius: 20px; box-shadow: var(--golpe-g); text-align: center; }
+.mundo-panel::before { content: ''; position: absolute; left: 18px; right: 18px; top: -3px; height: 6px; background: var(--c); border: var(--borde); border-radius: 6px; }
+.mundo-panel-nav { display: flex; align-items: center; gap: 8px; }
+.mundo-panel-nav .icono { font-size: 1.8rem; line-height: 1; color: var(--crema); background: rgba(0,0,0,.28); border: var(--borde); }
+.mundo-panel-tit { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.mundo-panel-tit strong { font-family: var(--titulo); font-weight: 400; font-size: 1.45rem; letter-spacing: 1px; line-height: 1.05; color: var(--oro); text-wrap: balance; }
+.mundo-avance { position: relative; width: min(220px, 100%); height: 16px; background: rgba(0,0,0,.35); border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; }
+.mundo-avance i { position: absolute; inset: 0 auto 0 0; background: repeating-linear-gradient(-45deg, var(--oro) 0 8px, #F2AE00 8px 16px); }
+.mundo-avance small { position: relative; font-size: .7rem; font-weight: 900; color: #fff; text-shadow: 1px 1px 0 var(--ink); line-height: 12px; display: block; }
+.mundo-panel p { margin: 8px auto 10px; max-width: 46ch; color: var(--crema); font-size: .93rem; line-height: 1.4; }
+.mundo-panel .btn { width: min(340px, 100%); }
+.mundo-chips { display: flex; gap: 6px; overflow-x: auto; margin: 12px -4px 0; padding: 2px 4px 4px; scrollbar-width: none; }
+.mundo-chips::-webkit-scrollbar { display: none; }
+.mundo-chips button { flex: none; display: flex; align-items: center; gap: 6px; border: 2px solid var(--ink); border-radius: 10px; padding: 6px 10px; font-weight: 900; font-size: .78rem; background: rgba(0,0,0,.28); color: var(--crema); }
+.mundo-chips button i { width: 10px; height: 10px; border-radius: 2px; background: var(--c); box-shadow: 0 0 0 1.5px var(--ink); }
+.mundo-chips button.on { background: var(--oro); color: var(--ink); }
+@container app (min-width: 760px) {
+  .campamentos .mundo-panel { position: absolute; right: 22px; bottom: 22px; margin: 0; width: 360px; }
+  .campamentos .mundo-pixel { margin-bottom: 10px; }
+}
+
+/* Botón de brújula en el mapa del campamento */
+.btn-brujula { display: flex; flex-direction: column; align-items: center; gap: 2px; border: var(--borde); border-radius: 14px; padding: 5px 9px 4px; background: var(--papel); color: var(--ink);
+  box-shadow: var(--golpe); font-family: var(--titulo); font-size: .82rem; letter-spacing: .6px; line-height: 1; }
+.btn-brujula:active { transform: translate(2px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.btn-brujula svg { transition: transform .4s ease; }
+.btn-brujula:hover svg { transform: rotate(25deg); }
+
+/* ---------- Travesía en barquito ---------- */
+.travesia { position: fixed; inset: 0; z-index: 200; overflow: hidden; display: grid; place-items: center;
+  background: radial-gradient(circle at 78% 22%, #FFE58A 0 34px, #FFC20E 34px 42px, transparent 43px), linear-gradient(#7CC8F6 0 20%, #5DB7F2 20% 50%, #2D78D2 50% 100%); animation: travesiaVelo 1.9s ease both; }
+.travesia-mar { position: absolute; inset: 50% 0 0; background:
+  repeating-linear-gradient(90deg, transparent 0 22px, rgba(255,255,255,.55) 22px 34px, transparent 34px 60px) 0 14px / 120px 4px repeat-x,
+  repeating-linear-gradient(90deg, transparent 0 40px, rgba(255,255,255,.35) 40px 48px, transparent 48px 80px) 30px 46px / 160px 4px repeat-x,
+  repeating-linear-gradient(90deg, transparent 0 30px, rgba(255,255,255,.3) 30px 40px, transparent 40px 70px) 0 90px / 140px 4px repeat-x;
+  animation: travesiaOlas .6s steps(3) infinite; image-rendering: pixelated; }
+.travesia-barco { position: absolute; top: calc(50% - 88px); left: 0; animation: travesiaBarco 1.9s cubic-bezier(.45,.05,.55,.95) both; }
+.travesia-barco svg { display: block; animation: travesiaVaiven .5s steps(2) infinite; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.25)); }
+.travesia-estela { position: absolute; right: 100%; bottom: 4px; width: 70px; height: 6px; background: repeating-linear-gradient(90deg, #fff 0 8px, transparent 8px 14px); opacity: .8; }
+.travesia-texto { position: absolute; left: 0; right: 0; top: 64%; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 0 16px; }
+.travesia-texto small { font-family: 'Press Start 2P', monospace; font-size: .6rem; color: var(--ink); background: #fff; padding: 5px 8px; box-shadow: 0 0 0 3px var(--ink); }
+.travesia-texto strong { font-family: var(--titulo); font-weight: 400; font-size: clamp(1.8rem, 6vw, 3rem); letter-spacing: 2px; color: #fff; text-shadow: 3px 4px 0 var(--ink); text-wrap: balance; }
+@keyframes travesiaVelo { 0% { clip-path: circle(0% at 50% 50%); } 18%, 82% { clip-path: circle(150% at 50% 50%); } 100% { clip-path: circle(150% at 50% 50%); } }
+@keyframes travesiaBarco { from { transform: translateX(-140px); } to { transform: translateX(calc(100vw + 40px)); } }
+@keyframes travesiaVaiven { 50% { transform: translateY(3px) rotate(-2deg); } }
+@keyframes travesiaOlas { to { background-position: -40px 14px, -10px 46px, -46px 90px; } }
+@media (prefers-reduced-motion: reduce) { .travesia, .travesia-barco, .travesia-barco svg, .travesia-mar, .mundo-isla.sel::after { animation: none; } .travesia-barco { left: 40%; } }
+
+/* Campamento de la sala */
+.sala-camp { display: inline-flex; align-items: center; gap: 6px; color: var(--crema); }
+.sala-camp i, .sala-camps button i { width: 10px; height: 10px; border-radius: 2px; background: var(--c); box-shadow: 0 0 0 1.5px var(--ink); flex: none; }
+.sala-camps { margin: 4px 0 10px; }
+.sala-camps button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: .82rem; }
+.sala-camps button:disabled { opacity: .55; cursor: not-allowed; }
+.admin-tabla .dar-vidas { border: 2px solid var(--ink); background: #FFE3E8; color: #A3141E; border-radius: 8px; padding: 5px 10px; font-weight: 900; font-size: .8rem; }
+.admin-acciones { white-space: nowrap; }
+.admin-acciones button + button { margin-left: 6px; }
+/* Selector de club del invitado */
+.selector-club { margin: 0; min-width: 0; display: grid; gap: 10px; padding: 6px 12px 12px; border: 2px dashed rgba(255,213,102,.5); border-radius: 14px; }
+.selector-club legend { padding: 0 6px; font-weight: 900; color: var(--oro); }
+.selector-club label { display: grid; gap: 4px; min-width: 0; }
+.selector-club select { width: 100%; min-width: 0; text-overflow: ellipsis; }

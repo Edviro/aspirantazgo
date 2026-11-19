@@ -33,15 +33,15 @@ export function IslaConquistada({ avatar, rango, niveles, onCertificado, onSegui
     <div className="velo isla-ganada">
       <div className="isla-rayos" aria-hidden />
       <Confeti cantidad={140} />
-      <div className="isla-ganada-caja" role="dialog" aria-modal="true" aria-label="¡Isla del Uniforme conquistada!">
-        <div className="isla-ganada-titular"><span>¡Isla conquistada!</span></div>
+      <div className="isla-ganada-caja" role="dialog" aria-modal="true" aria-label="¡Campamento del Uniforme conquistado!">
+        <div className="isla-ganada-titular"><span>¡Campamento conquistado!</span></div>
         <div className="isla-ganada-escena">
           <div className="isla-ganada-parche"><Parche l={ISLA} size={150} /></div>
           <PixelAvatar a={avatar} rango={rango} animo="celebra" alto={170} className="isla-ganada-avatar" />
         </div>
-        <h2>Isla del Uniforme</h2>
+        <h2>Campamento del Uniforme</h2>
         <p>Aprobaste los {niveles} niveles. Ya conoces el uniforme oficial como un verdadero inspector.</p>
-        <p className="isla-ganada-premio">Ganaste el parche de la isla y tu certificado.</p>
+        <p className="isla-ganada-premio">Ganaste el parche del campamento y tu certificado.</p>
         <div className="fila-botones">
           <Boton onClick={certificado}>Ver mi certificado</Boton>
           <Boton tipo="fantasma" onClick={seguir}>Ver mi puntaje</Boton>

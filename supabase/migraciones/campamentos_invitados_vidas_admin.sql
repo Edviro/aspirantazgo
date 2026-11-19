@@ -1,0 +1,8 @@
+-- Aplicado en Supabase (migraciones invitado_club_de_lista_y_admin_vidas y vidas_regaladas_no_se_pierden).
+-- 1) entrar_invitado(p_codigo, p_nombre, p_club, p_club_id uuid default null): si viene p_club_id válido se guarda
+--    el nombre oficial de ese club (club_invitado); el invitado sigue colgado del club del anfitrión, así no aparece
+--    en paneles ni conteos de otro club. Se borró la versión de 3 argumentos para evitar ambigüedad.
+-- 2) clubes_de_campo ya no cuenta invitados como miembros.
+-- 3) admin_dar_vidas(p_id, p_cantidad 1..10) y admin_dar_vidas_club(p_club, p_cantidad): solo superadmin
+--    (_exigir_admin), sin acceso anon; el total no pasa de 10.
+-- 4) terminar_reto: la recarga del reto diario y la vida recuperada ya no bajan vidas regaladas por encima del máximo.

@@ -218,7 +218,7 @@ export function generarIsla(cols: number, rows: number, nNiveles: number, seed: 
 }
 
 // ---------- dibujo ----------
-const COL = {
+export const COL = {
   mar: ['#4c93e3', '#3b80d6', '#2f6ec8', '#2861bb', '#2356ad', '#1f4ea2'],
   espuma: '#d8efff', ola: '#7fb6f0',
   pasto: '#5cba4d', pastoO: '#4aa53f', pastoC: '#73cc5e', borde: '#3c8b35',

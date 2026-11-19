@@ -69,10 +69,10 @@ export default function Logros() {
             : <Boton onClick={() => jugar(reto.nivel, true, 'medio', reto.semilla)}>Jugar el reto</Boton>}
         </section>
         <section className="tarjeta certificado">
-          <h3>Certificado de la Isla del Uniforme</h3>
+          <h3>Certificado del Campamento del Uniforme</h3>
           {faltan > 0 ? (
             <>
-              <p>Aprueba todos los niveles de la isla para ganar tu certificado. Te {faltan === 1 ? 'falta 1 nivel' : `faltan ${faltan} niveles`}.</p>
+              <p>Aprueba todos los niveles del campamento para ganar tu certificado. Te {faltan === 1 ? 'falta 1 nivel' : `faltan ${faltan} niveles`}.</p>
               <div className="taller-progreso"><div style={{ width: `${(1 - faltan / MUNDO_UNIFORMES.niveles.length) * 100}%` }} /></div>
             </>
           ) : (

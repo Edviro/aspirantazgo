@@ -45,13 +45,14 @@ export function AyudaVidas({ onCerrar }: { onCerrar: () => void }) {
       <div className="resultado pop ayuda-vidas" role="dialog" aria-modal="true" aria-label="Tus vidas" onClick={e => e.stopPropagation()}>
         <h2>Tus vidas</h2>
         <div className="fila-corazones" aria-hidden>
-          {Array.from({ length: vidas.max }, (_, i) => <i key={i} className={`corazon ${i < vidas.vidas ? '' : 'vacio'}`} />)}
+          {Array.from({ length: Math.max(vidas.max, vidas.vidas) }, (_, i) => <i key={i} className={`corazon ${i < vidas.vidas ? '' : 'vacio'}`} />)}
         </div>
         <ul>
           <li>Cada <b>desafío</b> usa 1 vida. <b>Si lo apruebas, la recuperas.</b></li>
           <li>Se recarga <b>1 vida cada 20 minutos</b>{resta !== null ? ` (la próxima en ${mmss(resta)})` : ''}.</li>
           <li>El <b>reto del día</b> es gratis una vez al día y, si lo cumples, <b>recarga todas tus vidas</b>.</li>
           <li>Con racha de 3 días tienes <b>6 vidas</b>; con 7 días, <b>7</b>. Tu racha: <b>{vidas.racha}</b> {vidas.racha === 1 ? 'día' : 'días'}.</li>
+          <li>Máximo normal: <b>5 vidas</b>. Si tu líder o el administrador te regala vidas, puedes llegar hasta <b>10</b>.</li>
           <li>Practicar, las salas del líder y los duelos <b>no gastan vidas</b>.</li>
         </ul>
         <Boton onClick={onCerrar}>Entendido</Boton>

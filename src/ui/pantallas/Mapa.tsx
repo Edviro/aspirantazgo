@@ -13,6 +13,8 @@ import type { Dificultad } from '../../domain/tipos'
 import { mensajeError } from '../../application/errores'
 import { useJuego } from '../estado'
 import { Boton, Estrellas } from '../componentes/Comunes'
+import { Travesia } from '../componentes/Travesia'
+import { sfx } from '../sonido'
 import { MapaPixel, type EstadoNodo } from '../pixel/MapaPixel'
 
 const RANGO_TXT: Record<string, string> = {
@@ -20,7 +22,7 @@ const RANGO_TXT: Record<string, string> = {
 }
 
 export default function Mapa() {
-  const { perfil, puntajes, jugar, ir, modo, sonido, toggleSonido, musica: conMusica, toggleMusica, salir, dificultad, setDificultad, abrirSala, repo, mundo, setMundo, enLinea } = useJuego()
+  const { perfil, puntajes, jugar, ir, modo, sonido, toggleSonido, musica: conMusica, toggleMusica, salir, dificultad, setDificultad, abrirSala, repo, mundo, enLinea } = useJuego()
   const mundoActual = MUNDOS_JUGABLES.find(m => m.id === mundo) ?? MUNDOS_JUGABLES[0]
   const niveles = mundoActual.niveles
   const [sel, setSel] = useState<number | null>(null)
@@ -39,6 +41,7 @@ export default function Mapa() {
   const [codigoSala, setCodigoSala] = useState('')
   const [errorSala, setErrorSala] = useState('')
   const [conectando, setConectando] = useState(false)
+  const [zarpar, setZarpar] = useState(false)
 
   const { estados, estrellas, actual } = useMemo(() => {
     const estados: EstadoNodo[] = []
@@ -92,10 +95,11 @@ export default function Mapa() {
 
       {menu && (
         <div className="menu pop" onClick={() => setMenu(false)}>
+          <button onClick={() => setZarpar(true)}>Mapa de campamentos</button>
           <button onClick={() => ir('logros')}>Mis parches</button>
           <button onClick={() => ir('ranking')}>Ranking</button>
           <button onClick={() => ir('editor')}>Mi personaje</button>
-          {puedeSalas && <button onClick={() => ir('club')}>Isla del club en vivo</button>}
+          {puedeSalas && <button onClick={() => ir('club')}>Campamento del club en vivo</button>}
           {puedeSalas && <button onClick={() => setUnirse(true)}>Unirme a una sala</button>}
           {puedeSalas && esAdulto && <button onClick={() => ir('director')}>{perfil.club.soy_director ? 'Panel del club' : 'Panel del líder'}</button>}
           {perfil.superadmin && <button onClick={() => ir('admin')}>Panel de administrador</button>}
@@ -111,12 +115,6 @@ export default function Mapa() {
       <div className="mapa-titulo">
         <h1>{mundoActual.nombre}</h1>
         <p>{estados.filter(e => e === 'hecho').length} de {niveles.length} niveles superados · 🏅 {medallasMundo}/{niveles.length * 3}</p>
-        {MUNDOS_JUGABLES.length > 1 && <div className="islas" role="tablist" aria-label="Islas">
-          {MUNDOS_JUGABLES.map(m => (
-            <button key={m.id} role="tab" aria-selected={m.id === mundoActual.id} className={m.id === mundoActual.id ? 'on' : ''}
-              onClick={() => { setSel(null); setMundo(m.id) }}>{m.nombre.replace('Isla del ', '')}</button>
-          ))}
-        </div>}
       </div>
 
       <button className={`reto-dia ${hechoHoy ? 'hecho' : ''}`} onClick={() => (hechoHoy ? ir('logros') : jugar(reto.nivel, true, 'medio', reto.semilla))}
@@ -127,10 +125,16 @@ export default function Mapa() {
       </button>
 
       <nav className="mapa-acciones">
-        {puedeSalas ? <Boton tipo="azul" onClick={() => ir('club')}>Isla en vivo{vivos > 0 ? ` (${vivos})` : ''}</Boton>
+        <button className="btn-brujula" onClick={() => { sfx.zas(); setZarpar(true) }} aria-label="Ver los otros campamentos">
+          <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden><circle cx="16" cy="16" r="13" fill="#FFF7DF" stroke="#1E140C" strokeWidth="2.5" /><path d="M16 5l4 11h-8z" fill="#D7242F" /><path d="M16 27l-4-11h8z" fill="#1F5FD1" /><circle cx="16" cy="16" r="2" fill="#1E140C" /></svg>
+          <span>Campamentos</span>
+        </button>
+        {puedeSalas ? <Boton tipo="azul" onClick={() => ir('club')}>Club en vivo{vivos > 0 ? ` (${vivos})` : ''}</Boton>
           : <Boton tipo="azul" onClick={() => ir('ranking')}>Ranking</Boton>}
         <Boton onClick={() => setSel(actual)}>Jugar nivel {actual + 1}</Boton>
       </nav>
+
+      {zarpar && <Travesia destino="Mapa de campamentos" color="#F2B90F" onFin={() => ir('campamentos')} />}
 
       {errorSala && !unirse && <div className="toast toast-mal" style={{ top: 120 }}>{errorSala}</div>}
 

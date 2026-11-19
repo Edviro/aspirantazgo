@@ -160,6 +160,10 @@ export interface PuertoAdmin {
   resolverSesion(id: string, estado: 'aprobada' | 'rechazada', respuesta: string): Promise<void>
   config(clave: 'salas_requieren_aprobacion' | 'max_jugadores_sala', valor: boolean | number): Promise<void>
   importar(datos: unknown): Promise<{ uniones: number; campos: number; clubes_nuevos: number }>
+  /** Regala vidas (1 a 10; el total no pasa de 10). Devuelve cuántas tiene ahora. */
+  darVidas(id: string, cantidad: number): Promise<number>
+  /** Regala vidas a todos los miembros de un club. Devuelve a cuántos jugadores. */
+  darVidasClub(club: string, cantidad: number): Promise<number>
 }
 
 export interface RepositorioJuego {
@@ -169,7 +173,8 @@ export interface RepositorioJuego {
   adultoSinClub(): Promise<string | null>
   unirseNino(codigo: string, apodo: string, pin: string): Promise<Perfil>
   /** Entrar a una sala solo con nombre y club (cuenta temporal de esa sala). Devuelve el perfil y el código. */
-  entrarInvitado?(codigo: string, nombre: string, club: string): Promise<{ perfil: Perfil; codigo: string }>
+  /** clubId: el club elegido de la lista (o null si lo escribió a mano; entonces vale `club`). */
+  entrarInvitado?(codigo: string, nombre: string, club: string, clubId?: string | null): Promise<{ perfil: Perfil; codigo: string }>
   entrarNino(codigo: string, apodo: string, pin: string): Promise<Perfil>
   guardarAvatar(a: AvatarConfig): Promise<void>
   /** Solo adultos: actualizar el rango cuando reciben una investidura. */

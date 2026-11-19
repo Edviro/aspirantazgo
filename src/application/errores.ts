@@ -1,4 +1,6 @@
 const MENSAJES: Record<string, string> = {
+  CANTIDAD_INVALIDA: 'Elige de 1 a 10 vidas.',
+  JUGADOR_NO_EXISTE: 'Ese jugador ya no existe o es un invitado de sala.',
   CLUB_NO_EXISTE: 'Ese código de club no existe. Pídele el código a tu líder.',
   APODO_OCUPADO: 'Ese apodo ya está en uso en tu club. Prueba con otro.',
   PIN_INVALIDO: 'El PIN debe tener 4 números.',

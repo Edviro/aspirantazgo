@@ -47,6 +47,8 @@ export default function Admin() {
   const [texto, setTexto] = useState('')
   const [msg, setMsg] = useState<{ t: string; ok: boolean } | null>(null)
   const [confirmar, setConfirmar] = useState<{ t: string; fn: () => Promise<void> } | null>(null)
+  const [regalo, setRegalo] = useState<{ club: boolean; id: string; nombre: string } | null>(null)
+  const [cuantas, setCuantas] = useState(3)
 
   const hacer = useCallback(async (fn: () => Promise<void>, ok?: string) => {
     setMsg(null)
@@ -174,6 +176,7 @@ export default function Admin() {
                     <td>{j.puntos}</td>
                     <td>{fecha(j.ultima_actividad)}</td>
                     <td className="admin-acciones">
+                      <button className="dar-vidas" onClick={() => setRegalo({ club: false, id: j.id, nombre: j.apodo })} aria-label={`Dar vidas a ${j.apodo}`}>♥ Vidas</button>
                       <button className="borrar" onClick={() => hacer(async () => { await admin.bloquear(j.id, !j.bloqueado); cargar() })}>{j.bloqueado ? 'Activar' : 'Suspender'}</button>
                       <button className="borrar" onClick={() => setConfirmar({ t: `¿Borrar a ${j.apodo} y todos sus puntajes?`, fn: async () => { await admin.borrarJugador(j.id); cargar() } })}>Borrar</button>
                     </td>
@@ -198,7 +201,8 @@ export default function Admin() {
                     <td>{c.director ?? <small>sin director</small>}</td>
                     <td>{c.miembros} <small>({c.ninos} conquis)</small></td>
                     <td>{fecha(c.creado)}</td>
-                    <td><button className="borrar" onClick={() => setConfirmar({ t: `¿Borrar el club ${c.nombre} con sus ${c.miembros} miembros?`, fn: async () => { await admin.borrarClub(c.id); cargar() } })}>Borrar</button></td>
+                    <td className="admin-acciones"><button className="dar-vidas" onClick={() => setRegalo({ club: true, id: c.id, nombre: c.nombre })} aria-label={`Dar vidas al club ${c.nombre}`}>♥ Vidas</button>
+                      <button className="borrar" onClick={() => setConfirmar({ t: `¿Borrar el club ${c.nombre} con sus ${c.miembros} miembros?`, fn: async () => { await admin.borrarClub(c.id); cargar() } })}>Borrar</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -244,6 +248,29 @@ export default function Admin() {
           </section>
         )}
       </div>
+
+      {regalo && (
+        <div className="velo">
+          <div className="resultado pop" role="dialog" aria-modal="true" aria-label="Regalar vidas">
+            <h2>Regalar vidas</h2>
+            <p>{regalo.club ? <>A cada miembro del club <b>{regalo.nombre}</b>.</> : <>Para <b>{regalo.nombre}</b>.</>} Se suman a las que ya tiene, hasta un máximo de 10.</p>
+            <div className="chips" role="radiogroup" aria-label="Cantidad de vidas" style={{ justifyContent: 'center' }}>
+              {[1, 3, 5, 10].map(n => <button key={n} role="radio" aria-checked={cuantas === n} className={cuantas === n ? 'on' : ''} onClick={() => setCuantas(n)}>♥ {n}</button>)}
+            </div>
+            <div className="fila-botones">
+              <Boton tipo="fantasma" onClick={() => setRegalo(null)}>Cancelar</Boton>
+              <Boton tipo="verde" onClick={() => {
+                const r = regalo, n = cuantas
+                setRegalo(null)
+                hacer(async () => {
+                  if (r.club) { const k = await admin.darVidasClub(r.id, n); setMsg({ t: `Listo: ${n} ${n === 1 ? 'vida' : 'vidas'} para ${k} jugadores de ${r.nombre}.`, ok: true }) }
+                  else { const v = await admin.darVidas(r.id, n); setMsg({ t: `Listo: ${r.nombre} ahora tiene ${v} vidas.`, ok: true }) }
+                })
+              }}>Regalar {cuantas} {cuantas === 1 ? 'vida' : 'vidas'}</Boton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmar && (
         <div className="velo">

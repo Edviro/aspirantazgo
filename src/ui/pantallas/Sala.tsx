@@ -3,7 +3,8 @@ import { useJuego } from '../estado'
 import { musica } from '../musica'
 import { Boton, Cielo, Confeti } from '../componentes/Comunes'
 import { CodigoQR, enlaceSala } from '../componentes/CodigoQR'
-import { MUNDOS_JUGABLES, MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
+import { MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
+import { CAMPAMENTOS, campamentoDeNivel, nivelesDe } from '../../domain/campamentos'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
 import type { FilaSala, FilaTotalSala } from '../../application/puertos'
@@ -31,6 +32,13 @@ export default function Sala() {
   const [plan, setPlan] = useState<string[]>([])
   const [paso, setPaso] = useState(0)
   const [nivelId, setNivelId] = useState(MUNDO_UNIFORMES.niveles[1].id)
+  const [campId, setCampId] = useState(CAMPAMENTOS[0].id)
+  const elegirCamp = (id: string) => {
+    const c = CAMPAMENTOS.find(x => x.id === id)
+    const primero = c && nivelesDe(c).find(n => n.tipo !== 'ceremonia')
+    if (!primero) return
+    setCampId(id); setNivelId(primero.id)
+  }
   const [dif, setDif] = useState<Dificultad>('medio')
   const [cuenta, setCuenta] = useState<number | null>(null)
   const [copiado, setCopiado] = useState(false)
@@ -74,6 +82,9 @@ export default function Sala() {
   const clubes = new Set(jugadores.map(j => j.club)).size
   const duelo = sala.tipo === 'duelo' ? sala.duelo : undefined
   const nivelRonda = ronda ? TODOS_LOS_NIVELES.find(n => n.id === ronda.nivelId) : null
+  // Campamento de la sala: el del nivel en juego, o el que el líder está eligiendo
+  const campSala = ronda ? campamentoDeNivel(ronda.nivelId) : anfitrion ? CAMPAMENTOS.find(c => c.id === campId) ?? CAMPAMENTOS[0] : null
+  const campElegido = CAMPAMENTOS.find(c => c.id === campId) ?? CAMPAMENTOS[0]
   const terminaron = tabla.filter(t => t.prog?.puntaje !== undefined).length
   const todosTerminaron = !!ronda && jugadores.length > 0 && terminaron === jugadores.length
   const copiar = async () => { try { await navigator.clipboard.writeText(sala.conexion.codigo); setCopiado(true); setTimeout(() => setCopiado(false), 1400) } catch { /* */ } }
@@ -86,7 +97,8 @@ export default function Sala() {
         <button className="icono" onClick={salirSala} aria-label="Salir de la sala">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
-        <div className="juego-titulo"><strong>{duelo ? (duelo.rivales.length > 1 || jugadores.length > 2 ? `Reto de ${Math.max(jugadores.length, duelo.rivales.length + 1)} jugadores` : `Duelo contra ${duelo.rivales[0]?.apodo ?? ''}`) : anfitrion ? 'Tu sala en vivo' : 'Sala en vivo'}</strong></div>
+        <div className="juego-titulo"><strong>{duelo ? (duelo.rivales.length > 1 || jugadores.length > 2 ? `Reto de ${Math.max(jugadores.length, duelo.rivales.length + 1)} jugadores` : `Duelo contra ${duelo.rivales[0]?.apodo ?? ''}`) : anfitrion ? 'Tu sala en vivo' : 'Sala en vivo'}</strong>
+          {!duelo && campSala && <small className="sala-camp" style={{ ['--c' as string]: campSala.color }}><i aria-hidden />{campSala.nombre}</small>}</div>
         {!duelo && <button className="codigo-sala" onClick={copiar} aria-label="Copiar código de la sala">{copiado ? '¡Copiado!' : sala.conexion.codigo}</button>}
       </header>
 
@@ -115,7 +127,7 @@ export default function Sala() {
 
         {ronda && nivelRonda && !duelo && (
           <section className="parche ronda-info">
-            <span>Ronda {ronda.ronda}</span>
+            <span>Ronda {ronda.ronda} · {campamentoDeNivel(ronda.nivelId).corto}</span>
             <strong>{nivelRonda.titulo}</strong>
             <small>Dificultad {DIFICULTADES[ronda.dificultad].nombre}. Terminaron {terminaron} de {jugadores.length}.</small>
           </section>
@@ -182,21 +194,24 @@ export default function Sala() {
                   const n = TODOS_LOS_NIVELES.find(x => x.id === id)
                   return (
                     <li key={id + i} className={i < paso ? 'hecha' : i === paso ? 'siguiente' : ''}>
-                      <span className="pos">{i + 1}</span><span className="quien"><b>{n?.titulo}</b>{i < paso && <small>Jugada</small>}</span>
+                      <span className="pos">{i + 1}</span><span className="quien"><b>{n?.titulo}</b><small>{campamentoDeNivel(id).corto}{i < paso ? ' · Jugada' : ''}</small></span>
                       {i >= paso && <button className="quitar" onClick={() => setPlan(p => p.filter((_, k) => k !== i))} aria-label={`Quitar ${n?.titulo}`}>×</button>}
                     </li>
                   )
                 })}
               </ol>
             )}
+            <div className="chips sala-camps" role="radiogroup" aria-label="Campamento">
+              {CAMPAMENTOS.map(c => {
+                const listo = nivelesDe(c).length > 0
+                return <button key={c.id} role="radio" aria-checked={campId === c.id} className={campId === c.id ? 'on' : ''} style={{ ['--c' as string]: c.color }}
+                  disabled={!listo} onClick={() => elegirCamp(c.id)} title={listo ? c.nombre : `${c.nombre}: próximamente`}><i aria-hidden />{c.corto}{listo ? '' : ' 🔒'}</button>
+              })}
+            </div>
             <div className="plan-agregar">
-              <label className="campo-select">Nivel
+              <label className="campo-select">Nivel del {campElegido.nombre}
                 <select id="sala-nivel" value={nivelId} onChange={e => setNivelId(e.target.value)}>
-                  {MUNDOS_JUGABLES.map(m => (
-                    <optgroup key={m.id} label={m.nombre}>
-                      {m.niveles.filter(n => n.tipo !== 'ceremonia').map(n => <option key={n.id} value={n.id}>{n.num}. {n.titulo}</option>)}
-                    </optgroup>
-                  ))}
+                  {nivelesDe(campElegido).filter(n => n.tipo !== 'ceremonia').map(n => <option key={n.id} value={n.id}>{n.num}. {n.titulo}</option>)}
                 </select>
               </label>
               <Boton tipo="azul" onClick={() => setPlan(p => (p.length < 10 ? [...p, nivelId] : p))} disabled={plan.length >= 10}>＋ Agregar</Boton>

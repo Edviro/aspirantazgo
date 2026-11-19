@@ -133,7 +133,7 @@ export function RetoVivo({ sala, onSalir }: { sala: EstadoSala; onSalir: () => v
       {espera !== null && !fin && <p className="aviso-abandono">{ausentes.map(a => a.apodo).join(', ')} se desconectó. {espera > 0 ? `Si no vuelve en ${espera} s, el reto se cierra con los que terminaron.` : 'Comprobando con el servidor…'}</p>}
       {!sala.ronda && <p>Esperando a que entren todos…</p>}
       {sala.ronda && !fin && <p>{yoTermine ? `Terminaste. Esperando a ${otros.filter(o => o.puntaje === undefined).map(o => o.apodo).join(', ') || 'los demás'}…` : '¡A jugar!'}</p>}
-      <Boton onClick={onSalir}>Volver a la isla</Boton>
+      <Boton onClick={onSalir}>Volver al club</Boton>
     </section>
   )
 }

@@ -84,7 +84,7 @@ export function EscenaClub({ perfil, otros, onRetar }: { perfil: Perfil; otros: 
   }
 
   return (
-    <div className="club-escena" ref={caja} onPointerDown={tocarPasto} style={{ ['--alto-pj' as string]: `${alto}px` }} aria-label="Isla de tu club. Toca el pasto para caminar.">
+    <div className="club-escena" ref={caja} onPointerDown={tocarPasto} style={{ ['--alto-pj' as string]: `${alto}px` }} aria-label="Campamento de tu club. Toca el pasto para caminar.">
       <Campamento />
       {recientes.length > 0 && (
         <ol className="club-pizarra" aria-live="polite" aria-label="Mensajes recientes">

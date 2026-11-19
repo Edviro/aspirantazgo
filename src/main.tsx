@@ -29,7 +29,7 @@ registerSW({
 navigator.serviceWorker?.addEventListener('controllerchange', () => { if (habiaControl) { hayVersionNueva = true; aplicarSiSeguro() } })
 function aplicarSiSeguro() {
   const s = useJuego.getState()
-  if (hayVersionNueva && !s.sala && ['intro', 'mapa', 'acceso'].includes(s.pantalla)) { hayVersionNueva = false; location.reload() }
+  if (hayVersionNueva && !s.sala && ['intro', 'mapa', 'acceso', 'campamentos'].includes(s.pantalla)) { hayVersionNueva = false; location.reload() }
 }
 useJuego.subscribe(aplicarSiSeguro)
 // Si una parte del juego ya no existe en el servidor (se publicó una versión nueva), se recarga en vez de fallar

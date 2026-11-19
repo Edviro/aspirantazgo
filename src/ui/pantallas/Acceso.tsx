@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { SelectorClub, type ClubElegido } from '../componentes/SelectorClub'
 import { useJuego } from '../estado'
 import { musica } from '../musica'
 import { asset, Boton, Cielo } from '../componentes/Comunes'
@@ -34,7 +35,7 @@ export default function Acceso() {
   const [salaPend] = useState(() => salaDelEnlace())
   const [codSala, setCodSala] = useState(salaPend ?? '')
   const [nombreInv, setNombreInv] = useState('')
-  const [clubInv, setClubInv] = useState('')
+  const [clubInv, setClubInv] = useState<ClubElegido | null>(null)
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
@@ -102,7 +103,8 @@ export default function Acceso() {
   const entrarInvitado = () => accion(async () => {
     if (!repoEnLinea?.entrarInvitado) throw new Error('SIN_CONEXION')
     if (!/^[A-Z]{5}$/.test(codSala)) throw new Error('SALA_NO_EXISTE')
-    const r = await repoEnLinea.entrarInvitado(codSala, nombreInv.trim(), clubInv.trim())
+    if (!clubInv) throw new Error('CLUB_INVALIDO')
+    const r = await repoEnLinea.entrarInvitado(codSala, nombreInv.trim(), clubInv.nombre, clubInv.id)
     try { sessionStorage.setItem('asp_sala_invitado', r.codigo) } catch { /* */ }
     olvidarSalaPendiente()
     await setSesion('en_linea', r.perfil)
@@ -173,13 +175,11 @@ export default function Acceso() {
           <form className="form" onSubmit={e => { e.preventDefault(); entrarInvitado() }}>
             <p className="ayuda">Para jugar <b>solo en una sala</b> (con el QR o el código que te dio el líder), sin crear cuenta.</p>
             <label>Código de la sala<input value={codSala} onChange={e => setCodSala(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5))} maxLength={5} placeholder="Ej. KQZTP" autoCapitalize="characters" autoComplete="off" required /></label>
-            <div className="dos">
-              <label>Tu nombre<input value={nombreInv} onChange={e => setNombreInv(e.target.value.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü ]/g, '').slice(0, 12))} maxLength={12} placeholder="Ej. Sofía" autoComplete="given-name" required /></label>
-              <label>Tu club<input value={clubInv} onChange={e => setClubInv(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü .-]/g, '').slice(0, 40))} maxLength={40} placeholder="Ej. Halcones" required /></label>
-            </div>
+            <label>Tu nombre<input value={nombreInv} onChange={e => setNombreInv(e.target.value.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü ]/g, '').slice(0, 12))} maxLength={12} placeholder="Ej. Sofía" autoComplete="given-name" required /></label>
+            <SelectorClub cuentas={cuentas} onCambio={setClubInv} />
             <p className="ayuda">Solo tu nombre (sin apellido). Tu acceso sirve únicamente para esta sala, no aparece en los rankings y se borra solo a los 2 días.</p>
             {error && <p className="error" role="alert">{error}</p>}
-            <Boton type="submit" disabled={cargando || !repoEnLinea}>Entrar a la sala</Boton>
+            <Boton type="submit" disabled={cargando || !repoEnLinea || !clubInv}>Entrar a la sala</Boton>
           </form>
         )}
 
