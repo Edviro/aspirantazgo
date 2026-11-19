@@ -1458,6 +1458,7 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
 .mundo-isla.pronto .mundo-etiqueta { color: #c9c9c4; box-shadow: 0 0 0 2px #6f6f69; }
 .mundo-isla.sel .mundo-etiqueta { background: var(--c); color: var(--ink); box-shadow: 0 0 0 2px var(--ink), 3px 3px 0 2px var(--ink); }
 .mundo-isla.pronto.sel .mundo-etiqueta { background: #c9c9c4; }
+.mundo-etiqueta.arriba { top: auto; bottom: calc(100% + 4px); }
 .mundo-etiqueta.central { top: 0; translate: -50% -55%; z-index: 1; background: #D7242F; color: #FFE58A; box-shadow: 0 0 0 2px var(--ink); }
 .mundo-isla.central.sel .mundo-etiqueta { background: #FFE58A; color: #7A0F18; }
 
@@ -1490,25 +1491,56 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
 .btn-brujula svg { transition: transform .4s ease; }
 .btn-brujula:hover svg { transform: rotate(25deg); }
 
-/* ---------- Travesía en barquito ---------- */
-.travesia { position: fixed; inset: 0; z-index: 200; overflow: hidden; display: grid; place-items: center;
-  background: radial-gradient(circle at 78% 22%, #FFE58A 0 34px, #FFC20E 34px 42px, transparent 43px), linear-gradient(#7CC8F6 0 20%, #5DB7F2 20% 50%, #2D78D2 50% 100%); animation: travesiaVelo 1.9s ease both; }
-.travesia-mar { position: absolute; inset: 50% 0 0; background:
+/* ---------- Travesía: el barquito zarpa ---------- */
+.travesia { position: fixed; inset: 0; z-index: 200; overflow: hidden;
+  background: radial-gradient(circle at 80% 20%, #FFE58A 0 30px, #FFC20E 30px 38px, transparent 39px), linear-gradient(#7CC8F6 0 22%, #5DB7F2 22% 52%, #2D78D2 52% 100%);
+  animation: travesiaEntra .35s ease-out both; }
+.travesia-nube { position: absolute; height: 18px; background: #fff; box-shadow: 18px -10px 0 #fff, 36px 0 0 #fff; width: 44px; opacity: .9; animation: travesiaNube 2.1s linear both; }
+.travesia-nube.n1 { top: 14%; left: 12%; } .travesia-nube.n2 { top: 30%; left: 58%; transform: scale(.7); }
+.travesia-isla { position: absolute; left: 4%; top: calc(52% - var(--px) * 9); width: calc(var(--px) * 30); height: calc(var(--px) * 12.5); transform-origin: 50% 100%; animation: travesiaIsla 2.1s cubic-bezier(.4,0,.6,1) both; }
+.travesia-mar { position: absolute; inset: 52% 0 0; background:
   repeating-linear-gradient(90deg, transparent 0 22px, rgba(255,255,255,.55) 22px 34px, transparent 34px 60px) 0 14px / 120px 4px repeat-x,
-  repeating-linear-gradient(90deg, transparent 0 40px, rgba(255,255,255,.35) 40px 48px, transparent 48px 80px) 30px 46px / 160px 4px repeat-x,
-  repeating-linear-gradient(90deg, transparent 0 30px, rgba(255,255,255,.3) 30px 40px, transparent 40px 70px) 0 90px / 140px 4px repeat-x;
-  animation: travesiaOlas .6s steps(3) infinite; image-rendering: pixelated; }
-.travesia-barco { position: absolute; top: calc(50% - 88px); left: 0; animation: travesiaBarco 1.9s cubic-bezier(.45,.05,.55,.95) both; }
-.travesia-barco svg { display: block; animation: travesiaVaiven .5s steps(2) infinite; filter: drop-shadow(3px 3px 0 rgba(0,0,0,.25)); }
-.travesia-estela { position: absolute; right: 100%; bottom: 4px; width: 70px; height: 6px; background: repeating-linear-gradient(90deg, #fff 0 8px, transparent 8px 14px); opacity: .8; }
-.travesia-texto { position: absolute; left: 0; right: 0; top: 64%; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 0 16px; }
-.travesia-texto small { font-family: 'Press Start 2P', monospace; font-size: .6rem; color: var(--ink); background: #fff; padding: 5px 8px; box-shadow: 0 0 0 3px var(--ink); }
-.travesia-texto strong { font-family: var(--titulo); font-weight: 400; font-size: clamp(1.8rem, 6vw, 3rem); letter-spacing: 2px; color: #fff; text-shadow: 3px 4px 0 var(--ink); text-wrap: balance; }
-@keyframes travesiaVelo { 0% { clip-path: circle(0% at 50% 50%); } 18%, 82% { clip-path: circle(150% at 50% 50%); } 100% { clip-path: circle(150% at 50% 50%); } }
-@keyframes travesiaBarco { from { transform: translateX(-140px); } to { transform: translateX(calc(100vw + 40px)); } }
-@keyframes travesiaVaiven { 50% { transform: translateY(3px) rotate(-2deg); } }
-@keyframes travesiaOlas { to { background-position: -40px 14px, -10px 46px, -46px 90px; } }
-@media (prefers-reduced-motion: reduce) { .travesia, .travesia-barco, .travesia-barco svg, .travesia-mar, .mundo-isla.sel::after { animation: none; } .travesia-barco { left: 40%; } }
+  repeating-linear-gradient(90deg, transparent 0 40px, rgba(255,255,255,.35) 40px 48px, transparent 48px 80px) 30px 50px / 160px 4px repeat-x,
+  repeating-linear-gradient(90deg, transparent 0 30px, rgba(255,255,255,.3) 30px 40px, transparent 40px 70px) 0 110px / 140px 4px repeat-x;
+  animation: travesiaOlas .6s steps(3) infinite; }
+.travesia-barco { position: absolute; top: calc(52% - var(--px) * 24.5); left: 0; animation: travesiaBarco 2.1s cubic-bezier(.5,0,.75,.6) both; }
+.travesia-barco .velero { animation: travesiaVaiven .55s steps(2) infinite; }
+.travesia-estela { position: absolute; right: 92%; bottom: 14px; width: 120px; height: 7px; background: repeating-linear-gradient(90deg, #fff 0 10px, transparent 10px 18px); opacity: .85; }
+.travesia-olas-frente { position: absolute; left: 0; right: 0; top: calc(52% + 6px); height: 10px; background: repeating-linear-gradient(90deg, #2D78D2 0 14px, transparent 14px 28px); animation: travesiaOlas .6s steps(3) infinite reverse; }
+.travesia-texto { position: absolute; left: 0; right: 0; top: 68%; margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 0 16px; animation: travesiaTexto 2.1s ease both; }
+.travesia-texto small { font-family: 'Press Start 2P', monospace; font-size: .58rem; color: var(--ink); background: #fff; padding: 5px 8px; box-shadow: 0 0 0 3px var(--ink); }
+.travesia-texto strong { font-family: var(--titulo); font-weight: 400; font-size: clamp(1.7rem, 6vw, 2.8rem); letter-spacing: 2px; color: #fff; text-shadow: 3px 4px 0 var(--ink); text-wrap: balance; }
+.travesia-flash { position: absolute; inset: 0; background: #fff; opacity: 0; animation: travesiaFlash 2.1s linear both; pointer-events: none; }
+@keyframes travesiaEntra { from { opacity: 0; } }
+@keyframes travesiaIsla { to { transform: translateX(-60%) scale(.45); } }
+@keyframes travesiaNube { to { translate: -90px 0; } }
+@keyframes travesiaBarco { 0% { transform: translateX(calc(4vw + var(--px) * 22)); } 100% { transform: translateX(calc(100vw + 60px)); } }
+@keyframes travesiaVaiven { 50% { transform: translateY(3px) rotate(-1.5deg); } }
+@keyframes travesiaOlas { to { background-position: -40px 14px, -10px 50px, -46px 110px; } }
+@keyframes travesiaTexto { 0%, 8% { opacity: 0; transform: translateY(10px); } 22%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@keyframes travesiaFlash { 0%, 84% { opacity: 0; } 100% { opacity: 1; } }
+
+/* Velero (vista de lado) con bandera de Conquistadores y avatar */
+.velero { position: relative; }
+.velero-capa { position: absolute; inset: 0; }
+.velero-avatar { position: absolute; left: calc(var(--px) * 3); bottom: calc(var(--px) * 5.2); }
+.velero-avatar canvas { display: block; }
+.velero-bandera { position: absolute; left: calc(var(--px) * 16); top: 0; width: calc(var(--px) * 9); height: calc(var(--px) * 6); transform-origin: 0 50%; animation: banderaOndea .45s steps(2) infinite; }
+.bandera-conquis { display: grid; place-items: center; box-sizing: border-box; border: 2px solid var(--ink);
+  background: linear-gradient(90deg, #1F4FB8 50%, #fff 50%) top / 100% 50% no-repeat, linear-gradient(90deg, #fff 50%, #1F4FB8 50%) bottom / 100% 50% no-repeat; }
+.bandera-conquis img { width: 42%; height: auto; image-rendering: auto; filter: drop-shadow(0 0 1px #fff); }
+@keyframes banderaOndea { 50% { transform: skewY(-5deg) scaleX(.93); } }
+
+/* Vista aérea: escena con zoom, barco en el mapa y destello */
+.mundo-escena { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
+.mundo-barco { position: absolute; z-index: 3; pointer-events: none; filter: drop-shadow(1px 2px 0 rgba(0,0,0,.35)); }
+.mundo-barco svg { position: relative; display: block; }
+.mundo-barco-estela { position: absolute; right: 88%; top: 50%; width: 120%; height: 30%; translate: 0 -50%; background: repeating-linear-gradient(90deg, rgba(255,255,255,.85) 0 3px, transparent 3px 7px); animation: estelaMapa .5s steps(2) infinite; }
+@keyframes estelaMapa { 50% { opacity: .45; } }
+.mundo-flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 30; }
+.mapa > .mundo-flash, .campamentos .mundo-flash { position: fixed; z-index: 60; }
+.campamentos.viajando .mundo-isla, .campamentos.viajando .mundo-panel button { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .travesia *, .travesia, .velero-bandera, .mundo-barco-estela, .mundo-isla.sel::after { animation: none !important; } .travesia-barco { left: 30%; } .travesia-flash { opacity: 0; } }
 
 /* Campamento de la sala */
 .sala-camp { display: inline-flex; align-items: center; gap: 6px; color: var(--crema); }

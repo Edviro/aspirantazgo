@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { musica } from '../musica'
 import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
 import { useProgreso } from '../progreso'
@@ -14,6 +14,8 @@ import { mensajeError } from '../../application/errores'
 import { useJuego } from '../estado'
 import { Boton, Estrellas } from '../componentes/Comunes'
 import { Travesia } from '../componentes/Travesia'
+import { campamentoDeMundo } from '../../domain/campamentos'
+import { limpiarTransicion, marcarTransicion, menosMovimiento, verTransicion } from '../transicion'
 import { sfx } from '../sonido'
 import { MapaPixel, type EstadoNodo } from '../pixel/MapaPixel'
 
@@ -42,6 +44,15 @@ export default function Mapa() {
   const [errorSala, setErrorSala] = useState('')
   const [conectando, setConectando] = useState(false)
   const [zarpar, setZarpar] = useState(false)
+  // Llegando en barco desde el mapa de campamentos: la cámara termina de bajar sobre la isla
+  const lienzo = useRef<HTMLDivElement>(null), flash = useRef<HTMLDivElement>(null)
+  const [llego] = useState(() => verTransicion()?.tipo === 'llegar' && !menosMovimiento())
+  useLayoutEffect(() => {
+    limpiarTransicion()
+    if (!llego) return
+    lienzo.current?.animate([{ transform: 'scale(1.7)', filter: 'brightness(1.6)' }, { transform: 'none', filter: 'none' }], { duration: 900, easing: 'cubic-bezier(.16,.7,.2,1)' })
+    flash.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, easing: 'ease-out', fill: 'forwards' })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { estados, estrellas, actual } = useMemo(() => {
     const estados: EstadoNodo[] = []
@@ -76,11 +87,12 @@ export default function Mapa() {
 
   return (
     <div className="pantalla mapa">
-      <div className="mapa-canvas">
+      <div className="mapa-canvas" ref={lienzo}>
         <MapaPixel key={mundoActual.id} niveles={niveles} estados={estados} estrellas={estrellas} actual={actual}
           avatar={perfil.avatar} rango={perfil.rango} onElegir={i => setSel(i)} />
       </div>
 
+      {llego && <div className="mundo-flash" ref={flash} aria-hidden />}
       <header className="hud">
         <button className="hud-perfil" onClick={() => ir('editor')} aria-label="Editar personaje">
           <span className="hud-avatar">{perfil.apodo.slice(0, 1).toUpperCase()}</span>
@@ -134,7 +146,8 @@ export default function Mapa() {
         <Boton onClick={() => setSel(actual)}>Jugar nivel {actual + 1}</Boton>
       </nav>
 
-      {zarpar && <Travesia destino="Mapa de campamentos" color="#F2B90F" onFin={() => ir('campamentos')} />}
+      {zarpar && <Travesia texto="Zarpando del" destino={mundoActual.nombre} color={campamentoDeMundo(mundoActual.id).color}
+        onFin={() => { marcarTransicion({ tipo: 'alejar', desde: campamentoDeMundo(mundoActual.id).id }); ir('campamentos') }} />}
 
       {errorSala && !unirse && <div className="toast toast-mal" style={{ top: 120 }}>{errorSala}</div>}
 
