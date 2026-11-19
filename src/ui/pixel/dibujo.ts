@@ -28,10 +28,11 @@ export function opcionesDe(a: AvatarConfig, rango: Rango): Opts {
   const cargo = (a.uniforme?.cargo ?? (adulto ? (rango === 'lider' ? 'CONSEJERO' : 'DIRECTOR') : '')).toUpperCase()
   // Manual: Director C5 plateado, Distrital 1 tira plata, Regional 2 plata, Departamental 2 doradas.
   const galon = !adulto ? null : cargo === 'DEPARTAMENTAL' ? 'oro' as const : /^(DIRECTOR|DISTRITAL|REGIONAL)$/.test(cargo) ? 'plata' as const : null
-  const clases = gm ? 6 : Math.max(1, a.uniforme?.regulares?.length ?? (adulto ? 6 : 1))
+  const clases = gm ? 6 : a.uniforme?.regulares?.length ?? (adulto ? 6 : 1)
   return {
     genero: a.genero === 'f' ? 'f' : 'm', piel: a.piel ?? 2, pelo: a.colorPelo ?? 0, peinado: a.pelo ?? 0,
-    adulto, gm, torzal: adulto, galon, panoleta: rango !== 'conquistador' || a.panoleta !== false,
+    adulto, gm, torzal: adulto, galon, // La pañoleta es el primer paso: quien ya tiene una clase (o es líder) la lleva siempre
+    panoleta: rango !== 'conquistador' || clases > 0 || a.panoleta !== false,
     blazer: adulto && cargo === 'DEPARTAMENTAL', clases,
   }
 }

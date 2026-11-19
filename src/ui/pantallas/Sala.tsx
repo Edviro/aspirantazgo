@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useJuego } from '../estado'
+import { musica } from '../musica'
 import { Boton, Cielo, Confeti } from '../componentes/Comunes'
 import { PixelAvatar } from '../pixel/PixelAvatar'
+import { CodigoQR, enlaceSala } from '../componentes/CodigoQR'
 import { MUNDOS_JUGABLES, MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
@@ -11,6 +13,7 @@ import { useProgreso } from '../progreso'
 /** Sala en vivo: el líder elige el nivel, todos juegan a la vez y el avance se ve en tiempo real. */
 export default function Sala() {
   const { sala, perfil, ir, dejarSala, iniciarRonda, repo } = useJuego()
+  useEffect(() => { musica('rapido') }, [])
   const [oficial, setOficial] = useState<ResultadoDuelo | null>(null)
   const [nivelId, setNivelId] = useState(MUNDO_UNIFORMES.niveles[1].id)
   const [dif, setDif] = useState<Dificultad>('medio')
@@ -47,6 +50,27 @@ export default function Sala() {
     return () => { vivo = false }
   }, [ambosAvisaron]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Abandono: si el rival se desconectó y tú ya terminaste, cuenta 40 s y pide la victoria al servidor
+  const rivalPresente = !!sala?.duelo && sala.jugadores.some(j => j.id === sala.duelo!.rival.id)
+  const yoTermine = !!perfil && sala?.progresos[perfil.id]?.puntaje !== undefined
+  const [espera, setEspera] = useState<number | null>(null)
+  useEffect(() => {
+    if (!esDuelo || !sala?.ronda || rivalPresente || !yoTermine || oficial?.terminado || !repo.salas) { setEspera(null); return }
+    let resta = 40, vivo = true
+    setEspera(resta)
+    const t = setInterval(() => {
+      resta -= 1
+      if (!vivo) return
+      setEspera(Math.max(0, resta))
+      if (resta <= 0 && resta % 20 === 0) {
+        repo.salas!.reclamarAbandono(sala.conexion.codigo)
+          .then(r => { if (vivo && r.terminado) { setOficial(r); useProgreso.getState().refrescarStats() } })
+          .catch(() => undefined)
+      }
+    }, 1000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [esDuelo, !!sala?.ronda, rivalPresente, yoTermine, oficial?.terminado]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!sala || !perfil) {
     return (
       <div className="pantalla sala"><Cielo />
@@ -56,6 +80,7 @@ export default function Sala() {
   }
 
   const anfitrion = sala.rol === 'anfitrion'
+  const clubes = new Set(jugadores.map(j => j.club)).size
   const duelo = sala.tipo === 'duelo' ? sala.duelo : undefined
   const nivelRonda = ronda ? TODOS_LOS_NIVELES.find(n => n.id === ronda.nivelId) : null
   const terminaron = tabla.filter(t => t.prog?.puntaje !== undefined).length
@@ -63,7 +88,7 @@ export default function Sala() {
   const copiar = async () => { try { await navigator.clipboard.writeText(sala.conexion.codigo); setCopiado(true); setTimeout(() => setCopiado(false), 1400) } catch { /* */ } }
   const salirSala = async () => { await dejarSala(); ir(duelo ? 'club' : 'mapa') }
   const yoProg = sala.progresos[perfil.id], rivalProg = duelo ? sala.progresos[duelo.rival.id] : undefined
-  const dueloFin = !!duelo && yoProg?.puntaje !== undefined && rivalProg?.puntaje !== undefined
+  const dueloFin = (!!duelo && yoProg?.puntaje !== undefined && rivalProg?.puntaje !== undefined) || !!oficial?.terminado
   const ptsOf = (id: string) => oficial?.jugadores.find(j => j.id === id)?.puntaje ?? undefined
   const misPts = ptsOf(perfil.id) ?? yoProg?.puntaje, susPts = duelo ? ptsOf(duelo.rival.id) ?? rivalProg?.puntaje : undefined
   const gane = oficial ? oficial.ganador === perfil.id
@@ -87,8 +112,12 @@ export default function Sala() {
 
         {anfitrion && !ronda && (
           <section className="parche sala-codigo">
-            <p>Pide a tus Conquistadores que toquen <b>Unirme a una sala</b> en el mapa y escriban:</p>
-            <div className="codigo grande">{sala.conexion.codigo}</div>
+            <p>Conquistadores y líderes de <b>cualquier club</b> pueden entrar: escanean el QR con la cámara o tocan <b>Unirme a una sala</b> en el menú y escriben:</p>
+            <div className="sala-entrada">
+              <CodigoQR texto={enlaceSala(sala.conexion.codigo)} size={190} />
+              <div className="codigo grande">{sala.conexion.codigo}</div>
+            </div>
+            <button className="enlace" onClick={() => navigator.clipboard?.writeText(enlaceSala(sala.conexion.codigo)).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 1400) }).catch(() => undefined)}>{copiado ? '¡Enlace copiado!' : 'Copiar enlace para WhatsApp'}</button>
           </section>
         )}
 
@@ -100,7 +129,8 @@ export default function Sala() {
               <b className="vs">VS</b>
               <div><PixelAvatar a={duelo.rival.avatar ?? {}} rango={duelo.rival.rango} animo={dueloFin && !gane && !empate ? 'celebra' : 'idle'} alto={128} /><b>{duelo.rival.apodo}</b><span className="pts">{susPts ?? (ronda ? `${Math.round((rivalProg?.avance ?? 0) * 100)}%` : '…')}</span></div>
             </div>
-            {dueloFin && <p className="verificado">{oficial ? 'Resultado verificado por el servidor' : 'Verificando el resultado…'}</p>}
+            {dueloFin && <p className="verificado">{oficial?.abandono ? `${duelo.rival.apodo} se desconectó: ganas por abandono` : oficial ? 'Resultado verificado por el servidor' : 'Verificando el resultado…'}</p>}
+            {espera !== null && !dueloFin && <p className="aviso-abandono">{duelo.rival.apodo} se desconectó. {espera > 0 ? `Si no vuelve en ${espera} s, ganas por abandono.` : 'Comprobando con el servidor…'}</p>}
             {!ronda && <p>Esperando a que {duelo.rival.apodo} entre…</p>}
             {ronda && !dueloFin && <p>{yoProg?.puntaje !== undefined ? `Terminaste. Esperando a ${duelo.rival.apodo}…` : '¡A jugar!'}</p>}
             {sala.cerrada && !dueloFin && <p>{duelo.rival.apodo} salió del duelo.</p>}
@@ -124,7 +154,7 @@ export default function Sala() {
         )}
 
         {!duelo && <section className="parche">
-          <h3>{ronda ? 'Carrera en vivo' : `Conectados (${jugadores.length})`}</h3>
+          <h3>{ronda ? 'Carrera en vivo' : `Conectados (${jugadores.length})`}{clubes > 1 ? ` · ${clubes} clubes` : ''}</h3>
           <ul className="carrera">
             {tabla.map((j, i) => (
               <li key={j.id} className={j.id === perfil.id ? 'yo' : ''}>

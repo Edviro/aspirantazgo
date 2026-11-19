@@ -37,7 +37,7 @@ export interface AvatarConfig {
   }
 }
 
-export type Alcance = 'jugador' | 'club' | 'ciudad' | 'campo' | 'pais'
+export type Alcance = 'jugador' | 'mi_club' | 'club' | 'campo' | 'union' | 'pais'
 
 export interface FilaRanking {
   posicion: number
@@ -48,11 +48,13 @@ export interface FilaRanking {
   jugadores: number
   avatar?: AvatarConfig | null
   rango?: Rango | null
+  /** La fila es mía o de mi club (lo marca el servidor). */
+  es_mio?: boolean
 }
 
 export interface Estadisticas { duelos_jugados: number; duelos_ganados: number; partidas: number; salas: number }
 
-export interface ResultadoDuelo { terminado: boolean; ganador: string | null; jugadores: { id: string; puntaje: number | null; segundos: number | null }[] }
+export interface ResultadoDuelo { terminado: boolean; ganador: string | null; abandono?: boolean; jugadores: { id: string; puntaje: number | null; segundos: number | null }[] }
 
 export interface ResultadoServidor {
   puntaje: number
@@ -189,23 +191,29 @@ export interface PuertoSalas {
   cerrar(codigo: string): Promise<void>
   crearDuelo(rivalId: string): Promise<string>
   resultadoDuelo(codigo: string): Promise<ResultadoDuelo>
+  /** Si el rival se desconectó, el servidor puede darte la victoria (lo valida con los tiempos guardados). */
+  reclamarAbandono(codigo: string): Promise<ResultadoDuelo>
   conectar(codigo: string, yo: JugadorSala, eventos: EventosSala): Promise<ConexionSala>
   /** Presencia global: quién está conectado ahora (por club) y las invitaciones a duelo. */
   presencia(yo: JugadorEnLinea, eventos: EventosPresencia): Promise<ConexionPresencia>
 }
 
 // ---------- Presencia y duelos ----------
-export interface JugadorEnLinea { id: string; apodo: string; rango: Rango; avatar?: AvatarConfig; club: string; clubId: string; ocupado?: boolean }
+export interface JugadorEnLinea { id: string; apodo: string; rango: Rango; avatar?: AvatarConfig; club: string; clubId: string; ocupado?: boolean; /** Posición en la isla (0 a 1). */ x?: number }
+/** Frases fijas para saludarse (no hay chat libre: así se protege a los niños). */
+export const FRASES = ['¡Hola!', '¡Maranata!', '¡Te reto!', '¡Bien jugado!', '¡Vamos club!', '¡Gracias!', '¡Casi!', '¡A practicar!'] as const
 export interface InvitacionDuelo { para: string; de: JugadorEnLinea; codigo: string; nivelId: string; dificultad: Dificultad }
 export interface RespuestaDuelo { para: string; de: string; codigo: string; acepta: boolean }
 export interface EventosPresencia {
   onLista?: (j: JugadorEnLinea[]) => void
   onInvitacion?: (i: InvitacionDuelo) => void
   onRespuesta?: (r: RespuestaDuelo) => void
+  onGesto?: (g: { de: string; frase: number }) => void
 }
 export interface ConexionPresencia {
   invitar(i: InvitacionDuelo): Promise<void>
   responder(r: RespuestaDuelo): Promise<void>
   actualizar(yo: JugadorEnLinea): Promise<void>
+  gesto(de: string, frase: number): Promise<void>
   salir(): Promise<void>
 }

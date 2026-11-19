@@ -58,13 +58,15 @@ export function PiezaSVG({ p }: { p: Pieza }) {
     if (p.tipo === 'tira_cargo') return <g>{fondo}<TextoAjustado t={p.texto || 'CARGO'} ancho={p.w * 0.88} alto={p.h * 0.55} color="#FFD300" /></g>
     if (p.tipo === 'funcion') return <g>{fondo}<g transform={`translate(${p.w * 0.1},0)`}><TextoAjustado t={p.texto || 'FUNCIÓN'} ancho={p.w * 0.66} alto={p.h * 0.62} color="#FFFFFF" /></g></g>
     if (p.tipo === 'tira_club') {
+      // El texto va por la línea CENTRAL de la franja roja de la tira oficial (medida sobre el dibujo)
       const t = (p.texto || 'NOMBRE DEL CLUB').toUpperCase()
-      const tam = Math.max(0.42, Math.min(0.86, 11.2 / Math.max(1, t.length)))
+      const corto = t.length > 32 ? t.slice(0, 31) + '…' : t
+      const tam = Math.max(0.36, Math.min(0.92, (9.43 * 0.9) / (Math.max(1, corto.length) * 0.74)))
       return (
         <g>{fondo}
-          <path id={'arcof' + uid} d={`M${-p.w * 0.39},${p.h * 0.1} Q0,${-p.h * 0.56} ${p.w * 0.39},${p.h * 0.1}`} fill="none" />
+          <path id={'arcof' + uid} d="M-4.294,0.277 L-3.871,-0.141 L-3.448,-0.474 L-3.024,-0.753 L-2.601,-0.982 L-2.178,-1.167 L-1.754,-1.308 L-1.331,-1.418 L-0.908,-1.495 L-0.484,-1.538 L-0.061,-1.554 L0.362,-1.541 L0.786,-1.504 L1.209,-1.435 L1.632,-1.338 L2.056,-1.207 L2.479,-1.034 L2.902,-0.817 L3.326,-0.551 L3.749,-0.247 L4.172,0.138" fill="none" />
           <text fontSize={tam} fill="#FFD300" fontFamily={FUENTE} dominantBaseline="central">
-            <textPath href={'#arcof' + uid} startOffset="50%" textAnchor="middle">{t.length > 24 ? t.slice(0, 23) + '…' : t}</textPath>
+            <textPath href={'#arcof' + uid} startOffset="50%" textAnchor="middle">{corto}</textPath>
           </text>
         </g>
       )
@@ -73,12 +75,20 @@ export function PiezaSVG({ p }: { p: Pieza }) {
   }
   switch (p.tipo) {
     case 'tira_club': {
-      const t = ajustar(p.texto || 'NOMBRE DEL CLUB', 22)
+      // Tira curva ("media luna") de grosor parejo; el nombre va centrado en la franja y su tamaño se ajusta al largo.
+      const t = ajustar((p.texto || 'NOMBRE DEL CLUB').toUpperCase(), 26)
+      const Ro = 5.2, Ri = 3.55, cy = 2.75, th = Math.asin(5 / Ro)
+      const rt = (Ro + Ri) / 2, fi = th - 0.1
+      const pt = (r: number, a: number) => `${(r * Math.sin(a)).toFixed(3)},${(cy - r * Math.cos(a)).toFixed(3)}`
+      const forma = `M${pt(Ro, -th)} A${Ro},${Ro} 0 0 1 ${pt(Ro, th)} L${pt(Ri, th)} A${Ri},${Ri} 0 0 0 ${pt(Ri, -th)} Z`
+      const largo = rt * 2 * fi
+      const fs = Math.min(0.92, (largo * 0.94) / (t.length * 0.74))
       return (
-        <g>
-          <path d="M-5,2.45 Q0,-3.35 5,2.45 L3.75,2.5 Q0,-1.15 -3.75,2.5 Z" fill={ROJO} stroke={AMARILLO} strokeWidth={0.18} strokeLinejoin="round" />
-          <path id={'arc' + uid} d="M-4.55,2.25 Q0,-2.15 4.55,2.25" fill="none" />
-          <text fontSize={t.length > 14 ? 0.58 : 0.72} fill={AMARILLO} fontFamily={FUENTE} dominantBaseline="central">
+        <g transform="translate(0,-0.1)">
+          <path d={forma} fill={ROJO} stroke={AMARILLO} strokeWidth={0.2} strokeLinejoin="round" />
+          <path d={`M${pt(Ro - 0.22, -th + 0.02)} A${Ro - 0.22},${Ro - 0.22} 0 0 1 ${pt(Ro - 0.22, th - 0.02)}`} fill="none" stroke={AMARILLO} strokeWidth={0.05} strokeDasharray="0.18 0.12" opacity={0.7} />
+          <path id={'arc' + uid} d={`M${pt(rt, -fi)} A${rt},${rt} 0 0 1 ${pt(rt, fi)}`} fill="none" />
+          <text fontSize={fs} fill={AMARILLO} fontFamily={FUENTE} dominantBaseline="central" letterSpacing={0.02}>
             <textPath href={'#arc' + uid} startOffset="50%" textAnchor="middle">{t}</textPath>
           </text>
         </g>

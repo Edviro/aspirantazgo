@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { musica } from '../musica'
+import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
 import { useProgreso } from '../progreso'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
 import { MUNDOS_JUGABLES } from '../../domain/niveles'
@@ -23,6 +24,13 @@ export default function Mapa() {
   const [menu, setMenu] = useState(false)
   const rachaObj = useProgreso(st => st.racha)
   useEffect(() => { musica('mapa') }, [])
+  // Si llegó con el enlace o el QR de una sala, entra directo
+  useEffect(() => {
+    const cod = salaDelEnlace()
+    if (!cod || !repo.salas || !useJuego.getState().perfil) return
+    olvidarSalaPendiente()
+    entrarSala(cod)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [borrar, setBorrar] = useState(false)
   const [unirse, setUnirse] = useState(false)
   const [codigoSala, setCodigoSala] = useState('')

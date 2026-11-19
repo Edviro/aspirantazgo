@@ -58,6 +58,11 @@ interface Estado {
   desafiar: (rival: JugadorEnLinea, nivelId: string, dificultad: Dificultad) => Promise<void>
   responderInvitacion: (acepta: boolean) => Promise<void>
   cancelarReto: () => void
+  /** Globitos con frases: id del jugador → frase y momento. */
+  gestos: Record<string, { frase: number; t: number }>
+  miX: number
+  enviarGesto: (frase: number) => void
+  moverme: (x: number) => void
   dejarSala: () => Promise<void>
   iniciarRonda: (nivelId: string, dificultad: Dificultad) => Promise<void>
   reportarProgreso: (avance: number, puntaje?: number, segundos?: number) => void
@@ -126,6 +131,8 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
   presencia: null,
   invitacion: null,
   retoEnviado: null,
+  gestos: {},
+  miX: 0.3,
   mundo: (() => { try { return localStorage.getItem('asp_mundo') || 'uniformes' } catch { return 'uniformes' } })(),
   setMundo: m => { try { localStorage.setItem('asp_mundo', m) } catch { /* */ } set({ mundo: m }) },
   ir: p => set({ pantalla: p }),
@@ -173,9 +180,10 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
   conectarPresencia: async () => {
     const { repo, perfil, presencia } = get()
     if (!repo.salas || !perfil?.club.id || presencia) return
-    const conexion = await repo.salas.presencia(yoEnLinea(perfil, false), {
+    const conexion = await repo.salas.presencia({ ...yoEnLinea(perfil, false), x: get().miX }, {
       onLista: j => set({ enLinea: j }),
       onInvitacion: inv => { if (!get().sala && !get().invitacion) set({ invitacion: inv }) },
+      onGesto: g => set(s => ({ gestos: { ...s.gestos, [g.de]: { frase: g.frase, t: Date.now() } } })),
       onRespuesta: r => {
         const reto = get().retoEnviado
         if (!reto || reto.codigo !== r.codigo) return
@@ -201,6 +209,20 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
     if (!acepta || !repo.salas) return
     await repo.salas.entrar(inv.codigo)
     await conectarSala(inv.codigo, 'jugador', 'duelo', { rival: inv.de, nivelId: inv.nivelId, dificultad: inv.dificultad, retador: false })
+  },
+  enviarGesto: frase => {
+    const { presencia, perfil, gestos } = get()
+    if (!perfil) return
+    const mio = gestos[perfil.id]
+    if (mio && Date.now() - mio.t < 2500) return
+    set({ gestos: { ...gestos, [perfil.id]: { frase, t: Date.now() } } })
+    presencia?.gesto(perfil.id, frase).catch(() => undefined)
+  },
+  moverme: x => {
+    const { presencia, perfil } = get()
+    const nx = Math.min(0.92, Math.max(0.08, x))
+    set({ miX: nx })
+    if (presencia && perfil) presencia.actualizar({ ...yoEnLinea(perfil, false), x: nx }).catch(() => undefined)
   },
   cancelarReto: () => {
     const reto = get().retoEnviado
@@ -229,7 +251,7 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
 // Los demás ven si estás jugando (no se les deja retarte en medio de un nivel)
 useJuego.subscribe((s, prev) => {
   if (s.pantalla !== prev.pantalla && s.presencia && s.perfil && (s.pantalla === 'juego' || prev.pantalla === 'juego')) {
-    s.presencia.actualizar(yoEnLinea(s.perfil, s.pantalla === 'juego')).catch(() => undefined)
+    s.presencia.actualizar({ ...yoEnLinea(s.perfil, s.pantalla === 'juego'), x: s.miX }).catch(() => undefined)
   }
 })
 

@@ -5,7 +5,7 @@ import { PixelAvatar } from '../pixel/PixelAvatar'
 import type { Alcance, FilaRanking } from '../../application/puertos'
 import { mensajeError } from '../../application/errores'
 
-const ALCANCES: [Alcance, string][] = [['jugador', 'Jugadores'], ['club', 'Clubes'], ['ciudad', 'Ciudades'], ['campo', 'Campos'], ['pais', 'Países']]
+const ALCANCES: [Alcance, string][] = [['mi_club', 'Mi club'], ['jugador', 'Jugadores'], ['club', 'Clubes'], ['campo', 'Asoc./Misión'], ['union', 'Uniones'], ['pais', 'Países']]
 const BANDERA: Record<string, string> = { PE: '🇵🇪', AR: '🇦🇷', BO: '🇧🇴', BR: '🇧🇷', CL: '🇨🇱', CO: '🇨🇴', EC: '🇪🇨', PY: '🇵🇾', UY: '🇺🇾', VE: '🇻🇪', MX: '🇲🇽', US: '🇺🇸', ES: '🇪🇸' }
 
 function Podio({ top }: { top: FilaRanking[] }) {
@@ -27,7 +27,8 @@ function Podio({ top }: { top: FilaRanking[] }) {
 
 export default function Ranking() {
   const { repo, perfil, ir, modo } = useJuego()
-  const [alcance, setAlcance] = useState<Alcance>('jugador')
+  const modoInicial: Alcance = modo === 'practica' ? 'jugador' : 'mi_club'
+  const [alcance, setAlcance] = useState<Alcance>(modoInicial)
   const [miPais, setMiPais] = useState(false)
   const [filas, setFilas] = useState<FilaRanking[] | null>(null)
   const [error, setError] = useState('')
@@ -55,18 +56,18 @@ export default function Ranking() {
         {ALCANCES.map(([a, n]) => <button key={a} role="tab" aria-selected={alcance === a} className={alcance === a ? 'on' : ''} onClick={() => setAlcance(a)}>{n}</button>)}
       </div>
 
-      {alcance === 'jugador' && filas && filas.length > 0 && <div className="podio"><Podio top={filas.slice(0, 3)} /></div>}
+      {(alcance === 'jugador' || alcance === 'mi_club') && filas && filas.length > 0 && <div className="podio"><Podio top={filas.slice(0, 3)} /></div>}
 
       <ol className="lista-ranking">
         {filas === null && <li className="cargando">Cargando…</li>}
         {filas?.length === 0 && !error && <li className="vacio">{modo === 'practica' && alcance !== 'jugador' ? 'Únete a un club para aparecer en los rankings.' : 'Aún no hay puntajes. ¡Sé el primero en jugar un desafío!'}</li>}
         {error && <li className="error">{error}</li>}
         {filas?.map((f, i) => {
-          const yo = alcance === 'jugador' ? f.nombre === perfil?.apodo && f.detalle === perfil?.club.nombre : alcance === 'club' && f.nombre === perfil?.club.nombre
+          const yo = f.es_mio ?? (alcance === 'jugador' ? f.nombre === perfil?.apodo && f.detalle === perfil?.club.nombre : alcance === 'club' && f.nombre === perfil?.club.nombre)
           return (
             <li key={i} className={`${yo ? 'yo' : ''} ${f.posicion <= 3 ? 'top' + f.posicion : ''}`}>
               <span className="pos">{f.posicion <= 3 ? ['🥇', '🥈', '🥉'][f.posicion - 1] : f.posicion}</span>
-              <span className="quien"><b>{f.nombre}</b><small>{f.detalle ?? ''}{alcance !== 'jugador' ? ` · ${f.jugadores} jugador${f.jugadores === 1 ? '' : 'es'}` : ''}</small></span>
+              <span className="quien"><b>{f.nombre}</b><small>{f.detalle ?? ''}{alcance !== 'jugador' && alcance !== 'mi_club' ? ` · ${f.jugadores} jugador${f.jugadores === 1 ? '' : 'es'}` : ''}</small></span>
               <span className="bandera">{BANDERA[f.pais ?? ''] ?? ''}</span>
               <span className="pts">{Number(f.puntos).toLocaleString('es-PE')}</span>
             </li>

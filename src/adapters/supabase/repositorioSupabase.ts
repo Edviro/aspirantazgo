@@ -140,7 +140,7 @@ export class RepositorioSupabase implements RepositorioJuego {
   misPuntajes() { return this.rpc<Record<string, number>>('mis_puntajes', { p_token: this.token }) }
 
   ranking(alcance: Alcance, pais?: string) {
-    return this.rpc<FilaRanking[]>('ranking', { p_alcance: alcance, p_pais: pais ?? null, p_limite: 50 })
+    return this.rpc<FilaRanking[]>('ranking_v2', { p_alcance: alcance, p_pais: pais ?? null, p_limite: 50, p_token: this.token })
   }
 
   miembrosClub() { return this.rpc<{ apodo: string; rango: string; grupo_edad: string; puntos: number }[]>('miembros_de_mi_club') }

@@ -35,6 +35,8 @@ const MENSAJES: Record<string, string> = {
   CORREO_INVALIDO: 'Escribe un correo válido.',
   CLAVE_DEBIL: 'La contraseña necesita al menos 8 caracteres, con letras y números.',
   SIN_CONEXION: 'Sin conexión. Revisa tu internet.',
+  ABANDONO_PRONTO: 'Tu rival todavía puede volver. Espera un poco más.',
+  TERMINA_PRIMERO: 'Primero termina tu partida.',
   'Invalid login credentials': 'Correo o contraseña incorrectos.',
   'Email not confirmed': 'Primero confirma tu correo: abre el enlace que te enviamos.',
   'User already registered': 'Ya existe una cuenta con ese correo. Entra o recupera tu contraseña.',

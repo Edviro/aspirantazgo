@@ -76,6 +76,7 @@ export const BANCO_VF: Afirmacion[] = [
   { t: 'El banderín de unidad tiene una franja azul a la izquierda.', v: true, porque: 'Franja vertical de 36 × 10 cm en azul royal.' },
   { t: 'La camisa de los Conquistadores de 10 a 15 años es blanca.', v: false, porque: 'Es caqui. La blanca es para directivos y Guías Mayores.', ilus: 'camisa' },
   { t: 'El uniforme de gala se usa desde la ceremonia de la pañoleta.', v: true, porque: 'Solo después de la admisión de la pañoleta.', img: pieza.panoleta(false) },
+  { t: 'Puedes tener la clase de Amigo sin haber recibido tu pañoleta.', v: false, porque: 'La pañoleta es el primer paso: la recibes en la ceremonia de admisión, antes de cualquier clase o especialidad.', img: pieza.panoleta(false) },
   { t: 'La correa lleva una hebilla con el emblema C3.', v: true, porque: 'Correa verde petróleo con hebilla C3.', img: pieza.correa() },
 ]
 

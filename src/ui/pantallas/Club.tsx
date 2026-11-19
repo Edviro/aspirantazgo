@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useJuego } from '../estado'
+import { musica } from '../musica'
 import { Boton, Cielo } from '../componentes/Comunes'
 import { PixelAvatar } from '../pixel/PixelAvatar'
-import { Campamento } from '../pixel/Campamento'
+import { EscenaClub } from '../pixel/EscenaClub'
 import { MUNDOS_JUGABLES } from '../../domain/niveles'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
-import type { JugadorEnLinea } from '../../application/puertos'
+import { FRASES, type JugadorEnLinea } from '../../application/puertos'
 import { mensajeError } from '../../application/errores'
 
 const RANGO: Record<string, string> = { conquistador: 'Conquistador', lider: 'Líder', guia_mayor: 'Guía Mayor', gm_master: 'GM Máster', gm_master_avanzado: 'GM Máster Avanzado' }
@@ -14,7 +15,8 @@ const DUELO_TIPOS = new Set(['taller', 'quiz', 'vf', 'lluvia', 'inspector', 'ord
 
 /** La isla de tu club: quién está conectado ahora, con su personaje, y a quién puedes retar (de tu club o de otra isla). */
 export default function Club() {
-  const { perfil, enLinea, ir, desafiar, presencia, conectarPresencia } = useJuego()
+  const { perfil, enLinea, ir, desafiar, presencia, conectarPresencia, enviarGesto } = useJuego()
+  useEffect(() => { musica('mapa') }, [])
   const [rival, setRival] = useState<JugadorEnLinea | null>(null)
   const [nivelId, setNivelId] = useState(MUNDOS_JUGABLES[0].niveles.find(n => n.tipo === 'quiz')?.id ?? MUNDOS_JUGABLES[0].niveles[0].id)
   const [dif, setDif] = useState<Dificultad>('medio')
@@ -60,16 +62,9 @@ export default function Club() {
         <span className="en-vivo"><i />{mios.length + 1} en línea</span>
       </header>
 
-      <div className="club-escena" aria-label="Miembros del club conectados ahora">
-        <Campamento />
-        <div className="club-fila">
-          <div className="club-yo"><PixelAvatar a={perfil.avatar} rango={perfil.rango} animo="saluda" alto={128} /><span>Tú</span></div>
-          {mios.slice(0, 6).map(j => (
-            <button key={j.id} className="club-vivo" onClick={() => !j.ocupado && setRival(j)} aria-label={`Retar a ${j.apodo}`} disabled={j.ocupado}>
-              <PixelAvatar a={j.avatar ?? {}} rango={j.rango} alto={128} /><span>{j.apodo}</span>
-            </button>
-          ))}
-        </div>
+      <EscenaClub perfil={perfil} otros={mios} onRetar={j => { setError(''); setRival(j) }} />
+      <div className="frases" role="group" aria-label="Frases rápidas">
+        {FRASES.map((f, i) => <button key={f} onClick={() => enviarGesto(i)}>{f}</button>)}
       </div>
 
       <div className="club-cuerpo">

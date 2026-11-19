@@ -1163,3 +1163,32 @@ body {
 @media (prefers-reduced-motion: reduce) { .parche-gira { animation: none; } }
 /* Ceremonia: la escena arriba y el panel debajo (no tapa al personaje) */
 .ceremonia:has(.ceremonia-pixel) .ceremonia-panel { position: relative; left: auto; bottom: auto; translate: none; margin: 10px auto calc(12px + env(safe-area-inset-bottom)); flex: none; }
+
+/* Isla del club: personajes sobre el pasto */
+.club-escena { touch-action: manipulation; cursor: pointer; }
+.club-suelo { position: absolute; left: 0; right: 0; bottom: var(--pie, 18%); height: 0; z-index: 2; }
+.club-pj { position: absolute; bottom: 0; translate: -50% 0; display: flex; flex-direction: column; align-items: center; border: 0; background: none; padding: 0;
+  transition: left 2.2s linear; z-index: 2; }
+.club-pj.yo { z-index: 3; transition-duration: 1.6s; }
+.club-cuerpo-pj { display: block; position: relative; z-index: 1; }
+.club-pj.camina .club-cuerpo-pj { animation: pasito .32s steps(2) infinite; }
+@keyframes pasito { 50% { translate: 0 -4px; } }
+.club-sombra { position: absolute; bottom: -5px; left: 50%; translate: -50% 0; width: 54px; height: 12px; border-radius: 50%; background: rgba(30,20,12,.32); z-index: 0; }
+.club-nombre { order: -1; margin-bottom: 4px; background: var(--papel); color: var(--ink); border: 2px solid var(--ink); border-radius: 6px; font-weight: 900; font-size: .74rem;
+  padding: 0 6px; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; box-shadow: 2px 2px 0 var(--ink); }
+.club-pj.yo .club-nombre { background: var(--oro); }
+button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color: #fff; }
+.club-pj.ocupado { opacity: .7; }
+.globo-frase { order: -2; position: relative; margin-bottom: 6px; background: #fff; color: var(--ink); border: 2.5px solid var(--ink); border-radius: 12px; padding: 3px 10px;
+  font-weight: 900; font-size: .85rem; white-space: nowrap; box-shadow: 2px 3px 0 var(--ink); animation: globoFrase 3.2s ease both; }
+.globo-frase::after { content: ''; position: absolute; left: 50%; bottom: -8px; translate: -50% 0; width: 10px; height: 10px; background: #fff; border-right: 2.5px solid var(--ink); border-bottom: 2.5px solid var(--ink); rotate: 45deg; }
+@keyframes globoFrase { 0% { opacity: 0; scale: .5; } 8% { opacity: 1; scale: 1.08; } 14% { scale: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+.frases { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px; background: #10204F; border-bottom: var(--borde); scrollbar-width: none; }
+.frases button { flex: none; border: 2.5px solid var(--ink); background: var(--papel); color: var(--ink); border-radius: 99px; padding: 5px 12px; font-weight: 900; font-size: .85rem; box-shadow: 2px 2px 0 var(--ink); }
+.frases button:active { translate: 1px 2px; box-shadow: 0 0 0 var(--ink); }
+@media (prefers-reduced-motion: reduce) { .club-pj { transition: none; } .club-pj.camina .club-cuerpo-pj { animation: none; } }
+.sala-entrada { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; margin: 8px 0; }
+.codigo-qr { border: var(--borde); border-radius: 10px; box-shadow: var(--golpe); background: #fff; }
+.aviso-abandono { background: var(--oro); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 10px; padding: 6px 10px; font-weight: 900; box-shadow: 2px 3px 0 var(--ink); }
+.certificado-vista { width: 100%; border: var(--borde); border-radius: 8px; box-shadow: var(--golpe); margin-top: 10px; }
+.certificado .taller-progreso { height: 16px; border: var(--borde); border-radius: 99px; background: var(--papel); overflow: hidden; }

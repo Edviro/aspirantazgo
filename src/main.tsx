@@ -9,6 +9,8 @@ import '@fontsource/nunito/latin-700.css'
 import '@fontsource/nunito/latin-800.css'
 import '@fontsource/nunito/latin-900.css'
 import './styles.css'
+import { salaDelEnlace } from './ui/componentes/CodigoQR'
+salaDelEnlace() // guarda el código de sala del enlace/QR antes de que se pierda en el inicio de sesión
 import { precargarOficiales } from './assetsOficiales'
 
 // Los emblemas oficiales se bajan una vez y quedan listos para el 2D y las texturas del 3D.

@@ -3,6 +3,7 @@ import type {
   ConexionPresencia, ConexionSala, EventosPresencia, EventosSala, InicioRonda, InvitacionDuelo, JugadorEnLinea, JugadorSala,
   ProgresoSala, PuertoSalas, RespuestaDuelo, ResultadoDuelo,
 } from '../../application/puertos'
+import { FRASES } from '../../application/puertos'
 import { TODOS_LOS_NIVELES } from '../../domain/niveles'
 
 type Rpc = <T>(fn: string, args?: Record<string, unknown>) => Promise<T>
@@ -37,6 +38,7 @@ function limpiarEnLinea(v: unknown): JugadorEnLinea | null {
     id: o.id as string, clubId: o.clubId as string, apodo: texto(o.apodo, 16), club: texto(o.club, 60),
     rango: (RANGOS.has(o.rango as string) ? o.rango : 'conquistador') as JugadorEnLinea['rango'],
     avatar: limpiarAvatar(o.avatar), ocupado: o.ocupado === true,
+    x: typeof o.x === 'number' && Number.isFinite(o.x) ? Math.min(0.92, Math.max(0.08, o.x)) : undefined,
   }
 }
 
@@ -54,6 +56,7 @@ export class SalasSupabase implements PuertoSalas {
   entrar(codigo: string) { return this.rpc<{ codigo: string; tipo: 'sala' | 'duelo'; anfitrion: boolean }>('entrar_sala', { p_token: this.token(), p_codigo: codigo }) }
   async cerrar(codigo: string) { await this.rpc('cerrar_sala', { p_token: this.token(), p_codigo: codigo }) }
   crearDuelo(rivalId: string) { return this.rpc<string>('crear_duelo', { p_token: this.token(), p_rival: rivalId }) }
+  reclamarAbandono(codigo: string) { return this.rpc<ResultadoDuelo>('reclamar_abandono', { p_token: this.token(), p_codigo: codigo }) }
   resultadoDuelo(codigo: string) { return this.rpc<ResultadoDuelo>('resultado_duelo', { p_token: this.token(), p_codigo: codigo }) }
 
   conectar(codigo: string, yo: JugadorSala, ev: EventosSala): Promise<ConexionSala> {
@@ -121,6 +124,10 @@ export class SalasSupabase implements PuertoSalas {
       const de = limpiarEnLinea(p.de)
       if (de) ev.onInvitacion?.({ para: yo.id, de, codigo: p.codigo, nivelId: p.nivelId, dificultad: p.dificultad } as InvitacionDuelo)
     })
+    canal.on('broadcast', { event: 'gesto' }, ({ payload: p }) => {
+      if (!p || !esId(p.de) || typeof p.frase !== 'number' || p.frase < 0 || p.frase >= FRASES.length) return
+      ev.onGesto?.({ de: p.de, frase: Math.floor(p.frase) })
+    })
     canal.on('broadcast', { event: 'respuesta' }, ({ payload: p }) => {
       if (!p || p.para !== yo.id || !esId(p.de) || !esCodigo(p.codigo)) return
       ev.onRespuesta?.({ para: yo.id, de: p.de, codigo: p.codigo, acepta: p.acepta === true } as RespuestaDuelo)
@@ -135,6 +142,7 @@ export class SalasSupabase implements PuertoSalas {
             invitar: async i => { await canal.send({ type: 'broadcast', event: 'invitacion', payload: i }) },
             responder: async r => { await canal.send({ type: 'broadcast', event: 'respuesta', payload: r }) },
             actualizar: async j => { await canal.track(j) },
+            gesto: async (de, frase) => { await canal.send({ type: 'broadcast', event: 'gesto', payload: { de, frase } }) },
             salir: async () => { await canal.untrack(); await this.sb.removeChannel(canal) },
           })
         } else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') {

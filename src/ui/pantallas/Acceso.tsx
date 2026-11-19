@@ -131,7 +131,7 @@ export default function Acceso() {
       soyDirector: !!(soyDirector && puedeDirigir), apodo, rango, cargo: cargo.replace(/\./g, ''), acepta, autoriza,
     })
     await setSesion('en_linea', p)
-    ir(soyDirector && puedeDirigir ? 'director' : 'editor')
+    ir('editor')
   })
 
   return (

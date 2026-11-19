@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useJuego } from '../estado'
+import { mensajeError } from '../../application/errores'
 import { Boton } from '../componentes/Comunes'
 import { Campamento } from '../pixel/Campamento'
 import { PixelAvatar } from '../pixel/PixelAvatar'
@@ -53,7 +54,7 @@ export default function Editor() {
   const rangos = practica ? RANGOS : RANGOS.filter(([r]) => r !== 'conquistador')
   const u = a.uniforme ?? {}
   const gm = esGuiaMayor(rango), adulto = esAdulto(rango)
-  const regulares = (gm ? [...ORDEN_CLASES] : u.regulares?.length ? u.regulares : rango === 'conquistador' ? ['amigo'] : [...ORDEN_CLASES]) as ClaseId[]
+  const regulares = (gm ? [...ORDEN_CLASES] : u.regulares ? u.regulares : rango === 'conquistador' ? ['amigo'] : [...ORDEN_CLASES]) as ClaseId[]
   const avanzadas = (u.avanzadas ?? []).filter(c => regulares.includes(c as ClaseId))
   const setU = (cambios: Partial<NonNullable<AvatarConfig['uniforme']>>) => setA({ ...a, uniforme: { ...u, regulares, avanzadas, ...cambios } })
 
@@ -62,8 +63,9 @@ export default function Editor() {
     // Las clases se cursan en orden: marcar una incluye todas las anteriores; quitarla quita las siguientes.
     const i = ORDEN_CLASES.indexOf(c)
     const tiene = regulares.includes(c)
-    const nuevas = ORDEN_CLASES.slice(0, tiene ? Math.max(1, i) : i + 1)
-    setU({ regulares: nuevas, avanzadas: avanzadas.filter(x => nuevas.includes(x as ClaseId)) })
+    const nuevas = ORDEN_CLASES.slice(0, tiene ? i : i + 1)
+    // Con cualquier clase ya recibiste tu pañoleta (es el primer paso para clases y especialidades)
+    setA({ ...a, ...(nuevas.length ? { panoleta: true } : {}), uniforme: { ...u, regulares: nuevas, avanzadas: avanzadas.filter(x => nuevas.includes(x as ClaseId)) } })
   }
   const toggleAvanzada = (c: ClaseId) => {
     if (!regulares.includes(c)) { setAviso(`Primero la regular: para la avanzada de ${NOMBRE_CLASE[c]} necesitas la clase ${NOMBRE_CLASE[c]}.`); return }
@@ -76,7 +78,12 @@ export default function Editor() {
     try {
       if (rango !== perfil.rango && puedeRango) await repo.cambiarRango(rango)
       await repo.guardarAvatar(a)
-    } catch { /* se reintenta luego */ }
+    } catch (e) {
+      // Antes este error se ignoraba y el personaje quedaba vacío en el servidor: ahora se avisa y no se sale
+      setAviso(`No se pudo guardar tu personaje: ${mensajeError(e)}`)
+      setGuardando(false)
+      return
+    }
     setPerfil({ ...perfil, avatar: a, rango, grupo_edad: practica ? (rango === 'conquistador' ? 'menor' : 'adulto') : perfil.grupo_edad })
     setGuardando(false)
     ir('mapa')
@@ -164,12 +171,15 @@ export default function Editor() {
                   ? <button className="on" disabled title="Todo líder de 16 a más es bautizado">Bautizado ✓</button>
                   : <button className={u.bautismo !== false ? 'on' : ''} onClick={() => setU({ bautismo: u.bautismo === false })}>Bautismo</button>}
                 <button className={u.excelencia ? 'on' : ''} onClick={() => setU({ excelencia: !u.excelencia })}>Barra de excelencia</button>
-                {rango === 'conquistador' && <button className={a.panoleta !== false ? 'on' : ''} onClick={() => setA({ ...a, panoleta: a.panoleta === false })}>Pañoleta</button>}
+                {rango === 'conquistador' && (regulares.length > 0
+                  ? <button className="on" disabled title="Con una clase ya recibiste tu pañoleta">Pañoleta ✓</button>
+                  : <button className={a.panoleta !== false ? 'on' : ''} onClick={() => setA({ ...a, panoleta: a.panoleta === false })}>Pañoleta</button>)}
               </div>
             </div>
           </>)}
         </div>
-        <Boton onClick={guardar} disabled={guardando}>¡Listo, al mapa!</Boton>
+        {aviso && pestana === 'look' && <small className="nota aviso" role="alert">{aviso}</small>}
+        <Boton onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : '¡Listo, al mapa!'}</Boton>
       </div>
     </div>
   )
