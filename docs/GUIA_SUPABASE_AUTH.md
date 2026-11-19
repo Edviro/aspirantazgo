@@ -17,14 +17,42 @@ Proyecto de Supabase: `jlvmwirdohfkllmkihwc` · Sitio: `https://aspirantazgo.ver
      - `https://aspirantazgo.vercel.app/**`
      - `http://localhost:5173/**` (solo para probar en tu PC)
 
-## 2. Enviar correos de verdad (muy recomendado)
+## 2. Enviar los correos con Gmail (obligatorio para el registro con correo)
 
-El correo que trae Supabase de fábrica solo envía unos pocos mensajes por hora y es para pruebas.
-Para una capacitación con muchos líderes, conecta tu propio SMTP:
+Vercel solo publica la página: **no envía correos**. Y el correo que trae Supabase de fábrica **solo llega a los
+miembros de tu equipo de Supabase** (cualquier otro líder recibe el error *Email address not authorized*).
+Por eso hay que conectar un correo propio. Con Gmail es gratis y no necesitas otro servicio.
 
-1. Crea una cuenta gratuita en un servicio de correo (por ejemplo Resend o Brevo) y verifica tu dominio o tu correo remitente.
-2. Supabase → **Authentication → Emails → SMTP Settings** → activa *Custom SMTP* y pega host, puerto, usuario y clave que te da ese servicio.
-3. En **Emails → Templates** puedes traducir los mensajes al español (confirmar cuenta, recuperar contraseña).
+**Recomendado:** crea una cuenta de Gmail solo para el juego (por ejemplo `aspirantazgo.juego@gmail.com`) en vez de usar
+tu correo personal. Los correos saldrán desde esa dirección.
+
+**En esa cuenta de Google:**
+
+1. Entra a `myaccount.google.com/security` y activa la **Verificación en dos pasos** (sin esto no aparece la opción siguiente).
+2. Entra a `myaccount.google.com/apppasswords`, escribe un nombre como "Supabase Aspirantazgo" y toca **Crear**.
+3. Google te muestra una **contraseña de aplicación** de 16 letras. Cópiala (solo se muestra una vez).
+   Si algún día cambias la contraseña de esa cuenta de Gmail, esta clave deja de funcionar y hay que crear otra.
+
+**En Supabase → Authentication → Emails → SMTP Settings:** activa *Enable Custom SMTP* y llena:
+
+| Campo | Valor |
+|---|---|
+| Sender email | la dirección de Gmail del juego |
+| Sender name | `Aspirantazgo` |
+| Host | `smtp.gmail.com` |
+| Port number | `465` |
+| Username | la misma dirección de Gmail |
+| Password | la contraseña de aplicación de 16 letras (sin espacios) |
+
+Guarda. Luego, en **Authentication → Rate Limits**, sube *Rate limit for sending emails* (Supabase lo deja en 30 por hora al
+conectar un correo propio); 100 por hora es un buen valor.
+
+**Límite de Gmail:** una cuenta gratuita envía hasta **500 correos al día** (Google Workspace, 2.000). Cada líder usa uno al
+crear su cuenta y otro si olvida su contraseña, así que alcanza de sobra. Para un evento grande, pide que entren con
+**Continuar con Google**: así no se envía ningún correo.
+
+**Plantillas:** en **Authentication → Emails → Templates** traduce al español los asuntos y textos de *Confirm signup* y
+*Reset password*. Mantén los mensajes cortos y sin imágenes para que no caigan en spam.
 
 ## 3. Entrar con Google
 
