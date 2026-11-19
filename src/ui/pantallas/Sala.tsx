@@ -7,7 +7,8 @@ import { CodigoQR, enlaceSala } from '../componentes/CodigoQR'
 import { MUNDOS_JUGABLES, MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
 import { DIFICULTADES } from '../../domain/dificultad'
 import type { Dificultad } from '../../domain/tipos'
-import type { ResultadoDuelo } from '../../application/puertos'
+import type { FilaSala, ResultadoDuelo } from '../../application/puertos'
+import { Podio } from '../componentes/Podio'
 import { useProgreso } from '../progreso'
 
 /** Sala en vivo: el líder elige el nivel, todos juegan a la vez y el avance se ve en tiempo real. */
@@ -15,6 +16,13 @@ export default function Sala() {
   const { sala, perfil, ir, dejarSala, iniciarRonda, repo } = useJuego()
   useEffect(() => { musica('rapido') }, [])
   const [oficial, setOficial] = useState<ResultadoDuelo | null>(null)
+  const [podio, setPodio] = useState<FilaSala[] | null>(null)
+  const pedirPodio = () => {
+    const s = useJuego.getState().sala
+    if (!s?.ronda || !repo.salas) return
+    repo.salas.resultadoSala(s.conexion.codigo, s.ronda.nivelId, new Date(s.rondaRecibida - 120000).toISOString())
+      .then(f => setPodio(f)).catch(() => undefined)
+  }
   const [nivelId, setNivelId] = useState(MUNDO_UNIFORMES.niveles[1].id)
   const [dif, setDif] = useState<Dificultad>('medio')
   const [cuenta, setCuenta] = useState<number | null>(null)
@@ -36,6 +44,16 @@ export default function Sala() {
     return jugadores.map(j => ({ ...j, prog: p[j.id] })).sort((a, b) =>
       (b.prog?.puntaje ?? -1) - (a.prog?.puntaje ?? -1) || (b.prog?.avance ?? 0) - (a.prog?.avance ?? 0))
   }, [jugadores, sala?.progresos])
+
+  // Sala: al empezar otra ronda se borra el podio anterior
+  useEffect(() => { setPodio(null) }, [sala?.ronda?.ronda])
+  // Cuando todos terminan, el podio oficial se pide al servidor (una vez por ronda)
+  const finTodos = !!sala?.ronda && sala.tipo !== 'duelo' && jugadores.length > 0 && tabla.every(t => t.prog?.puntaje !== undefined)
+  useEffect(() => {
+    if (!finTodos) return
+    const t = setTimeout(pedirPodio, 1500)
+    return () => clearTimeout(t)
+  }, [finTodos]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Duelo: cuando los dos avisan que terminaron, se pide el resultado OFICIAL al servidor (calculado con los intentos guardados)
   const esDuelo = sala?.tipo === 'duelo'
@@ -153,6 +171,23 @@ export default function Sala() {
           </section>
         )}
 
+        {podio && podio.length > 0 && !duelo && (
+          <section className="parche podio-sala">
+            <h3 className="podio-titulo">¡Podio de la ronda!</h3>
+            <Podio top={podio.slice(0, 3).map(f => ({ nombre: f.apodo, avatar: f.avatar, rango: f.rango, puntos: f.puntaje }))} />
+            <ol className="carrera oficial">
+              {podio.map(f => (
+                <li key={f.id} className={f.id === perfil.id ? 'yo' : ''}>
+                  <span className="pos">{f.posicion}</span>
+                  <span className="quien"><b>{f.apodo}</b><small>{f.club}</small></span>
+                  <span className="pts">{f.puntaje}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="verificado">Resultado verificado por el servidor</p>
+          </section>
+        )}
+
         {!duelo && <section className="parche">
           <h3>{ronda ? 'Carrera en vivo' : `Conectados (${jugadores.length})`}{clubes > 1 ? ` · ${clubes} clubes` : ''}</h3>
           <ul className="carrera">
@@ -187,6 +222,7 @@ export default function Sala() {
                 <button key={d} className={dif === d ? 'on' : ''} onClick={() => setDif(d)}>{DIFICULTADES[d].nombre}</button>
               ))}
             </div>
+            {ronda && !podio && terminaron > 0 && <Boton tipo="azul" onClick={pedirPodio}>Ver podio ahora ({terminaron} de {jugadores.length} terminaron)</Boton>}
             <Boton onClick={() => iniciarRonda(nivelId, dif)} disabled={jugadores.length === 0}>{ronda ? 'Empezar otra ronda' : 'Empezar ronda'}</Boton>
             {jugadores.length === 0 && <p className="ayuda">Necesitas al menos un jugador conectado.</p>}
           </section>

@@ -6,7 +6,7 @@ import { useJuego } from './estado'
  * Tres climas: aventura (mapa), juego (piezas), rápida (trivias y competencias) y solemne (ceremonias).
  */
 
-export type Pista = 'mapa' | 'juego' | 'rapido' | 'solemne'
+export type Pista = 'mapa' | 'juego' | 'rapido' | 'solemne' | 'himno'
 interface Tema {
   bpm: number
   acordes: string[]
@@ -23,6 +23,19 @@ interface Tema {
 }
 
 const TEMAS: Record<Pista, Tema> = {
+  // Himno de los Conquistadores (letra y música: Henry T. Bergh). Transcrito de la partitura que envió Eduardo,
+  // en La bemol mayor. Primer compás = anacrusa ("Con-").
+  himno: {
+    bpm: 84, lead: 'triangle', brillo: 2200, bajo: 'largo', bateria: 'nada', pad: 0.03, reverb: 0.5, volMelodia: 0.075,
+    acordes: ['Ab', 'Ab', 'Ab', 'Ab', 'Db', 'Db', 'Bb', 'Eb', 'Ab', 'Ab', 'Ab', 'Ab', 'Db', 'Db', 'Ab', 'Eb', 'Ab'],
+    melodia: [
+      '. . . . . . Eb4 -',
+      'Ab4 - G4 Ab4 G4 - F4 Eb4', 'C4 - - - C4 - Eb4 -', 'Ab4 - G4 Ab4 Bb4 - Ab4 -', 'Db4 - Eb4 - F4 - - -',
+      'F4 F4 E4 F4 Gb4 - Ab4 -', 'Bb4 - - - Bb4 Ab4 G4 F4', 'Eb4 - E4 - F4 - Db4 -', 'C4 - - - - - Eb4 -',
+      'Ab4 - G4 Ab4 G4 - F4 Eb4', 'C4 - - - - - Eb4 -', 'Ab4 - G4 Ab4 Bb4 - Ab4 -', 'F4 - - - - - F4 -',
+      'Ab4 - Ab4 Ab4 Bb4 - Ab4 -', 'C5 - Ab4 - Db5 - - Bb4', 'Eb5 - - - G4 - - -', 'Ab4 - - - - - . .',
+    ],
+  },
   mapa: {
     bpm: 112, lead: 'square', brillo: 2600, bajo: 'marcha', bateria: 'marcha', pad: 0.012, reverb: 0.22, volMelodia: 0.03,
     acordes: ['G', 'C', 'D', 'G', 'Em', 'C', 'D', 'G', 'G', 'C', 'Am', 'D', 'G', 'Em', 'C', 'D'],
@@ -59,13 +72,13 @@ const TEMAS: Record<Pista, Tema> = {
   },
 }
 
-const NOTAS: Record<string, number> = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 }
-const midiDe = (n: string) => { const m = n.match(/^([A-G]#?)(\d)$/); return m ? NOTAS[m[1]] + (Number(m[2]) + 1) * 12 : 0 }
+const NOTAS: Record<string, number> = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 }
+const midiDe = (n: string) => { const m = n.match(/^([A-G][#b]?)(\d)$/); return m ? NOTAS[m[1]] + (Number(m[2]) + 1) * 12 : 0 }
 const hz = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12)
 /** Notas de un acorde (fundamental, tercera, quinta) en una octava. */
 function acorde(nombre: string, octava: number) {
-  const raiz = NOTAS[nombre.replace('m', '')] + (octava + 1) * 12
-  const menor = nombre.endsWith('m')
+  const menor = /m$/.test(nombre)
+  const raiz = NOTAS[menor ? nombre.slice(0, -1) : nombre] + (octava + 1) * 12
   return [raiz, raiz + (menor ? 3 : 4), raiz + 7]
 }
 
@@ -152,13 +165,15 @@ function programar() {
       const dur = largo * corchea * (tema.bateria === 'nada' ? 1 : 0.9)
       voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia, tema.brillo, tema.bateria === 'nada' ? 0.12 : 0.01)
       voz(hz(midiDe(sim)), siguienteT, dur, tema.lead, tema.volMelodia * 0.45, tema.brillo * 0.8, 0.02, 7)
+      if (actual === 'himno') voz(hz(midiDe(sim) + 12), siguienteT, dur, 'sine', tema.volMelodia * 0.35, 3000, 0.03)
     }
     // Colchón de acordes (órgano suave)
     if (tema.pad && k === 0) for (const n of notas) voz(hz(n + 12), siguienteT, corchea * 8, 'sawtooth', tema.pad, 900, 0.35, n % 2 ? -6 : 6)
     // Bajo
     if (tema.bajo === 'marcha' && k % 2 === 0) voz(hz(k % 4 === 0 ? notas[0] - 12 : notas[2] - 12), siguienteT, corchea * 0.9, 'triangle', 0.08, 1200)
     if (tema.bajo === 'galope') voz(hz(notas[0] - 12 + (k % 4 === 3 ? 12 : 0)), siguienteT, corchea * 0.7, 'triangle', 0.07, 1400)
-    if (tema.bajo === 'largo' && k === 0) voz(hz(notas[0] - 12), siguienteT, corchea * 8, 'sine', 0.09, 600, 0.2)
+    if (tema.bajo === 'largo' && k === 0) voz(hz(notas[0] - 12), siguienteT, corchea * (actual === 'himno' ? 4 : 8), 'sine', 0.09, 600, 0.2)
+    if (tema.bajo === 'largo' && k === 4 && actual === 'himno') voz(hz(notas[2] - 24), siguienteT, corchea * 4, 'sine', 0.08, 600, 0.2)
     // Batería
     if (tema.bateria === 'marcha') {
       if (k === 0 || k === 4) golpe(siguienteT, 'bombo')
@@ -195,13 +210,13 @@ export function musica(p: Pista | null) {
     if (humedo) humedo.gain.value = TEMAS[p].reverb
     paso = 0; siguienteT = a.currentTime + 0.12
     timer = window.setInterval(programar, 50)
-    fundido(permitida() ? 1 : 0, p === 'solemne' ? 2 : 0.8)
+    fundido(permitida() ? 1 : 0, p === 'solemne' || p === 'himno' ? 2 : 0.8)
   } catch { /* sin audio */ }
 }
 
 /** Qué pista va con cada tipo de nivel: competencias rápidas, piezas tranquilas, ceremonias solemnes. */
 export function pistaDeNivel(tipo: string): Pista {
-  if (tipo === 'ceremonia') return 'solemne'
+  if (tipo === 'ceremonia') return 'himno'
   if (tipo === 'quiz' || tipo === 'vf' || tipo === 'lluvia' || tipo === 'frase' || tipo === 'parejas') return 'rapido'
   return 'juego'
 }

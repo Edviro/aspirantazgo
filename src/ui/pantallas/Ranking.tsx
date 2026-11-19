@@ -1,29 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useJuego } from '../estado'
 import { Cielo } from '../componentes/Comunes'
-import { PixelAvatar } from '../pixel/PixelAvatar'
+import { Podio } from '../componentes/Podio'
 import type { Alcance, FilaRanking } from '../../application/puertos'
 import { mensajeError } from '../../application/errores'
 
 const ALCANCES: [Alcance, string][] = [['mi_club', 'Mi club'], ['jugador', 'Jugadores'], ['club', 'Clubes'], ['campo', 'Asoc./Misión'], ['union', 'Uniones'], ['pais', 'Países']]
 const BANDERA: Record<string, string> = { PE: '🇵🇪', AR: '🇦🇷', BO: '🇧🇴', BR: '🇧🇷', CL: '🇨🇱', CO: '🇨🇴', EC: '🇪🇨', PY: '🇵🇾', UY: '🇺🇾', VE: '🇻🇪', MX: '🇲🇽', US: '🇺🇸', ES: '🇪🇸' }
-
-function Podio({ top }: { top: FilaRanking[] }) {
-  const lugares = [{ i: 1, alto: 54, c: '#C0C7D1', medalla: '🥈' }, { i: 0, alto: 86, c: '#FFC20E', medalla: '🥇' }, { i: 2, alto: 38, c: '#CD7F32', medalla: '🥉' }]
-  return (
-    <div className="podio-pixel">
-      {lugares.map(l => (
-        <div key={l.i} className="podio-lugar">
-          {top[l.i] && <PixelAvatar a={top[l.i].avatar ?? {}} rango={top[l.i].rango ?? 'conquistador'} animo={l.i === 0 ? 'celebra' : 'saluda'} alto={96} />}
-          <div className="podio-bloque" style={{ height: l.alto, background: l.c }}>
-            <span className="podio-medalla">{l.medalla}</span>
-            {top[l.i] && <small className="podio-nombre">{top[l.i].nombre}</small>}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 export default function Ranking() {
   const { repo, perfil, ir, modo } = useJuego()
@@ -56,7 +39,7 @@ export default function Ranking() {
         {ALCANCES.map(([a, n]) => <button key={a} role="tab" aria-selected={alcance === a} className={alcance === a ? 'on' : ''} onClick={() => setAlcance(a)}>{n}</button>)}
       </div>
 
-      {(alcance === 'jugador' || alcance === 'mi_club') && filas && filas.length > 0 && <div className="podio"><Podio top={filas.slice(0, 3)} /></div>}
+      {(alcance === 'jugador' || alcance === 'mi_club') && filas && filas.length > 0 && <div className="podio"><Podio top={filas.slice(0, 3).map(f => ({ nombre: f.nombre, avatar: f.avatar, rango: f.rango }))} /></div>}
 
       <ol className="lista-ranking">
         {filas === null && <li className="cargando">Cargando…</li>}

@@ -1,7 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   ConexionPresencia, ConexionSala, EventosPresencia, EventosSala, InicioRonda, InvitacionDuelo, JugadorEnLinea, JugadorSala,
-  ProgresoSala, PuertoSalas, RespuestaDuelo, ResultadoDuelo,
+  FilaSala, ProgresoSala, PuertoSalas, RespuestaDuelo, ResultadoDuelo,
 } from '../../application/puertos'
 import { FRASES } from '../../application/puertos'
 import { TODOS_LOS_NIVELES } from '../../domain/niveles'
@@ -56,6 +56,7 @@ export class SalasSupabase implements PuertoSalas {
   entrar(codigo: string) { return this.rpc<{ codigo: string; tipo: 'sala' | 'duelo'; anfitrion: boolean }>('entrar_sala', { p_token: this.token(), p_codigo: codigo }) }
   async cerrar(codigo: string) { await this.rpc('cerrar_sala', { p_token: this.token(), p_codigo: codigo }) }
   crearDuelo(rivalId: string) { return this.rpc<string>('crear_duelo', { p_token: this.token(), p_rival: rivalId }) }
+  resultadoSala(codigo: string, reto: string, desde: string) { return this.rpc<FilaSala[]>('resultado_sala', { p_token: this.token(), p_codigo: codigo, p_reto: reto, p_desde: desde }) }
   reclamarAbandono(codigo: string) { return this.rpc<ResultadoDuelo>('reclamar_abandono', { p_token: this.token(), p_codigo: codigo }) }
   resultadoDuelo(codigo: string) { return this.rpc<ResultadoDuelo>('resultado_duelo', { p_token: this.token(), p_codigo: codigo }) }
 

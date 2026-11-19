@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useJuego } from '../estado'
+import { musica } from '../musica'
 import { asset, Boton, Cielo } from '../componentes/Comunes'
 import { repoEnLinea } from '../../adapters/contenedor'
 import { mensajeError } from '../../application/errores'
@@ -59,6 +60,8 @@ export default function Acceso() {
   const [cargo, setCargo] = useState('CONSEJERO')
   const [acepta, setAcepta] = useState(false)
   const [autoriza, setAutoriza] = useState(false)
+
+  useEffect(() => { musica('himno') }, [])
 
   useEffect(() => {
     if (!repoEnLinea) return

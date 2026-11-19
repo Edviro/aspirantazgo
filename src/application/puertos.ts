@@ -56,6 +56,8 @@ export interface Estadisticas { duelos_jugados: number; duelos_ganados: number; 
 
 export interface ResultadoDuelo { terminado: boolean; ganador: string | null; abandono?: boolean; jugadores: { id: string; puntaje: number | null; segundos: number | null }[] }
 
+export interface FilaSala { id: string; apodo: string; club: string; avatar: AvatarConfig | null; rango: Rango; puntaje: number; segundos: number; posicion: number }
+
 export interface ResultadoServidor {
   puntaje: number
   mejor: number
@@ -193,6 +195,8 @@ export interface PuertoSalas {
   resultadoDuelo(codigo: string): Promise<ResultadoDuelo>
   /** Si el rival se desconectó, el servidor puede darte la victoria (lo valida con los tiempos guardados). */
   reclamarAbandono(codigo: string): Promise<ResultadoDuelo>
+  /** Resultado OFICIAL de una ronda de sala, calculado por el servidor con los intentos guardados. */
+  resultadoSala(codigo: string, reto: string, desde: string): Promise<FilaSala[]>
   conectar(codigo: string, yo: JugadorSala, eventos: EventosSala): Promise<ConexionSala>
   /** Presencia global: quién está conectado ahora (por club) y las invitaciones a duelo. */
   presencia(yo: JugadorEnLinea, eventos: EventosPresencia): Promise<ConexionPresencia>

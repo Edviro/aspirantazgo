@@ -1192,3 +1192,22 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
 .aviso-abandono { background: var(--oro); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 10px; padding: 6px 10px; font-weight: 900; box-shadow: 2px 3px 0 var(--ink); }
 .certificado-vista { width: 100%; border: var(--borde); border-radius: 8px; box-shadow: var(--golpe); margin-top: 10px; }
 .certificado .taller-progreso { height: 16px; border: var(--borde); border-radius: 99px; background: var(--papel); overflow: hidden; }
+/* Figuras: la pieza se ajusta al recuadro sin cortarse */
+.figura { padding: 10px; }
+.figura-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.figura-fila { width: 100%; height: 100%; display: flex; gap: 6%; align-items: center; justify-content: center; }
+.figura-fila .figura-svg { flex: 0 1 auto; width: auto; height: 78%; aspect-ratio: 1; max-width: 30%; }
+.figura { display: flex; align-items: center; justify-content: center; }
+.figura > .figura-svg, .figura > .figura-fila, .figura > .figura-ilus { flex: 1 1 auto; min-width: 0; min-height: 0; height: 100%; }
+.figura-fila { gap: 4%; padding: 0 3%; }
+.figura-fila .figura-svg { flex: 1 1 0; min-width: 0; width: auto; height: 72%; max-width: none; aspect-ratio: auto; }
+.figura > .figura-ilus { flex: 0 1 auto; }
+.podio-sala { text-align: center; padding-top: 22px; }
+.podio-sala .podio-pixel { height: auto; min-height: 220px; }
+.podio-pts { font-family: var(--titulo); font-size: 1rem; color: var(--ink); }
+.carrera.oficial { margin-top: 10px; text-align: left; }
+.podio-sala { padding-top: 14px; }
+.podio-sala .podio-pixel { min-height: 0; height: auto; padding-top: 4px; }
+.podio-titulo { margin: 0 0 4px !important; font-family: var(--titulo); font-weight: 400; font-size: 1.8rem !important; letter-spacing: 1.5px; color: var(--oro);
+  -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); }
+.podio-bloque { justify-content: flex-start; gap: 1px; padding-top: 3px; }

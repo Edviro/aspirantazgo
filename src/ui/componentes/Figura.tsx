@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 import type { Pieza } from '../../domain/tipos'
 import type { Ilustracion } from '../../domain/quiz'
-import { PiezaIcono } from './Insignias'
+import { PiezaIcono, PiezaSVG } from './Insignias'
 import { asset } from './Comunes'
 
 const TINTA = '#1E140C'
@@ -57,6 +57,16 @@ function Pantalon() {
 
 const ILUS: Record<Ilustracion, () => ReactElement> = { camisa: () => <Camisa />, banda: Banda, saludo: Saludo, pantalon: Pantalon }
 
+/** La pieza llena el recuadro SIN deformarse ni cortarse (se escala según su propia forma). */
+function Ajustada({ p }: { p: Pieza }) {
+  const m = Math.max(p.w, p.h) * 0.06 + 0.15
+  return (
+    <svg className="figura-svg" viewBox={`${-p.w / 2 - m} ${-p.h / 2 - m} ${p.w + 2 * m} ${p.h + 2 * m}`} preserveAspectRatio="xMidYMid meet" aria-hidden>
+      <PiezaSVG p={p} />
+    </svg>
+  )
+}
+
 /**
  * Recuadro de imagen con tamaño FIJO: la pregunta nunca cambia de forma por tener o no imagen.
  * La pieza se escala para llenar el recuadro (antes salía del tamaño real en cm y quedaba diminuta).
@@ -64,12 +74,9 @@ const ILUS: Record<Ilustracion, () => ReactElement> = { camisa: () => <Camisa />
 export function Figura({ img, ilus, imagen, alto = 150 }: { img?: Pieza | Pieza[]; ilus?: Ilustracion; imagen?: string; alto?: number }) {
   let contenido: ReactElement
   if (Array.isArray(img)) {
-    const lado = Math.min(alto * 0.78, Math.floor((alto * 2.6) / img.length) - 10)
-    contenido = <div className="figura-fila">{img.map((p, i) => <PiezaIcono key={p.key + i} p={p} size={lado} />)}</div>
+    contenido = <div className="figura-fila">{img.map((p, i) => <Ajustada key={p.key + i} p={p} />)}</div>
   } else if (img) {
-    // Las piezas muy anchas (tiras, correa) se limitan por ancho, el resto por alto
-    const ancho = img.w / img.h > 2.2
-    contenido = <PiezaIcono p={img} size={ancho ? Math.round(alto * 1.5) : Math.round(alto * 0.86)} />
+    contenido = <Ajustada p={img} />
   } else if (ilus) {
     const Ilus = ILUS[ilus]
     contenido = <div className="figura-ilus"><Ilus /></div>

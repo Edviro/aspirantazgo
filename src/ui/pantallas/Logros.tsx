@@ -14,7 +14,7 @@ import { mensajeError } from '../../application/errores'
 /** Mis parches: la colección de logros, el reto del día y la racha. */
 export default function Logros() {
   const { ir, jugar, puntajes, perfil } = useJuego()
-  useEffect(() => { musica('solemne') }, [])
+  useEffect(() => { musica('himno') }, [])
   const faltan = MUNDO_UNIFORMES.niveles.filter(n => (puntajes[n.id] ?? 0) < APROBADO).length
   const [nombre, setNombre] = useState(() => { try { return localStorage.getItem('asp_nombre_certificado') ?? '' } catch { return '' } })
   const [vista, setVista] = useState<string | null>(null)
