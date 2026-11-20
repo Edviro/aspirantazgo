@@ -273,7 +273,7 @@ export interface PuertoSalas {
    * Plaza Central (mundo abierto): te pone en un canal con espacio (Plaza 1, 2, 3…). El canal solo lleva ids y
    * posiciones; los nombres y avatares se piden con `perfilesPublicos` (vienen de la base de datos).
    */
-  plaza(yo: { id: string; clubId: string }, pos: PuntoPlaza, eventos: EventosPlaza): Promise<ConexionPlaza>
+  plaza(yo: { id: string; clubId: string; llegada?: number }, pos: PuntoPlaza, eventos: EventosPlaza): Promise<ConexionPlaza>
   perfilesPublicos(ids: string[]): Promise<PerfilPublico[]>
 }
 
@@ -304,6 +304,8 @@ export interface EventosPlaza {
   /** Alguien empezó a caminar de `desde` hacia `hasta`. */
   onIr?: (m: { id: string; desde: PuntoPlaza; hasta: PuntoPlaza }) => void
   onGesto?: (g: { de: string; frase: number }) => void
+  /** El canal se cerró solo (corte de red o límite del servidor): hay que volver a entrar. */
+  onCaida?: () => void
 }
 export interface ConexionPlaza {
   /** Número de canal (Plaza 1, Plaza 2…). */

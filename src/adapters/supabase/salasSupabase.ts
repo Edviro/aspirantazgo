@@ -65,6 +65,8 @@ function punto(x: unknown, y: unknown): PuntoPlaza | null {
 const r2 = (v: number) => Math.round(v * 100) / 100
 /** Cuántos caben en un canal de la plaza y cuántos canales hay como máximo. */
 export const CUPO_PLAZA = 40, CANALES_PLAZA = 30
+/** Supabase permite 5 track()/untrack() por cliente cada 30 s; dejamos margen (el untrack al salir también cuenta). */
+const VENTANA_PRESENCIA = 30000, TRACKS_POR_VENTANA = 4
 
 /**
  * Salas en vivo con Supabase Realtime. El servidor crea y valida cada sala (permisos, horario y cupos);
@@ -135,11 +137,14 @@ export class SalasSupabase implements PuertoSalas {
     canal.on('broadcast', { event: 'cerrada' }, () => ev.onCerrada?.())
     if (avanceEnVivo) avance.on('broadcast', { event: 'progreso' }, ({ payload }) => recibirProgreso(payload))
 
-    const suscribir = (c: RealtimeChannel) => new Promise<void>((ok, mal) => {
-      const t = setTimeout(() => mal(new Error('SALA_SIN_CONEXION')), 10000)
+    /** `luego` recibe los cambios de estado posteriores (reconexión, cierre por el servidor). */
+    const suscribir = (c: RealtimeChannel, luego?: (estado: string) => void) => new Promise<void>((ok, mal) => {
+      let listo = false
+      const t = setTimeout(() => { if (!listo) { listo = true; mal(new Error('SALA_SIN_CONEXION')) } }, 10000)
       c.subscribe(estado => {
-        if (estado === 'SUBSCRIBED') { clearTimeout(t); ok() }
-        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') { clearTimeout(t); mal(new Error('SALA_SIN_CONEXION')) }
+        if (listo) { luego?.(estado); return }
+        if (estado === 'SUBSCRIBED') { listo = true; clearTimeout(t); ok() }
+        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT' || estado === 'CLOSED') { listo = true; clearTimeout(t); mal(new Error('SALA_SIN_CONEXION')) }
       })
     })
 
@@ -240,11 +245,14 @@ export class SalasSupabase implements PuertoSalas {
       const c = this.sb.channel('buzon-' + para)
       try { await c.httpSend(evento, payload) } finally { await this.sb.removeChannel(c).catch(() => undefined) }
     }
-    const suscribir = (c: RealtimeChannel) => new Promise<void>((ok, mal) => {
-      const t = setTimeout(() => mal(new Error('SALA_SIN_CONEXION')), 10000)
+    /** `luego` recibe los cambios de estado posteriores (reconexión, cierre por el servidor). */
+    const suscribir = (c: RealtimeChannel, luego?: (estado: string) => void) => new Promise<void>((ok, mal) => {
+      let listo = false
+      const t = setTimeout(() => { if (!listo) { listo = true; mal(new Error('SALA_SIN_CONEXION')) } }, 10000)
       c.subscribe(estado => {
-        if (estado === 'SUBSCRIBED') { clearTimeout(t); ok() }
-        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') { clearTimeout(t); mal(new Error('SALA_SIN_CONEXION')) }
+        if (listo) { luego?.(estado); return }
+        if (estado === 'SUBSCRIBED') { listo = true; clearTimeout(t); ok() }
+        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT' || estado === 'CLOSED') { listo = true; clearTimeout(t); mal(new Error('SALA_SIN_CONEXION')) }
       })
     })
 
@@ -286,13 +294,16 @@ export class SalasSupabase implements PuertoSalas {
    * Plaza Central: canales `plaza-N` de hasta CUPO_PLAZA jugadores. Se entra al primero con espacio.
    * Por el canal solo viajan ids y posiciones (el destino de cada caminata, no cada paso): muy pocos mensajes.
    */
-  async plaza(yo: { id: string; clubId: string }, pos: PuntoPlaza, ev: EventosPlaza): Promise<ConexionPlaza> {
+  async plaza(yo: { id: string; clubId: string; llegada?: number }, pos: PuntoPlaza, ev: EventosPlaza): Promise<ConexionPlaza> {
     if (!esId(yo.id)) throw new Error('SALA_SIN_CONEXION')
-    const suscribir = (c: RealtimeChannel) => new Promise<void>((ok, mal) => {
-      const t = setTimeout(() => mal(new Error('SALA_SIN_CONEXION')), 10000)
+    /** `luego` recibe los cambios de estado posteriores (reconexión, cierre por el servidor). */
+    const suscribir = (c: RealtimeChannel, luego?: (estado: string) => void) => new Promise<void>((ok, mal) => {
+      let listo = false
+      const t = setTimeout(() => { if (!listo) { listo = true; mal(new Error('SALA_SIN_CONEXION')) } }, 10000)
       c.subscribe(estado => {
-        if (estado === 'SUBSCRIBED') { clearTimeout(t); ok() }
-        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') { clearTimeout(t); mal(new Error('SALA_SIN_CONEXION')) }
+        if (listo) { luego?.(estado); return }
+        if (estado === 'SUBSCRIBED') { listo = true; clearTimeout(t); ok() }
+        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT' || estado === 'CLOSED') { listo = true; clearTimeout(t); mal(new Error('SALA_SIN_CONEXION')) }
       })
     })
     for (let n = 1; n <= CANALES_PLAZA; n++) {
@@ -314,6 +325,10 @@ export class SalasSupabase implements PuertoSalas {
         return lista
       }
       canal.on('presence', { event: 'sync' }, () => { primerSync(); const l = leerPresentes(); if (elegido) ev.onPresentes?.(l) })
+      // Cuando alguien nuevo entra, le contamos dónde estamos (por broadcast: no gasta el cupo de Presence)
+      let saludar: () => void = () => undefined
+      // (solo a quien no estaba: un track() de alguien que ya estaba también llega como 'join')
+      canal.on('presence', { event: 'join' }, ({ key }) => { if (elegido && key !== yo.id && esId(key) && !presentes.has(key)) saludar() })
       canal.on('broadcast', { event: 'ir' }, ({ payload: p }) => {
         if (!elegido || !p || !esId(p.id) || !presentes.has(p.id)) return
         const desde = punto(p.x, p.y), hasta = punto(p.dx, p.dy)
@@ -323,53 +338,111 @@ export class SalasSupabase implements PuertoSalas {
         if (!elegido || !p || !esId(p.de) || !presentes.has(p.de) || !Number.isInteger(p.frase) || p.frase < 0 || p.frase >= FRASES.length) return
         ev.onGesto?.({ de: p.de, frase: Math.floor(p.frase) })
       })
-      try { await suscribir(canal) } catch (e) { await this.sb.removeChannel(canal).catch(() => undefined); throw e }
+      let cerrado = false, reconectando = false
+      let alCambiar: (estado: string) => void = () => undefined
+      try {
+        await suscribir(canal, e => alCambiar(e))
+      } catch (e) { await this.sb.removeChannel(canal).catch(() => undefined); throw e }
       await Promise.race([sincronizado, new Promise(r => setTimeout(r, 1500))])
-      if (Object.keys(canal.presenceState()).length >= CUPO_PLAZA && n < CANALES_PLAZA) { await this.sb.removeChannel(canal).catch(() => undefined); continue }
+      if (Object.keys(canal.presenceState()).length >= CUPO_PLAZA && n < CANALES_PLAZA) { cerrado = true; await this.sb.removeChannel(canal).catch(() => undefined); continue }
 
       elegido = true
-      let ultimo = 0, pendiente: { desde: PuntoPlaza; hasta: PuntoPlaza } | null = null, tIr = 0
-      let ultimoTrack = 0, posPend: PuntoPlaza | null = null, tTrack = 0
-      const llegue = Date.now()
+      // Al reconectar se conserva la hora de llegada (decide el orden de las parcelas)
+      const llegue = yo.llegada && yo.llegada > 0 && yo.llegada <= Date.now() ? yo.llegada : Date.now()
       const meta = { x: r2(pos.x), y: r2(pos.y), t: llegue, cer: false, cul: false, dur: false }
+      let actual: PuntoPlaza = { x: meta.x, y: meta.y }
+
+      /*
+       * Supabase cierra el canal si un cliente hace más de 5 track() en 30 s (ClientPresenceRateLimitReached).
+       * Por eso Presence guarda solo lo que cambia poco (dónde te detuviste, si estás formado, en el culto o durmiendo)
+       * y todo pasa por este cupo: como mucho 4 envíos por ventana de 30 s, juntando los cambios que lleguen mientras.
+       */
+      const hechos: number[] = []
+      let tPend = 0, pendHasta = 0
+      const libreEn = () => {
+        const ahora = Date.now()
+        while (hechos.length && ahora - hechos[0] >= VENTANA_PRESENCIA) hechos.shift()
+        return hechos.length < TRACKS_POR_VENTANA ? 0 : hechos[0] + VENTANA_PRESENCIA - ahora + 100
+      }
+      const enviarTrack = () => {
+        tPend = 0
+        if (cerrado) return
+        const espera = libreEn()
+        if (espera > 0) { programar(espera); return }
+        hechos.push(Date.now())
+        canal.track({ ...meta }).catch(() => undefined)
+      }
+      const programar = (espera: number) => {
+        const cuando = Date.now() + espera
+        if (tPend && pendHasta <= cuando) return
+        clearTimeout(tPend); pendHasta = cuando
+        tPend = window.setTimeout(enviarTrack, Math.max(0, espera))
+      }
+      /** Cambio de estado (formado, culto, durmiendo): sale apenas haya cupo. */
+      const pedirEstado = () => programar(libreEn())
+      /** Posición donde te detuviste: como mucho una vez cada 9 s (el movimiento en vivo va por broadcast). */
+      const pedirPosicion = () => programar(Math.max(libreEn(), 9000 - (Date.now() - (hechos[hechos.length - 1] ?? 0))))
+
+      let ultimo = 0, pendiente: { desde: PuntoPlaza; hasta: PuntoPlaza } | null = null, tIr = 0
       const enviarIr = () => {
-        if (!pendiente) return
+        if (!pendiente || cerrado) return
         const { desde, hasta } = pendiente; pendiente = null; ultimo = Date.now()
         canal.send({ type: 'broadcast', event: 'ir', payload: { id: yo.id, x: r2(desde.x), y: r2(desde.y), dx: r2(hasta.x), dy: r2(hasta.y) } }).catch(() => undefined)
       }
-      const track = () => {
-        if (!posPend) return
-        const p = posPend; posPend = null; ultimoTrack = Date.now()
-        meta.x = r2(p.x); meta.y = r2(p.y)
-        canal.track({ ...meta }).catch(() => undefined)
+      let tHola = 0
+      saludar = () => {
+        if (tHola) return
+        tHola = window.setTimeout(() => {
+          tHola = 0
+          if (cerrado) return
+          canal.send({ type: 'broadcast', event: 'ir', payload: { id: yo.id, x: r2(actual.x), y: r2(actual.y), dx: r2(actual.x), dy: r2(actual.y) } }).catch(() => undefined)
+        }, 500 + Math.random() * 900)
       }
+
+      // Si el servidor cierra el canal (o se cae del todo), avisamos para volver a entrar
+      alCambiar = estado => {
+        if (cerrado) return
+        if (estado === 'SUBSCRIBED') {
+          // Tras una reconexión automática hay que volver a anunciarse
+          if (reconectando) { reconectando = false; pedirEstado() }
+        } else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') {
+          reconectando = true
+        } else if (estado === 'CLOSED') {
+          cerrado = true; clearTimeout(tIr); clearTimeout(tPend); clearTimeout(tHola)
+          ev.onCaida?.()
+        }
+      }
+
+      hechos.push(Date.now())
       await canal.track({ ...meta })
       ev.onPresentes?.(leerPresentes())
       return {
         canal: n,
         llegada: llegue,
         ir: (desde, hasta) => {
-          pendiente = { desde, hasta }
+          pendiente = { desde, hasta }; actual = { x: hasta.x, y: hasta.y }
           const espera = 250 - (Date.now() - ultimo)
           if (espera <= 0) enviarIr()
           else if (!tIr) tIr = window.setTimeout(() => { tIr = 0; enviarIr() }, espera)
         },
-        quieto: pos => {
-          posPend = pos
-          const espera = 3000 - (Date.now() - ultimoTrack)
-          if (espera <= 0) track()
-          else if (!tTrack) tTrack = window.setTimeout(() => { tTrack = 0; track() }, espera)
+        quieto: p => {
+          actual = { x: p.x, y: p.y }
+          // Solo si de verdad te moviste desde lo último que anunciaste
+          if (Math.hypot(p.x - meta.x, p.y - meta.y) < 0.75) return
+          meta.x = r2(p.x); meta.y = r2(p.y)
+          pedirPosicion()
         },
-        gesto: async frase => { await canal.send({ type: 'broadcast', event: 'gesto', payload: { de: yo.id, frase } }) },
-        formar: si => { if (meta.cer === si) return; meta.cer = si; ultimoTrack = Date.now(); canal.track({ ...meta }).catch(() => undefined) },
+        gesto: async frase => { if (!cerrado) await canal.send({ type: 'broadcast', event: 'gesto', payload: { de: yo.id, frase } }) },
+        formar: si => { if (meta.cer === si) return; meta.cer = si; pedirEstado() },
         marcar: e => {
-          const cul = e.cul ?? meta.cul, dur = e.dur ?? meta.dur
+          const cul = (e.cul ?? meta.cul) === true, dur = (e.dur ?? meta.dur) === true
           if (cul === meta.cul && dur === meta.dur) return
-          meta.cul = cul === true; meta.dur = dur === true; ultimoTrack = Date.now(); canal.track({ ...meta }).catch(() => undefined)
+          meta.cul = cul; meta.dur = dur; pedirEstado()
         },
         salir: async () => {
-          clearTimeout(tIr); clearTimeout(tTrack)
-          await canal.untrack().catch(() => undefined)
+          cerrado = true
+          clearTimeout(tIr); clearTimeout(tPend); clearTimeout(tHola)
+          // Al dejar el canal, Presence te quita solo (un untrack() gastaría cupo sin necesidad)
           await this.sb.removeChannel(canal).catch(() => undefined)
         },
       }

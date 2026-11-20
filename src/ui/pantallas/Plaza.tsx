@@ -150,6 +150,9 @@ export default function Plaza() {
   const mundo = useRef<Mundo3D | null>(null)
   const gestosRef = useRef<Record<string, { frase: number; t: number }>>({})
   const miAsiento = useRef<PuntoPlaza | null>(null)
+  // Estado que hay que volver a anunciar si el canal se reconecta
+  const formadoRef = useRef(false), durmiendoRef = useRef(false), llegadaRef = useRef(0)
+  useEffect(() => { formadoRef.current = formado }, [formado])
   const marca = useRef<HTMLDivElement>(null)
   const usoPendiente = useRef<Objeto | null>(null)
   const teclas = useRef(new Set<string>())
@@ -177,6 +180,7 @@ export default function Plaza() {
 
   // Pide (en lote) los nombres, clubes y logros verdaderos de quienes aparecen: vienen de la base de datos, no del canal
   const pidiendo = useRef<number>(0)
+  const anunciado = useRef(new Map<string, PuntoPlaza>())
   const resolver = useCallback((): void => {
     clearTimeout(pidiendo.current)
     pidiendo.current = window.setTimeout(async () => {
@@ -196,11 +200,13 @@ export default function Plaza() {
     for (const p of lista) {
       vistos.add(p.id)
       tiempos.current.set(p.id, { t: p.t, cer: p.cer, cul: p.cul, dur: p.dur })
-      const e = otros.current.get(p.id)
+      const e = otros.current.get(p.id), antes = anunciado.current.get(p.id)
+      anunciado.current.set(p.id, { x: p.x, y: p.y })
       if (!e) otros.current.set(p.id, { x: p.x, y: p.y, ruta: [], mira: 1, camina: false })
-      else if (!e.ruta.length && Math.hypot(e.x - p.x, e.y - p.y) > 1.5) { e.x = p.x; e.y = p.y }
+      // Solo se corrige si ESA persona anunció un lugar nuevo (si no, su dato de Presence es viejo y lo vivo va por "ir")
+      else if (antes && (antes.x !== p.x || antes.y !== p.y) && !e.ruta.length && Math.hypot(e.x - p.x, e.y - p.y) > 1.5) { e.x = p.x; e.y = p.y }
     }
-    for (const id of [...otros.current.keys()]) if (!vistos.has(id)) { otros.current.delete(id); tiempos.current.delete(id) }
+    for (const id of [...otros.current.keys()]) if (!vistos.has(id)) { otros.current.delete(id); tiempos.current.delete(id); anunciado.current.delete(id) }
     resolver(); actualizarLista(); setVer(v => v + 1)
   }, [resolver, actualizarLista])
 
@@ -220,20 +226,27 @@ export default function Plaza() {
   }, [perfil?.id])
 
   // ---------- Conexión al canal ----------
+  // Si el canal se cae (corte de red, celular en segundo plano), se vuelve a entrar solo
+  const [intento, setIntento] = useState(0)
   useEffect(() => {
-    limpiarTransicion()
+    if (intento === 0) limpiarTransicion()
     if (!perfil || !repo.salas || modo !== 'en_linea' || perfil.invitado) { setRed('solo'); return }
-    let vivo = true, con: ConexionPlaza | null = null
-    repo.salas.plaza({ id: perfil.id, clubId: perfil.club.id ?? '' }, { x: yo.current.x, y: yo.current.y }, {
+    let vivo = true, con: ConexionPlaza | null = null, tReintento = 0
+    const reintentar = (ms: number) => { if (vivo && !tReintento) tReintento = window.setTimeout(() => { tReintento = 0; if (vivo) setIntento(i => i + 1) }, ms) }
+    repo.salas.plaza({ id: perfil.id, clubId: perfil.club.id ?? '', llegada: llegadaRef.current }, { x: yo.current.x, y: yo.current.y }, {
       onPresentes: presentes,
       onIr: m => caminar(m.id, m.desde, m.hasta),
       onGesto: g => recibirGesto(g.de, g.frase),
+      onCaida: () => { if (!vivo) return; conexion.current = null; setRed('solo'); reintentar(8000) },
     }).then(c => {
       if (!vivo) { void c.salir(); return }
-      con = c; conexion.current = c; setCanal(c.canal); setMiLlegada(c.llegada); setRed('vivo')
-    }).catch(() => { if (vivo) setRed('solo') })
-    return () => { vivo = false; conexion.current = null; void con?.salir() }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+      con = c; conexion.current = c; setCanal(c.canal); llegadaRef.current = c.llegada; setMiLlegada(c.llegada); setRed('vivo')
+      // Lo que ya tenías puesto (culto, carpa, formación) se vuelve a anunciar
+      if (formadoRef.current) c.formar(true)
+      c.marcar({ cul: miAsiento.current !== null, dur: durmiendoRef.current })
+    }).catch(() => { if (vivo) { setRed('solo'); reintentar(12000) } })
+    return () => { vivo = false; clearTimeout(tReintento); conexion.current = null; void con?.salir() }
+  }, [intento]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Campamentos de los clubes: parcelas por orden de llegada y carpas por sexo ----------
   const asignacion = useMemo(() => {
@@ -425,13 +438,16 @@ export default function Plaza() {
   }
   const dormir = () => {
     try { if (perfil) localStorage.setItem(claveSueno(perfil.id), String(Date.now())) } catch { /* sin almacenamiento */ }
-    conexion.current?.marcar({ dur: true })
+    durmiendoRef.current = true; conexion.current?.marcar({ dur: true })
   }
   const despertar = () => {
     try { if (perfil) localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ }
-    conexion.current?.marcar({ dur: false })
+    durmiendoRef.current = false; conexion.current?.marcar({ dur: false })
   }
-  useEffect(() => { if (carpa?.inicio === 'amaneciendo') conexion.current?.marcar({ dur: false }); if (carpa?.inicio === 'durmiendo') conexion.current?.marcar({ dur: true }) }, [carpa?.inicio, red])
+  useEffect(() => {
+    if (carpa?.inicio === 'amaneciendo') { durmiendoRef.current = false; conexion.current?.marcar({ dur: false }) }
+    if (carpa?.inicio === 'durmiendo') { durmiendoRef.current = true; conexion.current?.marcar({ dur: true }) }
+  }, [carpa?.inicio, red])
 
   // ---------- Mundo 3D ----------
   useEffect(() => {
