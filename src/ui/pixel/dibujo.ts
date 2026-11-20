@@ -123,6 +123,29 @@ export function dibujarAvatar(ctx: CanvasRenderingContext2D, o: Opts) {
   px(18, 14, 12, 2, pelo); px(22, 15, 4, 1, piel)
 }
 
+/** El mismo personaje visto de espaldas (para la cámara 3D): pelo atrás, espalda lisa y el triángulo de la pañoleta. */
+export function dibujarAvatarEspalda(ctx: CanvasRenderingContext2D, o: Opts) {
+  dibujarAvatar(ctx, { ...o, brazoArriba: false })
+  const px = (x: number, y: number, w: number, h: number, c: string) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h) }
+  const piel = PIELES[o.piel ?? 2] ?? PIELES[2], pelo = PELOS[o.pelo ?? 0] ?? PELOS[0]
+  const tela = o.blazer ? '#0F4A47' : o.adulto ? C.blanca : C.caqui, telaS = o.blazer ? '#0A3533' : o.adulto ? C.blancaS : C.caquiS
+  // Espalda lisa (sin bolsillos, botones ni tira)
+  px(14, 28, 20, 13, tela); px(14, 28, 2, 13, telaS); px(32, 28, 2, 13, telaS); px(23, 29, 2, 12, telaS)
+  px(14, 41, 20, 2, C.verdeS)
+  // Pañoleta: el triángulo cae por la espalda
+  if (o.panoleta) {
+    for (let i = 0; i < 8; i++) px(16 + i, 27 + i, 16 - 2 * i, 1, i > 4 ? C.panoletaS : C.panoleta)
+    if (o.gm) for (let i = 0; i < 8; i++) { px(16 + i, 27 + i, 1, 1, C.bordeGM); px(31 - i, 27 + i, 1, 1, C.bordeGM) }
+  }
+  // Cabeza de espaldas: todo pelo, con orejas y nuca
+  px(21, 24, 6, 4, piel)
+  px(17, 10, 14, 15, pelo); px(16, 12, 16, 10, pelo)
+  px(15, 17, 1, 3, piel); px(32, 17, 1, 3, piel)
+  px(19, 11, 4, 1, 'rgba(255,255,255,.22)')
+  const chica = o.genero === 'f', estilo = o.peinado ?? 0
+  if (chica || estilo >= 3) { px(16, 22, 16, 8, pelo); if (estilo === 4) px(22, 28, 4, 8, pelo) }
+}
+
 /** Versión pequeña (14×20) para el mapa: mismo tamaño de pixel que la isla. */
 export const MINI_W = 14
 export const MINI_H = 20

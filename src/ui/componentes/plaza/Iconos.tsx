@@ -32,6 +32,11 @@ const ICONOS: Record<string, string[]> = {
   'parche-amistad': ['..kkkkkkkk..', '.kbbbbbbbbk.', 'kbbrrbbrrbbk', 'kbrrrrrrrrbk', 'kbrrrrrrrrbk', 'kbbrrrrrrbbk', 'kbbbrrrrbbbk', 'kbbbbrrbbbbk', 'kbbbbbbbbbbk', '.kbbbbbbbbk.', '..kkkkkkkk..', '............'],
   'parche-naturaleza': ['..kkkkkkkk..', '.kcccccccck.', 'kcccccgcccck', 'kccccgggccck', 'kcccgggggcck', 'kccgggggggck', 'kcccccmmccck', 'kcccccmmccck', 'kggggggggggk', '.kggggggggk.', '..kkkkkkkk..', '............'],
   'parche-servicio': ['..kkkkkkkk..', '.kwwwwwwwwk.', 'kwwwwrrwwwwk', 'kwwwwrrwwwwk', 'kwrrrrrrrrwk', 'kwrrrrrrrrwk', 'kwwwwrrwwwwk', 'kwwwwrrwwwwk', 'kwwwwwwwwwwk', '.kwwwwwwwwk.', '..kkkkkkkk..', '............'],
+  'obj-guitarra': ['.........kk.', '........kmk.', '.......kmk..', '......kmk...', '.....kmk....', '..kkkmk.....', '.kooook.....', 'kookkook....', 'kokkkoo.....', 'kookkok.....', '.kooook.....', '..kkkk......'],
+  'obj-brujula': ['....kkkk....', '..kkwwwwkk..', '.kwwwrrwwwk.', '.kwwwrrwwwk.', 'kwwwwrrwwwwk', 'kwwwwkkwwwwk', 'kwwwwkkwwwwk', 'kwwwwbbwwwwk', '.kwwwbbwwwk.', '.kwwwbbwwwk.', '..kkwwwwkk..', '....kkkk....'],
+  'obj-linterna': ['.....kk.....', '....k..k....', '...kkkkkk...', '...kyyyyk...', '...kyyyyk...', '...kywwyk...', '...kywwyk...', '...kyyyyk...', '...kyyyyk...', '...kkkkkk...', '....kkkk....', '............'],
+  'obj-cantimplora': ['....kkk.....', '....kmk.....', '..kkkkkkk...', '.kcccccccck.', '.kcccccccck.', '.kmmmmmmmmk.', '.kcccccccck.', '.kcccccccck.', '.kcccccccck.', '..kkkkkkkk..', '............', '............'],
+  'obj-hamaca': ['k..........k', 'kk........kk', 'kok......oyk', '.koy....yok.', '.koyoyoyoyk.', '..kyoyoyok..', '...kkkkkk...', '............', '............', '............', '............', '............'],
   'parche-campori': ['..kkkkkkkk..', '.kyyyyyyyyk.', 'kyyybbbbyyyk', 'kyybbbbbbyyk', 'kybbgkkgbbyk', 'kybggkkggbyk', 'kyggggggggyk', 'kyggggggggyk', 'kyyyyyyyyyyk', '.kyyyyyyyyk.', '..kkkkkkkk..', '............'],
 }
 const COLOR: Record<string, string> = { k: '#1E140C', r: '#D7242F', y: '#F2B90F', w: '#ffffff', b: '#1F4FB8', g: '#1E9A4B', o: '#C98F00', m: '#8a5a2e', c: '#7cc7f0' }

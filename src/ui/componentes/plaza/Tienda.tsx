@@ -56,7 +56,7 @@ export function Tienda({ bolsa, onBolsa, onCerrar }: { bolsa: Bolsa | null; onBo
               return (
                 <li key={it.id} className={`${mio ? 'mio' : ''} ${hecho === it.id ? 'recien' : ''}`}>
                   <IconoItem id={it.id} alto={40} />
-                  <span className="tienda-nombre"><b>{it.nombre}</b><small>{it.tipo === 'pin' ? 'Pin' : 'Parche'}</small></span>
+                  <span className="tienda-nombre"><b>{it.nombre}</b><small>{it.tipo === 'pin' ? 'Pin' : it.tipo === 'parche' ? 'Parche' : 'Para tu carpa'}</small></span>
                   {mio ? <span className="tienda-tengo">✓ Tuyo</span>
                     : <Boton tipo={alcanza ? 'verde' : 'fantasma'} disabled={!enLinea || !alcanza || comprando !== null} onClick={() => comprar(it)}>
                       {comprando === it.id ? '…' : <Moneda n={it.precio} />}

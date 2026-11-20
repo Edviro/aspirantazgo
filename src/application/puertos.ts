@@ -279,7 +279,7 @@ export interface PuertoSalas {
 
 // ---------- Tienda (ConquisCoins) ----------
 export interface Bolsa { saldo: number; ganadas_hoy: number; tope: number; items: string[] }
-export interface ItemTienda { id: string; tipo: 'pin' | 'parche'; nombre: string; precio: number }
+export interface ItemTienda { id: string; tipo: 'pin' | 'parche' | 'objeto'; nombre: string; precio: number }
 export interface MiembroConAvatar { id: string; apodo: string; rango: Rango; grupo_edad: GrupoEdad; avatar: AvatarConfig }
 
 /** Lo que se muestra de otro jugador en el mundo abierto (todo viene de la base de datos). */
@@ -296,7 +296,8 @@ export interface PerfilPublico extends JugadorEnLinea {
 /** Posición en baldosas del mapa de la plaza. */
 export interface PuntoPlaza { x: number; y: number }
 /** `t`: cuándo llegó (ordena las parcelas de los clubes); `cer`: está formado para la ceremonia de banderas. */
-export interface PresenteEnPlaza { id: string; x: number; y: number; t: number; cer: boolean }
+/** cer: formado para la ceremonia; cul: mirando el culto (en su asiento); dur: durmiendo en su carpa. */
+export interface PresenteEnPlaza { id: string; x: number; y: number; t: number; cer: boolean; cul?: boolean; dur?: boolean }
 export interface EventosPlaza {
   /** Quiénes están en tu canal y dónde estaban al entrar o al detenerse. */
   onPresentes?: (lista: PresenteEnPlaza[]) => void
@@ -316,6 +317,8 @@ export interface ConexionPlaza {
   gesto(frase: number): Promise<void>
   /** Avisa que te formas (o ya no) para el izamiento o el arriamiento. */
   formar(si: boolean): void
+  /** Avisa que miras el culto desde tu asiento o que duermes en tu carpa. */
+  marcar(e: { cul?: boolean; dur?: boolean }): void
   salir(): Promise<void>
 }
 
@@ -374,6 +377,10 @@ export interface ProgramaVivo {
   youtube: string | null; parte: number; diapositiva: number; version: number; texto: string | null; total_diapositivas: number | null
   partes: ParteVivo[]; equipo: MiembroPrograma[]; dichos: Dicho[]
   mi_rol: RolPrograma | null; mis_partes: { orden: number; diapositivas: string[] }[]
+  /** Quién tiene el micrófono abierto y la huella de su conexión (solo se acepta audio con esa huella). */
+  microfono?: { de: string; apodo: string; huella: string } | null
+  /** Si tú puedes abrir el micrófono ahora (conductor o responsable de la parte actual). */
+  puedo_hablar?: boolean
 }
 export interface ProgramaAdmin {
   id?: string; titulo: string; inicia: string; minutos: number; estado?: string; youtube: string | null
@@ -388,6 +395,19 @@ export interface PuertoCulto {
   diapositivas(programa: string, orden: number, d: string[]): Promise<number>
   estado(programa: string, estado: 'en_vivo' | 'terminado'): Promise<void>
   borrarDicho(programa: string, id: number): Promise<void>
+  /** Voz en vivo del que tiene el turno (null si el navegador no puede). */
+  readonly voz?: PuertoVoz | null
   /** Aviso instantáneo de "algo cambió" (solo un número): el contenido siempre se pide al servidor. */
   escuchar(programa: string, onCambio: (version: number) => void): Promise<AvisosCulto>
+}
+
+// ---------- Voz en vivo (culto) ----------
+export interface EmisionVoz { oyentes(): number; silenciar(si: boolean): void; cerrar(): Promise<void> }
+export interface RecepcionVoz { volumen(v: number): void; cerrar(): Promise<void> }
+export type EstadoVoz = 'conectando' | 'oyendo' | 'sin_conexion'
+export interface PuertoVoz {
+  /** Abre tu micrófono y lo registra en el servidor (huella de la conexión). Solo si te toca hablar. */
+  hablar(programa: string, yo: string, onOyentes?: (n: number) => void): Promise<EmisionVoz>
+  /** Oye a quien tiene el micrófono: solo acepta audio cuya huella coincide con la que dio el servidor. */
+  escuchar(programa: string, yo: string, de: string, huella: string, onEstado?: (e: EstadoVoz) => void): Promise<RecepcionVoz>
 }

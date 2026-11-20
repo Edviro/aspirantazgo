@@ -42,19 +42,13 @@ export function dibujarEscenario(ctx: CanvasRenderingContext2D, o: { noche: numb
   for (const x of [40, 66, 172, 198]) { p(x, 12, 6, 4, TINTA); p(x + 1, 13, 4, 2, o.enVivo ? '#FFE680' : '#8d8670') }
 
   // Telón (rojo; azul el sábado) con pliegues
-  const tela = o.sabado ? '#2a3f8f' : '#A3141E', telaC = o.sabado ? '#3b55b5' : '#D7242F', telaO = o.sabado ? '#1c2c6b' : '#7a0f17'
+  const tela = '#13204a', telaC = '#1b2c63', telaO = '#0b1430'
   p(30, 13, 180, 85, telaO)
   for (let x = 30; x < 210; x += 6) { p(x, 13, 3, 85, tela); p(x + 1, 13, 1, 85, telaC) }
   // Cenefa dorada festoneada
   p(30, 13, 180, 3, ORO); for (let x = 30; x < 210; x += 10) { p(x, 16, 10, 1, ORO_O); p(x + 2, 17, 6, 1, ORO_O); p(x + 4, 18, 2, 1, ORO_O) }
-  // Estandartes a los lados de la pantalla: Conquistadores y (el sábado) la cruz
-  for (const x of [44, 182]) {
-    p(x, 20, 14, 40, TINTA); p(x + 1, 21, 12, 38, '#F3F1EA')
-    p(x + 1, 21, 6, 19, '#D7242F'); p(x + 7, 40, 6, 19, '#1F4FB8'); p(x + 7, 21, 6, 19, '#ffffff'); p(x + 1, 40, 6, 19, '#ffffff')
-    p(x + 4, 31, 6, 9, ORO); p(x + 5, 33, 4, 5, '#D7242F') // escudo
-    p(x, 59, 3, 3, TINTA); p(x + 11, 59, 3, 3, TINTA); p(x + 5, 60, 4, 4, TINTA)
-  }
-  if (o.sabado) for (const x of [64, 170]) { p(x + 2, 30, 2, 16, '#ffffff'); p(x - 1, 34, 8, 2, '#ffffff') }
+  // Decoración full Conquistadores: telón azul noche con franja dorada y roja (los emblemas C1 se pintan encima)
+  p(30, 86, 180, 2, ORO); p(30, 88, 180, 1, '#D7242F')
   // Marco de la pantalla LED
   const { x: sx, y: sy, w: sw, h: sh } = PANTALLA
   p(sx - 3, sy - 3, sw + 6, sh + 6, TINTA); p(sx - 2, sy - 2, sw + 4, sh + 4, '#2e323b'); p(sx, sy, sw, sh, '#0b0d12')
@@ -67,6 +61,9 @@ export function dibujarEscenario(ctx: CanvasRenderingContext2D, o: { noche: numb
   // Monitores de piso
   for (const x of [52, 176]) { p(x, 89, 12, 6, TINTA); p(x + 1, 90, 10, 4, '#2e323b'); p(x + 3, 91, 6, 2, '#16181d') }
 }
+
+/** Dónde van los dos emblemas C1 del fondo (a los lados de la pantalla). */
+export const EMBLEMAS = [{ x: 38, y: 22, t: 34 }, { x: 168, y: 22, t: 34 }]
 
 /** Lo que va DELANTE de quien predica: el atril de madera con el emblema (y plantas). */
 export function dibujarAtril(ctx: CanvasRenderingContext2D) {

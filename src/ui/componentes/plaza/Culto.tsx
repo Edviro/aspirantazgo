@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { FRASES, type AvatarConfig, type AvisosCulto, type MiembroPrograma, type ProgramaVivo } from '../../../application/puertos'
+import { FRASES, type AvatarConfig, type AvisosCulto, type EmisionVoz, type EstadoVoz, type MiembroPrograma, type ProgramaVivo, type RecepcionVoz } from '../../../application/puertos'
+import type { Pantalla3D } from '../../tres/mundo3d'
 import { mensajeError } from '../../../application/errores'
 import type { Rango } from '../../../domain/tipos'
 import { useJuego } from '../../estado'
-import { ATRIL, CH, CW, PANTALLA, PISO, dibujarAtril, dibujarEscenario, dibujarPublico, puestosPublico } from '../../pixel/cultoPixel'
+import { ATRIL, CH, CW, EMBLEMAS, PANTALLA, PISO, dibujarAtril, dibujarEscenario, dibujarPublico, puestosPublico } from '../../pixel/cultoPixel'
 import { PixelAvatar } from '../../pixel/PixelAvatar'
 import { sfx } from '../../sonido'
 import { menosMovimiento } from '../../transicion'
@@ -22,9 +23,12 @@ const limpiar = (s: string, n: number) => s.replace(/[<>\u0000-\u0009\u000b-\u00
  * El culto en vivo visto desde el público: la cámara baja desde la vista aérea hasta quedar de frente al escenario.
  * Todos miran; solo el equipo del programa habla, cambia lo que se proyecta y avanza. Todo lo valida el servidor.
  */
-export function Culto({ publico, gestos, onGesto, puedeReaccionar, sabado, luz, onCerrar }: {
+export interface EscenaCulto { orador: string | null; equipo: MiembroPrograma[]; hablando: Set<string>; pantalla: Pantalla3D }
+export function Culto({ publico, gestos, onGesto, puedeReaccionar, sabado, luz, onCerrar, modo3d = false, onEscena }: {
   publico: Espectador[]; gestos: Record<string, { frase: number; t: number }>; onGesto: (i: number) => void; puedeReaccionar: boolean
   sabado: boolean; luz: { oscuridad: number; dorado: number }; onCerrar: () => void
+  /** En 3D el escenario se ve en el mundo (desde tu asiento): aquí solo van los controles. */
+  modo3d?: boolean; onEscena?: (e: EscenaCulto) => void
 }) {
   const { repo } = useJuego()
   const culto = repo.culto ?? null
@@ -98,7 +102,11 @@ export function Culto({ publico, gestos, onGesto, puedeReaccionar, sabado, luz, 
     const cv = fondo.current
     if (!cv) return
     cv.width = CW; cv.height = CH
-    dibujarEscenario(cv.getContext('2d')!, { noche, dorado: luz.dorado, sabado, enVivo })
+    const ctx = cv.getContext('2d')!
+    dibujarEscenario(ctx, { noche, dorado: luz.dorado, sabado, enVivo })
+    const img = new Image()
+    img.onload = () => { ctx.imageSmoothingEnabled = false; for (const e of EMBLEMAS) ctx.drawImage(img, e.x, e.y, e.t, e.t) }
+    img.src = `${import.meta.env.BASE_URL}assets/emblema-c1.webp`
   }, [noche > 0.5, luz.dorado > 0.4, sabado, enVivo]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const cv = atril.current; if (cv) { cv.width = CW; cv.height = CH; dibujarAtril(cv.getContext('2d')!) } }, [])
   const gente = useMemo(() => publico.slice(0, 43), [publico])
@@ -130,6 +138,42 @@ export function Culto({ publico, gestos, onGesto, puedeReaccionar, sabado, luz, 
   const soyResponsable = !!parte && parte.responsable === yoId
   const puedeMover = enVivo && (rol === 'conductor' || soyResponsable)
   const total = prog?.total_diapositivas ?? 0
+
+  // ---------- Voz en vivo: habla quien tiene el turno; los demás oyen ----------
+  const voz = culto?.voz ?? null
+  const micro = enVivo ? prog?.microfono ?? null : null
+  const [emision, setEmision] = useState<EmisionVoz | null>(null)
+  const [abriendo, setAbriendo] = useState(false)
+  const [oyentes, setOyentes] = useState(0)
+  const [mudo, setMudo] = useState(false)
+  const [oyendo, setOyendo] = useState<EstadoVoz | null>(null)
+  const [silencio, setSilencio] = useState(false)
+  const recepcion = useRef<RecepcionVoz | null>(null), emisionRef = useRef<EmisionVoz | null>(null), abiertoEn = useRef(0)
+  emisionRef.current = emision
+  useEffect(() => {
+    if (!voz || !prog?.id || !micro || !yoId || micro.de === yoId) { setOyendo(null); return }
+    let vivo = true
+    voz.escuchar(prog.id, yoId, micro.de, micro.huella, e => { if (vivo) setOyendo(e) })
+      .then(r => { if (vivo) { recepcion.current = r; r.volumen(silencio ? 0 : 1) } else void r.cerrar() })
+      .catch(() => { if (vivo) setOyendo('sin_conexion') })
+    return () => { vivo = false; void recepcion.current?.cerrar(); recepcion.current = null }
+  }, [voz, prog?.id, micro?.de, micro?.huella, yoId]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { recepcion.current?.volumen(silencio ? 0 : 1) }, [silencio])
+  // Si el servidor ya no te da el micrófono (cambió la parte o terminó), se cierra solo
+  useEffect(() => {
+    if (emision && prog !== undefined && ultimo.current > abiertoEn.current + 50 && (!enVivo || prog?.microfono?.de !== yoId)) { void emision.cerrar(); setEmision(null) }
+  }, [prog, emision, enVivo, yoId])
+  useEffect(() => () => { void emisionRef.current?.cerrar() }, [])
+  const abrirMicro = async () => {
+    if (!voz || !prog || !yoId) return
+    setError(''); setAbriendo(true)
+    try {
+      const e = await voz.hablar(prog.id, yoId, setOyentes)
+      abiertoEn.current = Date.now(); setEmision(e); setMudo(false)
+      await traer(); avisos.current?.avisar(version.current)
+    } catch (e) { setError(mensajeError(e)); sfx.mal() } finally { setAbriendo(false) }
+  }
+  const cerrarMicro = async () => { const e = emision; setEmision(null); await e?.cerrar(); await traer(); avisos.current?.avisar(version.current) }
 
   const cerrar = () => {
     if (menosMovimiento()) { onCerrar(); return }
@@ -178,6 +222,22 @@ export function Culto({ publico, gestos, onGesto, puedeReaccionar, sabado, luz, 
     )
   }
 
+  // En 3D: lo que se ve en el escenario del mundo (pantalla LED, quién está y quién habla)
+  const textoPantalla = (): Pantalla3D => {
+    if (prog === undefined) return { texto: 'Conectando…', encendida: false }
+    if (!prog) return sabado ? { arriba: 'Feliz sábado', texto: '«Acuérdate del día de reposo para santificarlo»', abajo: 'Éxodo 20:8', encendida: true } : { texto: 'Escenario del Gran Campamento', encendida: false }
+    if (!enVivo) return { arriba: 'Próximo programa', texto: prog.titulo, abajo: fechaLarga(prog.inicia), encendida: true }
+    if (yt) return { arriba: prog.titulo, texto: '● Transmisión en vivo', abajo: parte?.titulo, encendida: true }
+    return { arriba: parte ? `${TIPO_PARTE[parte.tipo]}${parte.apodo ? ` · ${parte.apodo}` : ''}` : prog.titulo, texto: prog.texto || (parte?.titulo ?? prog.titulo), abajo: total > 1 ? `${prog.diapositiva + 1} / ${total}` : undefined, encendida: true }
+  }
+  const claveEscena = `${prog?.version ?? -1}|${prog === undefined}|${dichosVivos.map(d => d.id).join(',')}|${sabado}`
+  useEffect(() => {
+    if (!onEscena) return
+    const hablando = new Set(dichosVivos.map(d => d.de))
+    if (micro) hablando.add(micro.de)
+    onEscena({ orador: orador?.id ?? null, equipo, hablando, pantalla: textoPantalla() })
+  }, [claveEscena]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const avatarEn = (m: MiembroPrograma, x: number, alto: number, clase = '') => {
     const ancho = alto * 48 / 64, d = ultimoDe(m.id)
     return (
@@ -190,7 +250,7 @@ export function Culto({ publico, gestos, onGesto, puedeReaccionar, sabado, luz, 
   }
 
   return (
-    <div className={`culto ${saliendo ? 'saliendo' : ''}`} role="dialog" aria-modal="true" aria-label="Escenario: culto en vivo">
+    <div className={`culto ${modo3d ? 'tres' : ''} ${saliendo ? 'saliendo' : ''}`} role="dialog" aria-modal="true" aria-label="Escenario: culto en vivo">
       <header className="culto-barra">
         <button className="icono" onClick={cerrar} aria-label="Volver al campamento">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -202,6 +262,12 @@ export function Culto({ publico, gestos, onGesto, puedeReaccionar, sabado, luz, 
         {enVivo && yt && <button className="culto-grande" onClick={() => setGrande(g => !g)}>{grande ? 'Pantalla normal' : 'Pantalla grande'}</button>}
       </header>
 
+      {modo3d ? (
+        <div className="culto-hueco">
+          {yt && <div className={`culto-tele ${grande ? 'grande' : ''}`}>{pantalla()}</div>}
+          {modo3d && <p className="culto-pista">Arrastra para mirar alrededor desde tu asiento</p>}
+        </div>
+      ) : (
       <div className="culto-marco" ref={marco}>
         <div className={`culto-escena ${menosMovimiento() ? '' : 'camara'}`} style={{ width: CW * s, height: CH * s }}>
           <canvas ref={fondo} className="culto-capa" aria-hidden />
@@ -228,12 +294,35 @@ export function Culto({ publico, gestos, onGesto, puedeReaccionar, sabado, luz, 
           })}
         </div>
       </div>
+      )}
 
       <div className="culto-sub" aria-live="polite">{subtitulo ? <><b>{subtitulo.apodo}:</b> {subtitulo.texto}</> : enVivo ? <span className="tenue">{parte ? `Ahora: ${parte.titulo}${parte.apodo ? ` · ${parte.apodo}` : ''}` : ''}</span> : null}</div>
 
       <section className="culto-panel">
         {error && <p className="error" role="alert">{error}</p>}
         {!culto && demo === undefined && <p className="nota">Los cultos en vivo funcionan con tu cuenta en línea.</p>}
+
+        {micro && micro.de !== yoId && (
+          <div className="culto-voz">
+            <span className={`voz-punto ${oyendo === 'oyendo' ? 'on' : ''}`} aria-hidden />
+            <span><b>🔊 Habla {micro.apodo}</b><small>{!voz ? (culto ? 'Tu navegador no puede reproducir la voz en vivo.' : 'La voz en vivo funciona con tu cuenta en línea.') : oyendo === 'oyendo' ? (silencio ? 'Sonido apagado' : 'Escuchando en vivo') : oyendo === 'sin_conexion' ? 'No se pudo conectar el audio (red muy cerrada).' : 'Conectando el audio…'}</small></span>
+            {voz && <button className="enlace" onClick={() => setSilencio(v => !v)}>{silencio ? 'Activar sonido' : 'Silenciar'}</button>}
+          </div>
+        )}
+        {enVivo && prog?.puedo_hablar && (
+          <div className="culto-voz mia">
+            {!voz ? <small>Tu navegador no permite el micrófono en vivo.</small>
+              : emision ? <>
+                <span className="voz-punto on rojo" aria-hidden />
+                <span><b>🎙️ Al aire</b><small>{oyentes === 1 ? '1 persona te escucha' : `${oyentes} personas te escuchan`}{mudo ? ' · micrófono en silencio' : ''}</small></span>
+                <button className="enlace" onClick={() => { emision.silenciar(!mudo); setMudo(!mudo) }}>{mudo ? 'Activar' : 'Silenciar'}</button>
+                <Boton tipo="rojo" onClick={cerrarMicro}>Cerrar micrófono</Boton>
+              </> : <>
+                <span><b>Te toca hablar</b><small>{micro ? `Ahora tiene el micrófono ${micro.apodo}.` : 'Abre tu micrófono y todos te oirán.'}</small></span>
+                <Boton tipo="verde" disabled={abriendo} onClick={abrirMicro}>{abriendo ? 'Abriendo…' : '🎙️ Abrir mi micrófono'}</Boton>
+              </>}
+          </div>
+        )}
 
         {puedeReaccionar && enVivo && (
           <div className="culto-reacciones" aria-label="Reaccionar">

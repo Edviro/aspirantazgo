@@ -308,7 +308,7 @@ export class SalasSupabase implements PuertoSalas {
           if (!esId(clave) || clave === yo.id || !m) continue
           const pt = punto(m.x, m.y)
           if (!pt) continue
-          presentes.add(clave); lista.push({ id: clave, ...pt, t: num(m.t, 0, 9e15), cer: m.cer === true })
+          presentes.add(clave); lista.push({ id: clave, ...pt, t: num(m.t, 0, 9e15), cer: m.cer === true, cul: m.cul === true, dur: m.dur === true })
           if (lista.length >= 80) break
         }
         return lista
@@ -331,7 +331,7 @@ export class SalasSupabase implements PuertoSalas {
       let ultimo = 0, pendiente: { desde: PuntoPlaza; hasta: PuntoPlaza } | null = null, tIr = 0
       let ultimoTrack = 0, posPend: PuntoPlaza | null = null, tTrack = 0
       const llegue = Date.now()
-      const meta = { x: r2(pos.x), y: r2(pos.y), t: llegue, cer: false }
+      const meta = { x: r2(pos.x), y: r2(pos.y), t: llegue, cer: false, cul: false, dur: false }
       const enviarIr = () => {
         if (!pendiente) return
         const { desde, hasta } = pendiente; pendiente = null; ultimo = Date.now()
@@ -362,6 +362,11 @@ export class SalasSupabase implements PuertoSalas {
         },
         gesto: async frase => { await canal.send({ type: 'broadcast', event: 'gesto', payload: { de: yo.id, frase } }) },
         formar: si => { if (meta.cer === si) return; meta.cer = si; ultimoTrack = Date.now(); canal.track({ ...meta }).catch(() => undefined) },
+        marcar: e => {
+          const cul = e.cul ?? meta.cul, dur = e.dur ?? meta.dur
+          if (cul === meta.cul && dur === meta.dur) return
+          meta.cul = cul === true; meta.dur = dur === true; ultimoTrack = Date.now(); canal.track({ ...meta }).catch(() => undefined)
+        },
         salir: async () => {
           clearTimeout(tIr); clearTimeout(tTrack)
           await canal.untrack().catch(() => undefined)

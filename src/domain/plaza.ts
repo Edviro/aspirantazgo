@@ -6,8 +6,9 @@
  *    santuario con la gran fogata, bandera y banderín de unidad; tablero de honor; reto del día; tienda de parches y
  *    pines (ConquisCoins) y el escenario para cultos.
  *  - Abajo, el Fuego del Consejo: un círculo de troncos alrededor de una fogata grande.
- *  - Alrededor, las parcelas cercadas de los clubes: portada, astas (país, Conquistadores y club), patio de formación,
- *    carpas de varones a la izquierda y de damas a la derecha, y su fogata (reflector, tipi o estrella).
+ *  - Alrededor, las parcelas cercadas de los clubes: un pórtico de troncos amarrados con las banderas (país,
+ *    Conquistadores y club), patio de formación frente al pórtico, carpas de varones a la izquierda y de damas a la
+ *    derecha (arriba y abajo) y su fogata (reflector, tipi o estrella).
  *    Los clubes reciben parcela conforme van llegando al canal.
  *
  * Todo es determinista y sin dependencias de la interfaz: el mismo mapa y las mismas rutas en todos los equipos,
@@ -23,7 +24,7 @@ export type TipoFogata = 'gran' | 'consejo' | 'reflector' | 'tipi' | 'estrella'
 export type TipoObjeto = 'barco' | 'tablero' | 'reto' | 'tienda' | 'escenario' | 'santuario' | 'letrero' | 'consejo'
   | 'pino' | 'carpa' | 'farol' | 'banca' | 'tronco' | 'fogata' | 'bandera' | 'banderin'
   /** De las parcelas de clubes: */
-  | 'carpa-p' | 'asta' | 'portada'
+  | 'carpa-p' | 'portada'
 
 export interface Objeto {
   tipo: TipoObjeto
@@ -35,7 +36,7 @@ export interface Objeto {
   fogata?: TipoFogata
   /** Parcela a la que pertenece (carpas, astas y portada de los clubes). */
   parcela?: number
-  /** Asta: 0 = país, 1 = Conquistadores, 2 = club. Carpa: número de carpa dentro de su lado. */
+  /** Carpa: número de carpa dentro de su lado. */
   slot?: number
   sexo?: 'm' | 'f'
 }
@@ -112,8 +113,8 @@ export const PARCELAS: Parcela[] = (() => {
   return elegidas.map((c, i) => ({ i, ...c, w: PW, h: PH, fogata: fogatas[i % 3], patio: { x: c.x + PW / 2, y: c.y + 4.5 } }))
 })()
 
-/** Carpas de cada lado de la parcela y cuántos duermen en cada una (mismo sexo). */
-export const CARPAS_POR_LADO = 3, POR_CARPA = 4
+/** Carpas de cada lado de la parcela (3 abajo y 2 arriba) y cuántos duermen en cada una (mismo sexo). */
+export const CARPAS_POR_LADO = 5, POR_CARPA = 4
 
 // ---------------- Construcción del suelo ----------------
 
@@ -174,7 +175,7 @@ function construir() {
       const borde = x === p.x || y === p.y || x === p.x + p.w - 1 || y === p.y + p.h - 1
       set(x, y, borde ? Suelo.CERCA : Suelo.PASTO)
     }
-    for (let y = p.y + 2; y <= p.y + 6; y++) for (let x = p.x + 1; x < p.x + p.w - 1; x++) set(x, y, Suelo.CAMINO)
+    for (let y = p.y + 3; y <= p.y + 6; y++) for (let x = p.x + 1; x < p.x + p.w - 1; x++) set(x, y, Suelo.CAMINO)
     const gx = p.puerta === 'este' ? p.x + p.w - 1 : p.x
     for (let y = p.y + 3; y <= p.y + 5; y++) piedra(gx, y)
     // sendero desde la portada hasta el camino que rodea la plaza
@@ -218,14 +219,15 @@ export const OBJETOS: Objeto[] = (() => {
     [43, 44], [53, 44], [44, 52], [52, 53]] as const) o.push({ tipo: 'farol', x, y, w: 1, h: 1 })
   // Bancas frente al escenario (el público mira el telón desde el sur, de frente)
   for (const x of [45, 50]) o.push({ tipo: 'banca', x, y: 37, w: 2, h: 1 })
-  // Parcelas de clubes: portada, astas, carpas por sexo y su fogata
+  // Parcelas de clubes: pórtico con las banderas, carpas por sexo (abajo y arriba) y su fogata
   for (const p of PARCELAS) {
     const gx = p.puerta === 'este' ? p.x + p.w - 1 : p.x
     o.push({ tipo: 'portada', parcela: p.i, x: gx, y: p.y + 3, w: 1, h: 3, uso: { x: gx + (p.puerta === 'este' ? 1.5 : -0.5), y: p.y + 4.5 } })
-    for (let k = 0; k < 3; k++) o.push({ tipo: 'asta', parcela: p.i, slot: k, x: p.x + 4 + k * 3, y: p.y + 1, w: 1, h: 1 })
     for (let k = 0; k < CARPAS_POR_LADO; k++) {
-      o.push({ tipo: 'carpa-p', parcela: p.i, slot: k, sexo: 'm', x: p.x + 1 + k * 2, y: p.y + 8, w: 2, h: 2, uso: { x: p.x + 2 + k * 2, y: p.y + 7.4 } })
-      o.push({ tipo: 'carpa-p', parcela: p.i, slot: k, sexo: 'f', x: p.x + p.w - 3 - k * 2, y: p.y + 8, w: 2, h: 2, uso: { x: p.x + p.w - 2 - k * 2, y: p.y + 7.4 } })
+      // 0 a 2: fila de abajo (la puerta mira al patio, hacia arriba); 3 y 4: fila de arriba (la puerta mira hacia abajo)
+      const abajo = k < 3, j = abajo ? k : k - 3, y = abajo ? p.y + 8 : p.y + 1, uy = abajo ? p.y + 7.4 : p.y + 3.5
+      o.push({ tipo: 'carpa-p', parcela: p.i, slot: k, sexo: 'm', x: p.x + 1 + j * 2, y, w: 2, h: 2, uso: { x: p.x + 2 + j * 2, y: uy } })
+      o.push({ tipo: 'carpa-p', parcela: p.i, slot: k, sexo: 'f', x: p.x + p.w - 3 - j * 2, y, w: 2, h: 2, uso: { x: p.x + p.w - 2 - j * 2, y: uy } })
     }
     o.push({ tipo: 'fogata', fogata: p.fogata, parcela: p.i, x: p.x + Math.floor(p.w / 2) - 1, y: p.y + 10, w: 2, h: 1 })
   }
@@ -234,7 +236,7 @@ export const OBJETOS: Objeto[] = (() => {
   for (const ob of o) for (let y = ob.y - 1; y <= ob.y + ob.h; y++) for (let x = ob.x - 1; x <= ob.x + ob.w; x++) ocupadas.add(y * ANCHO + x)
   const libreParaDeco = (x: number, y: number) => !ocupadas.has(y * ANCHO + x) && suelo(x, y) === Suelo.PASTO && dentroIsla(x + 0.5, y + 0.5) > 1.6 && dentroTriangulo(x + 0.5, y + 0.5) < -3.2
     && !PARCELAS.some(p => x >= p.x - 1 && x <= p.x + p.w && y >= p.y - 1 && y <= p.y + p.h)
-  const pinosPlaza: [number, number][] = [[40, 17], [56, 17], [39, 20], [58, 25], [44, 36], [53, 36], [46, 39], [50, 41], [43, 32], [54, 32]]
+  const pinosPlaza: [number, number][] = [[40, 17], [56, 17], [39, 20], [58, 25], [44, 36], [53, 36], [43, 32], [54, 32]]
   for (const [x, y] of pinosPlaza) if (dentroTriangulo(x + 0.5, y + 0.5) >= 2.2 && suelo(x, y) === Suelo.PASTO) o.push({ tipo: 'pino', x, y, w: 1, h: 1 })
   for (let y = 6; y < ALTO - 2; y++) for (let x = 2; x < ANCHO - 2; x++) {
     if (!libreParaDeco(x, y)) continue
@@ -389,7 +391,8 @@ export function asignar(campistas: Campista[]): Asignacion {
   return { parcelas, carpas }
 }
 
-// ---------------- Ceremonia de banderas: izamiento 7:00 y arriamiento 19:00 ----------------
+// ---------------- Ceremonia de banderas: izamiento 7:00 y arriamiento 18:00 ----------------
+export const HORA_IZAMIENTO = 7, HORA_ARRIAMIENTO = 18
 
 export interface Ceremonia {
   tipo: 'izamiento' | 'arriamiento'
@@ -401,9 +404,9 @@ export interface Ceremonia {
   minutos: number
 }
 const DURACION_CER = 1.5 // minutos que tardan las banderas en subir o bajar
-/** Si hay ceremonia ahora: desde 5 min antes hasta 4 min después de las 7:00 y las 19:00. */
+/** Si hay ceremonia ahora: desde 5 min antes hasta 4 min después de las 7:00 y las 18:00. */
 export function ceremoniaAhora(hora: number): Ceremonia | null {
-  for (const [h, tipo] of [[7, 'izamiento'], [19, 'arriamiento']] as const) {
+  for (const [h, tipo] of [[HORA_IZAMIENTO, 'izamiento'], [HORA_ARRIAMIENTO, 'arriamiento']] as const) {
     const m = (hora - h) * 60
     if (m < -5 || m > 4) continue
     if (m < 0) return { tipo, fase: 'invitacion', avance: 0, minutos: m }
@@ -412,18 +415,18 @@ export function ceremoniaAhora(hora: number): Ceremonia | null {
   }
   return null
 }
-/** Altura de las banderas (0 abajo, 1 arriba) según la hora: arriba de 7:00 a 19:00, animadas en la ceremonia. */
+/** Altura de las banderas (0 abajo, 1 arriba) según la hora: arriba de 7:00 a 18:00, animadas en la ceremonia. */
 export function alturaBanderas(hora: number) {
   const c = ceremoniaAhora(hora)
   if (c && c.fase === 'en_curso') return c.tipo === 'izamiento' ? c.avance : 1 - c.avance
-  return hora >= 7 + DURACION_CER / 60 && hora < 19 ? 1 : hora >= 19 && hora < 19 + DURACION_CER / 60 ? 1 : 0
+  return hora >= HORA_IZAMIENTO + DURACION_CER / 60 && hora < HORA_ARRIAMIENTO ? 1 : 0
 }
 
 export interface Formado { id: string; sexo: 'm' | 'f'; lider: boolean; t: number }
 /**
- * Formación en el patio de la parcela (todos la calculan igual): los 3 primeros líderes izan o arrían las banderas;
- * los demás líderes, la mitad adelante y la mitad atrás; varones a la izquierda y damas a la derecha, en filas de 8.
- * Devuelve la posición (en baldosas) de cada uno, mirando hacia las astas.
+ * Formación en el patio de la parcela, mirando al pórtico donde están amarradas las banderas (todos la calculan igual):
+ * los 3 primeros líderes izan o arrían las banderas al pie del pórtico; los demás líderes, la mitad adelante y la mitad
+ * atrás; varones a la izquierda y damas a la derecha (según hacia dónde miran), en filas de 8.
  */
 export function formacion(p: Parcela, formados: Formado[]): Map<string, { x: number; y: number; abanderado: boolean }> {
   const orden = [...formados].sort((a, b) => a.t - b.t || (a.id < b.id ? -1 : 1))
@@ -433,25 +436,27 @@ export function formacion(p: Parcela, formados: Formado[]): Map<string, { x: num
   const libresL = lideres.filter(l => !usados.has(l.id))
   const adelante = libresL.slice(0, Math.ceil(libresL.length / 2)), atras = libresL.slice(Math.ceil(libresL.length / 2))
   const pos = new Map<string, { x: number; y: number; abanderado: boolean }>()
-  abanderados.forEach((a, k) => pos.set(a.id, { x: p.x + 4.5 + k * 3, y: p.y + 2.3, abanderado: true }))
-  const fila = (lista: Formado[], y: number, x0: number, x1: number) => {
+  const este = p.puerta === 'este', dir = este ? 1 : -1
+  const gx = este ? p.x + p.w - 1 : p.x + 1 // borde interior del pórtico
+  const yA = p.y + 3.25, yB = p.y + 6.75, yM = (yA + yB) / 2
+  // Mirando al este, la izquierda es el norte (y menor); mirando al oeste, es el sur.
+  const izq = este ? [yA, yM - 0.15] : [yB, yM + 0.15], der = este ? [yM + 0.15, yB] : [yM - 0.15, yA]
+  abanderados.forEach((a, k) => pos.set(a.id, { x: gx - dir * 0.9, y: p.y + 3.5 + k * 1.5, abanderado: true }))
+  const columna = (lista: Formado[], x: number, y0: number, y1: number) => {
     const n = Math.max(1, lista.length)
-    lista.forEach((f, k) => pos.set(f.id, { x: n === 1 ? (x0 + x1) / 2 : x0 + ((x1 - x0) * k) / (n - 1), y, abanderado: false }))
+    lista.forEach((f, k) => pos.set(f.id, { x, y: n === 1 ? (y0 + y1) / 2 : y0 + ((y1 - y0) * k) / (n - 1), abanderado: false }))
   }
-  const izq = p.x + 1.5, der = p.x + p.w - 1.5, medio = p.x + p.w / 2
-  fila(adelante, p.y + 3.1, izq + 1, der - 1)
-  // Varones a la izquierda y damas a la derecha, en filas de 8 (dos columnas de 4 por lado si no caben)
-  const bloque = (lista: Formado[], x0: number, x1: number) => {
-    for (let r = 0; r * 8 < lista.length; r++) {
-      const filaL = lista.slice(r * 8, r * 8 + 8)
-      // filas de 8 se parten en dos medias filas para caber en el patio
-      fila(filaL.slice(0, 4), p.y + 3.9 + r * 1.6, x0, x1)
-      fila(filaL.slice(4), p.y + 4.7 + r * 1.6, x0, x1)
-    }
+  let col = 0
+  const x = (c: number) => gx - dir * (2.2 + c * 0.95)
+  if (adelante.length) columna(adelante.slice(0, 8), x(col++), yA, yB)
+  // Cada "fila de 8" (mirando al pórtico) son 4 varones a la izquierda y 4 damas a la derecha
+  const m = resto.filter(f => !usados.has(f.id) && f.sexo === 'm'), f = resto.filter(f2 => !usados.has(f2.id) && f2.sexo === 'f')
+  for (let r = 0; r * 4 < Math.max(m.length, f.length); r++) {
+    columna(m.slice(r * 4, r * 4 + 4), x(col), izq[0], izq[1])
+    columna(f.slice(r * 4, r * 4 + 4), x(col), der[0], der[1])
+    col++
   }
-  bloque(resto.filter(f => !usados.has(f.id) && f.sexo === 'm'), izq, medio - 0.6)
-  bloque(resto.filter(f => !usados.has(f.id) && f.sexo === 'f'), medio + 0.6, der)
-  fila(atras, p.y + 6.4, izq + 1, der - 1)
+  if (atras.length) columna(atras.slice(0, 8), x(col), yA, yB)
   return pos
 }
 

@@ -6,6 +6,7 @@ import type {
 } from '../../application/puertos'
 import type { Dificultad, Rango } from '../../domain/tipos'
 import { SalasSupabase } from './salasSupabase'
+import { VozSupabase } from './vozSupabase'
 
 const CLAVE_TOKEN = 'asp_token'
 
@@ -105,6 +106,7 @@ export class RepositorioSupabase implements RepositorioJuego {
       diapositivas: (programa, orden, d) => rpc<number>('programa_diapositivas', { p_token: token(), p_programa: programa, p_orden: orden, p_diapositivas: d }),
       async estado(programa, estado) { await rpc('programa_estado', { p_token: token(), p_programa: programa, p_estado: estado }) },
       async borrarDicho(programa, id) { await rpc('programa_borrar_dicho', { p_token: token(), p_programa: programa, p_id: id }) },
+      voz: VozSupabase.disponible() ? new VozSupabase(sb, rpc, token) : null,
       // Canal solo de avisos: lleva un número de versión, nunca contenido. Si alguien manda avisos falsos, lo único que
       // logra es que los demás vuelvan a preguntar al servidor (y eso está limitado en la pantalla).
       async escuchar(programa, onCambio) {

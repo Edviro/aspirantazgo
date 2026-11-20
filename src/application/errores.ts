@@ -1,5 +1,6 @@
 const MENSAJES: Record<string, string> = {
   CANTIDAD_INVALIDA: 'Elige de 1 a 10 vidas.',
+  VOZ_NO_DISPONIBLE: 'Tu navegador no permite el micrófono en vivo. Prueba con Chrome o Safari actualizados.',
   NO_EN_VIVO: 'El programa no está en vivo en este momento.',
   MUY_RAPIDO: 'Espera un momento antes de volver a hablar.',
   YOUTUBE_INVALIDO: 'Ese enlace de YouTube no es válido. Copia el enlace del video o de la transmisión.',

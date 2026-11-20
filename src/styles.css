@@ -1796,3 +1796,88 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
   .culto-marco { flex: 0 0 auto; min-height: 0; padding-top: 6px; }
   .culto-panel { flex: 1 1 auto; max-height: none; }
 }
+
+/* ===================== Gran Campamento en 3D ===================== */
+.plaza-3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; background: #0b1430; }
+.plaza-3d.nitido { image-rendering: auto; }
+.plaza-vista.tres { cursor: grab; }
+.plaza-vista.tres:active { cursor: grabbing; }
+.plaza-cargando { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-family: var(--titulo); font-size: 1.3rem; letter-spacing: .04em; background: #0b1430; }
+.p3-capa { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.p3-etq { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; translate: -50% -100%; background: none; border: 0; padding: 0; pointer-events: auto; cursor: pointer; will-change: transform; font: inherit; }
+.p3-etq.yo { pointer-events: none; }
+.p3-etq.yo .plaza-nombre { background: var(--oro); color: var(--ink); }
+.p3-etq.lejos .plaza-nombre { display: none; }
+.p3-etq .plaza-globo { bottom: calc(100% + 2px); }
+.plaza-vista.tres.en-culto .p3-etq .plaza-nombre { display: none; }
+.cam3d { position: absolute; right: calc(10px + env(safe-area-inset-right)); top: calc(50% - 40px); translate: 0 -50%; z-index: 21; display: flex; flex-direction: column; gap: 6px; }
+.cam3d button { width: 42px; min-height: 42px; border-radius: 12px; border: 2.5px solid var(--ink); background: var(--papel); color: var(--ink); font-weight: 900; font-size: 1.1rem; box-shadow: 2px 3px 0 var(--ink); cursor: pointer; display: grid; place-items: center; padding: 2px; line-height: 1; }
+.cam3d button:active { transform: translate(2px, 3px); box-shadow: none; }
+.cam3d button.vista { font-size: .62rem; }
+.cam3d button.vista small { display: block; font-size: .56rem; margin-top: 1px; }
+.cam3d.en-culto { top: 96px; translate: none; z-index: 45; }
+.cam3d-volver { position: absolute; right: calc(10px + env(safe-area-inset-right)); top: calc(50% - 20px); z-index: 21; border-radius: 12px; border: 2.5px solid var(--ink); background: var(--papel); color: var(--ink); font-weight: 900; padding: 8px 10px; box-shadow: 2px 3px 0 var(--ink); cursor: pointer; }
+@media (max-width: 560px) { .cam3d { top: auto; bottom: calc(86px + env(safe-area-inset-bottom)); translate: none; } .cam3d button { width: 38px; min-height: 38px; } }
+
+/* El culto en 3D: el mundo se ve detrás (desde tu asiento); los controles van encima */
+.culto.tres { background: transparent; pointer-events: none; }
+.culto.tres > * { pointer-events: auto; }
+.culto.tres .culto-hueco { flex: 1 1 auto; pointer-events: none; position: relative; min-height: 120px; }
+.culto.tres .culto-barra { background: linear-gradient(rgba(7,11,26,.85), rgba(7,11,26,0)); }
+.culto.tres .culto-sub { background: rgba(7,11,26,.72); border-radius: 12px; max-width: min(760px, calc(100% - 24px)); }
+.culto.tres .culto-panel { background: rgba(7,11,26,.86); border-radius: 16px 16px 0 0; padding-top: 10px; }
+.culto-pista { position: absolute; left: 50%; bottom: 8px; translate: -50% 0; margin: 0; font-size: .78rem; color: rgba(255,255,255,.8); text-shadow: 0 1px 2px #000; white-space: nowrap; animation: desvanecer 5s forwards; }
+@keyframes desvanecer { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.culto-tele { position: absolute; right: 12px; top: 8px; width: min(46vw, 360px); aspect-ratio: 16 / 9; border: 3px solid var(--ink); border-radius: 8px; overflow: hidden; background: #000; pointer-events: auto; box-shadow: 0 8px 20px rgba(0,0,0,.5); }
+.culto-tele.grande { left: 12px; right: 12px; width: auto; max-height: 100%; margin: 0 auto; }
+.culto-voz { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--fieltro); border: var(--puntada); border-radius: 14px; padding: 8px 12px; }
+.culto-voz > span:nth-child(2) { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
+.culto-voz small { color: var(--suave); }
+.voz-punto { width: 12px; height: 12px; border-radius: 50%; background: #8d8670; flex: none; }
+.voz-punto.on { background: #1E9A4B; box-shadow: 0 0 0 4px rgba(30,154,75,.3); animation: latido 1.2s ease-in-out infinite; }
+.voz-punto.on.rojo { background: #D7242F; box-shadow: 0 0 0 4px rgba(215,36,47,.3); }
+
+/* ===================== Dentro de la carpa ===================== */
+.carpa { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; background: #120c08; color: var(--texto);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); animation: carpaEntra .45s ease-out; }
+.carpa.saliendo { animation: carpaSale .38s ease-in forwards; }
+@keyframes carpaEntra { from { opacity: 0; transform: scale(1.18); } }
+@keyframes carpaSale { to { opacity: 0; transform: scale(1.12); } }
+.carpa-escena { position: relative; flex: none; border: 3px solid var(--ink); border-radius: 6px; overflow: hidden; box-shadow: 0 14px 40px rgba(0,0,0,.6); image-rendering: pixelated; background: #2a1c12; }
+.carpa-escena.entrando { animation: carpaAbre .7s cubic-bezier(.2,.7,.2,1); }
+@keyframes carpaAbre { from { clip-path: polygon(50% 0, 50% 0, 50% 100%, 50% 100%); } to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); } }
+.carpa-parches, .carpa-pines { position: absolute; z-index: 3; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 2px; padding: 3px; }
+.carpa-parches small, .carpa-pines small { font-size: 9px; color: rgba(255,255,255,.7); font-weight: 800; text-align: center; align-self: center; }
+.carpa-logros { position: absolute; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff8e6; line-height: 1.1; text-shadow: 0 1px 0 #1E140C; font-weight: 800; }
+.carpa-logros b { font-size: 1.25em; }
+.carpa-logros .campeon { font-size: .7em; }
+.carpa-yo { position: absolute; z-index: 4; }
+.carpa-yo canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.carpa-oscuro { position: absolute; inset: 0; z-index: 5; background: #060814; pointer-events: none; transition: opacity 1.2s; }
+.carpa-luz { position: absolute; z-index: 6; pointer-events: none; mix-blend-mode: screen; background: radial-gradient(50% 45% at 50% 30%, rgba(255,230,140,.55), rgba(255,230,140,0) 70%); }
+.carpa-amanecer { position: absolute; inset: 0; z-index: 6; pointer-events: none; mix-blend-mode: screen; background: radial-gradient(70% 60% at 50% 100%, rgba(255,190,110,.75), rgba(255,140,80,.25) 50%, rgba(0,0,0,0) 80%); animation: amanece 3.6s ease-out forwards; }
+@keyframes amanece { 0% { opacity: 0; } 60% { opacity: 1; } 100% { opacity: .35; } }
+.carpa-zzz { position: absolute; z-index: 7; pointer-events: none; color: #cfe0ff; font-weight: 900; font-family: var(--titulo); }
+.carpa-zzz i { display: inline-block; font-style: normal; animation: zzz 2.4s ease-in-out infinite; font-size: 18px; }
+.carpa-zzz i:nth-child(2) { animation-delay: .5s; font-size: 22px; }
+.carpa-zzz i:nth-child(3) { animation-delay: 1s; font-size: 14px; }
+@keyframes zzz { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(10px, -22px); opacity: 0; } }
+.carpa-cosa { position: absolute; z-index: 8; background: transparent; border: 2px dashed transparent; border-radius: 6px; cursor: pointer; padding: 0; }
+.carpa-cosa:hover, .carpa-cosa:focus-visible { border-color: rgba(242,185,15,.9); background: rgba(242,185,15,.12); outline: none; }
+.carpa-panel { max-width: 640px; }
+.carpa-verso { margin: 0; font-size: 1.02rem; line-height: 1.4; font-style: italic; }
+.carpa-verso small { font-style: normal; color: var(--oro); font-weight: 800; white-space: nowrap; }
+.carpa-buenos { margin: 0; font-family: var(--titulo); font-size: 1.3rem; letter-spacing: .03em; color: var(--oro); }
+.biblia { max-width: 480px; text-align: left; }
+.biblia-hoja { background: #fbf6e8; color: #2a1c12; border: 2.5px solid var(--ink); border-radius: 10px; padding: 14px 16px; font-family: Georgia, 'Times New Roman', serif; line-height: 1.55; }
+.biblia-hoja p { margin: 0 0 8px; font-size: 1.05rem; }
+.biblia-hoja small { font-family: var(--cuerpo); font-weight: 800; color: #8a5a2e; }
+.biblia-lista { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; max-height: 120px; overflow-y: auto; }
+.biblia-lista button { border: 2px solid var(--ink); border-radius: 999px; background: #fff; color: var(--ink); font-weight: 800; font-size: .78rem; padding: 4px 10px; cursor: pointer; }
+.biblia-lista button.on { background: var(--oro); }
+.mochila { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.mochila li { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 2px solid var(--ink); border-radius: 10px; background: #fff8e6; color: var(--ink); padding: 8px 4px; font-weight: 800; font-size: .8rem; }
+.brujula-dialogo .aguja { transform-origin: 60px 60px; animation: aguja 2.4s ease-out; }
+@keyframes aguja { 0% { transform: rotate(-160deg); } 40% { transform: rotate(40deg); } 70% { transform: rotate(-15deg); } 100% { transform: rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .carpa, .carpa-escena.entrando, .carpa-amanecer, .carpa-zzz i, .brujula-dialogo .aguja { animation: none; } }
+.plaza.culto-3d .hud, .plaza.culto-3d .plaza-titulo, .plaza.culto-3d .plaza-acciones, .plaza.culto-3d .plaza-aviso { display: none; }

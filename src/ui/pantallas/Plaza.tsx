@@ -2,6 +2,9 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { FRASES, type Bolsa, type ConexionPlaza, type PerfilPublico, type PresenteEnPlaza, type ProgramaVivo, type PuntoPlaza } from '../../application/puertos'
 import { CAMPAMENTO_CENTRAL, CAMPAMENTOS, centralAbierto, progresoCampamento } from '../../domain/campamentos'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
+import type { Ente3D, Mundo3D, Vista } from '../tres/mundo3d'
+import { guardarVista, prefiere3D, soporta3D } from '../tres/soporte'
+import { Carpa, type Companero } from '../componentes/plaza/Carpa'
 import {
   ALTO, ANCHO, OBJETOS, PARCELAS, MUELLE, SALIDA, alturaBanderas, asignar, ceremoniaAhora, esSabado, formacion, horaLima, luzDelDia,
   objetoEn, ruta, transitable, usableCerca, zonaDe, type Campista, type Objeto, type Zona,
@@ -14,7 +17,7 @@ import { HudVidas } from '../componentes/Vidas'
 import { FichaCarpa, FichaJugador, RANGO_TXT } from '../componentes/plaza/Fichas'
 import { Bandera } from '../componentes/plaza/Iconos'
 import { Moneda, Tienda } from '../componentes/plaza/Tienda'
-import { Culto } from '../componentes/plaza/Culto'
+import { Culto, type EscenaCulto } from '../componentes/plaza/Culto'
 import { TableroRetos } from '../componentes/plaza/TableroRetos'
 import { useJuego } from '../estado'
 import { musica } from '../musica'
@@ -34,6 +37,12 @@ const VENDEDORES = [
 ]
 
 interface Ente { x: number; y: number; ruta: PuntoPlaza[]; mira: 1 | -1; camina: boolean; el?: HTMLElement | null; cuerpo?: HTMLElement | null }
+
+/** Asientos frente al escenario para mirar el culto (filas de 9, en orden de llegada). */
+const ASIENTOS = (() => { const l: PuntoPlaza[] = []; for (let r = 0; r < 6; r++) for (let c = 0; c < 9; c++) l.push({ x: 44.9 + c * 0.9 + (r % 2) * 0.3, y: 38.2 + r * 0.95 }); return l })()
+const VISTAS: Vista[] = ['tv', 'cerca', 'aerea', 'primera']
+const VISTA_TXT: Record<Vista, string> = { tv: 'TV', cerca: 'Cerca', aerea: 'Aérea', primera: '1.ª persona' }
+const claveSueno = (id: string) => `asp_durmiendo_${id}`
 
 const ACCION: Record<string, string> = {
   barco: '⛵ Subir al barco', tablero: '🏆 Torneos y tablero de honor', reto: '⭐ Reto del día', tienda: '🛍️ Tienda de parches y pines',
@@ -101,7 +110,7 @@ export default function Plaza() {
   const yo = useRef<Ente>({ ...(llegada?.tipo === 'llegar' ? MUELLE : SALIDA), ruta: [], mira: 1, camina: false })
   const otros = useRef(new Map<string, Ente>())
   const perfiles = useRef(new Map<string, PerfilPublico>())
-  const tiempos = useRef(new Map<string, { t: number; cer: boolean }>())
+  const tiempos = useRef(new Map<string, { t: number; cer: boolean; cul?: boolean; dur?: boolean }>())
   const rechazados = useRef(new Set<string>())
   const [ids, setIds] = useState<string[]>([])
   const [ver, setVer] = useState(0)
@@ -128,6 +137,18 @@ export default function Plaza() {
   const [programa, setPrograma] = useState<ProgramaVivo | null>(null)
   const cultoAbierto = useRef(false)
   cultoAbierto.current = culto
+  const [carpa, setCarpa] = useState<{ inicio: 'despierto' | 'amaneciendo'; horas?: number } | null>(null)
+  const carpaAbierta = useRef(false)
+  carpaAbierta.current = !!carpa
+  // ---------- 3D: mundo con cámara libre (estilo consola de los 90) ----------
+  const [tres, setTres] = useState(prefiere3D)
+  const [listo3d, setListo3d] = useState(false)
+  const [vista3d, setVista3d] = useState<Vista>('tv')
+  const [nitido, setNitido] = useState(false)
+  const lienzo3d = useRef<HTMLCanvasElement>(null)
+  const mundo = useRef<Mundo3D | null>(null)
+  const gestosRef = useRef<Record<string, { frase: number; t: number }>>({})
+  const miAsiento = useRef<PuntoPlaza | null>(null)
   const marca = useRef<HTMLDivElement>(null)
   const usoPendiente = useRef<Objeto | null>(null)
   const teclas = useRef(new Set<string>())
@@ -170,7 +191,7 @@ export default function Plaza() {
     const vistos = new Set<string>()
     for (const p of lista) {
       vistos.add(p.id)
-      tiempos.current.set(p.id, { t: p.t, cer: p.cer })
+      tiempos.current.set(p.id, { t: p.t, cer: p.cer, cul: p.cul, dur: p.dur })
       const e = otros.current.get(p.id)
       if (!e) otros.current.set(p.id, { x: p.x, y: p.y, ruta: [], mira: 1, camina: false })
       else if (!e.ruta.length && Math.hypot(e.x - p.x, e.y - p.y) > 1.5) { e.x = p.x; e.y = p.y }
@@ -189,6 +210,7 @@ export default function Plaza() {
   }, [])
 
   const recibirGesto = useCallback((de: string, frase: number) => {
+    gestosRef.current = { ...gestosRef.current, [de]: { frase, t: Date.now() } }
     setGestos(g => ({ ...g, [de]: { frase, t: Date.now() } }))
     if (de !== perfil?.id) sfx.burbuja()
   }, [perfil?.id])
@@ -244,6 +266,10 @@ export default function Plaza() {
     Object.assign(yo.current, { x: p.x, y: p.y, ruta: [] })
     Object.assign(cam.current, { x: p.x, y: p.y })
     conexion.current?.quieto(p)
+    // Si te quedaste durmiendo en tu carpa, amanece ahí mismo
+    let desde = 0
+    try { desde = Number(localStorage.getItem(claveSueno(perfil.id))) || 0; localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ }
+    if (desde && carpa) setCarpa({ inicio: 'amaneciendo', horas: (Date.now() - desde) / 3600000 })
   }, [red, asignacion, miParcela, perfil])
 
   // ---------- Sprites (se reutilizan si no cambian) ----------
@@ -254,7 +280,6 @@ export default function Plaza() {
     const lista: { clave: string; sp: Sprite }[] = []
     OBJETOS.forEach((ob, i) => {
       const club = ob.parcela !== undefined ? clubDeParcela.get(ob.parcela) : undefined
-      if (ob.tipo === 'asta' && ob.slot === 2 && !club?.bandera) return // tercera asta solo si el club tiene bandera
       const extra: ExtraSprite = { sabado }
       if (ob.parcela !== undefined) { extra.color = club?.color; extra.ocupada = ob.tipo === 'carpa-p' ? ocupadas.has(`${ob.parcela}-${ob.sexo}-${ob.slot}`) : !!club }
       const clave = `${i}|${abierto}|${extra.color ?? ''}|${extra.ocupada ?? ''}|${(ob.tipo === 'reto' || ob.tipo === 'tienda' || ob.tipo === 'escenario') && sabado}`
@@ -328,18 +353,41 @@ export default function Plaza() {
         const club = ob.parcela !== undefined ? clubDeParcela.get(ob.parcela) : undefined
         const n = club ? [...asignacion.carpas.values()].filter(c => c.parcela === ob.parcela).length : 0
         setAviso(club
-          ? `Campamento del club ${club.nombre}: ${n} ${n === 1 ? 'acampando' : 'acampando'}. Las banderas se izan a las 7:00 y se arrían a las 19:00.`
+          ? `Campamento del club ${club.nombre}: ${n} ${n === 1 ? 'acampando' : 'acampando'}. Las banderas se izan a las 7:00 y se arrían a las 18:00.`
           : 'Parcela libre: aquí acampará el próximo club que llegue.')
         break
       }
-      case 'carpa-p': setCarpaVista(ob); break
+      case 'carpa-p': {
+        const mia = perfil ? asignacion.carpas.get(perfil.id) : undefined
+        if (mia && mia.parcela === ob.parcela && mia.sexo === ob.sexo && mia.slot === ob.slot) entrarCarpa(ob)
+        else setCarpaVista(ob)
+        break
+      }
     }
   }, [abierto, completos, listos, hechoHoy, ir, jugar, reto, rachaObj, sabado, clubDeParcela, asignacion, s]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Cámara al escenario: baja desde la vista aérea hasta quedar de frente (como en los juegos de fútbol) ----------
   const ESC = OBJETOS.find(o => o.tipo === 'escenario')!
+  function asientoPara(id: string) {
+    const enCulto = [...tiempos.current.entries()].filter(([k, v]) => v.cul && k !== id).map(([k, v]) => ({ id: k, t: v.t }))
+    enCulto.push({ id, t: id === perfil?.id ? miLlegada : tiempos.current.get(id)?.t ?? 0 })
+    enCulto.sort((a, b) => a.t - b.t || (a.id < b.id ? -1 : 1))
+    return ASIENTOS[Math.min(ASIENTOS.length - 1, enCulto.findIndex(e => e.id === id))]
+  }
   function entrarCulto() {
     romperFilas(); setAviso(null); setElegido(null); setHablar(false)
+    const m = mundo.current
+    if (m && perfil) {
+      const a = asientoPara(perfil.id)
+      miAsiento.current = a
+      Object.assign(yo.current, { x: a.x, y: a.y, ruta: [] })
+      conexion.current?.quieto(a); conexion.current?.marcar({ cul: true })
+      sfx.zas()
+      m.mirarDesde(a, { x: ESC.x + ESC.w / 2, y: ESC.y, alto: 2.6 })
+      m.setCentro(vista.w < vista.h ? 0.3 : 0.4)
+      setCulto(true)
+      return
+    }
     const z = capa.current?.parentElement
     if (!z || menosMovimiento()) { setCulto(true); return }
     const c = cam.current
@@ -350,11 +398,83 @@ export default function Plaza() {
   }
   const salirCulto = () => {
     setCulto(false)
+    conexion.current?.marcar({ cul: false })
+    miAsiento.current = null
+    if (mundo.current) { mundo.current.mirarDesde(null); mundo.current.setCentro(0.5); return }
     const z = capa.current?.parentElement
     if (!z || menosMovimiento()) return
     z.animate([{ transform: 'scale(2.6)', filter: 'brightness(1.25)' }, { transform: 'none', filter: 'none' }], { duration: 560, easing: 'cubic-bezier(.2,.7,.2,1)' })
   }
   useEffect(() => { if (!aviso) return; const t = setTimeout(() => setAviso(null), 7000); return () => clearTimeout(t) }, [aviso])
+
+  // ---------- Tu carpa: entras, duermes y amaneces ahí ----------
+  function entrarCarpa(ob: Objeto) {
+    romperFilas(); setAviso(null); setElegido(null); setHablar(false)
+    const abrir = () => setCarpa({ inicio: 'despierto' })
+    const m = mundo.current
+    if (m && !menosMovimiento()) { sfx.zas(); m.acercarA(ob.x + 1, ob.y + 1, abrir) } else abrir()
+  }
+  const dormir = () => {
+    try { if (perfil) localStorage.setItem(claveSueno(perfil.id), String(Date.now())) } catch { /* sin almacenamiento */ }
+    conexion.current?.marcar({ dur: true })
+  }
+  const despertar = () => {
+    try { if (perfil) localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ }
+    conexion.current?.marcar({ dur: false })
+  }
+  useEffect(() => { if (carpa?.inicio === 'amaneciendo') conexion.current?.marcar({ dur: false }) }, [carpa?.inicio, red])
+
+  // ---------- Mundo 3D ----------
+  useEffect(() => {
+    if (!tres) return
+    let vivo = true, m: Mundo3D | null = null
+    import('../tres/mundo3d').then(mod => {
+      if (!vivo || !lienzo3d.current) return
+      m = new mod.Mundo3D(lienzo3d.current, abierto)
+      mundo.current = m
+      setListo3d(true)
+    }).catch(() => { if (vivo) { setTres(false); guardarVista('2d') } })
+    return () => { vivo = false; mundo.current = null; setListo3d(false); m?.dispose() }
+  }, [tres]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { mundo.current?.redimensionar(vista.w, vista.h, nitido) }, [vista, nitido, listo3d])
+  useEffect(() => { mundo.current?.setLuz(luz) }, [luz.oscuridad, luz.dorado, luz.faroles, listo3d]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { mundo.current?.setAlturaBanderas(altura) }, [altura, listo3d])
+  const abiertoAntes = useRef(abierto)
+  useEffect(() => { if (mundo.current && abiertoAntes.current !== abierto) { abiertoAntes.current = abierto; mundo.current.setAbierto(abierto) } }, [abierto, listo3d])
+  useEffect(() => {
+    const m = mundo.current
+    if (!m) return
+    const ocupadas = new Set<string>()
+    for (const c of asignacion.carpas.values()) ocupadas.add(`${c.parcela}-${c.sexo}-${c.slot}`)
+    m.setParcelas(new Map([...clubDeParcela].map(([i, c]) => [i, { nombre: c.nombre, color: c.color, pais: c.pais, bandera: c.bandera }])), ocupadas)
+  }, [clubDeParcela, asignacion, listo3d])
+  useEffect(() => { mundo.current?.setVista(vista3d) }, [vista3d, listo3d])
+  // El escenario del mundo muestra el programa aunque no estés mirando el culto
+  useEffect(() => {
+    const m = mundo.current
+    if (!m || culto) return
+    if (programa?.estado === 'en_vivo') {
+      const parte = programa.partes[programa.parte]
+      const orador = programa.equipo.find(e => e.id === parte?.responsable) ?? programa.equipo.find(e => e.rol === 'conductor')
+      m.setEscenario(programa.equipo, orador?.id ?? null)
+      m.setPantalla({ arriba: '● EN VIVO', texto: programa.titulo, abajo: parte?.titulo, encendida: true })
+    } else {
+      m.setEscenario([], null)
+      m.setPantalla(programa ? { arriba: 'Próximo programa', texto: programa.titulo, encendida: true } : sabado ? { arriba: 'Feliz sábado', texto: '«Acuérdate del día de reposo para santificarlo»', abajo: 'Éxodo 20:8', encendida: true } : { texto: '', encendida: false })
+    }
+  }, [programa, listo3d, culto, sabado])
+  const enEscena = useCallback((e: EscenaCulto) => {
+    const m = mundo.current
+    if (!m) return
+    m.setEscenario(e.equipo, e.orador); m.setPantalla(e.pantalla); m.saludaEnEscenario(e.hablando)
+  }, [])
+  // Llegando en barco: la cámara baja desde arriba
+  useEffect(() => {
+    if (!listo3d || llegada?.tipo !== 'llegar' || menosMovimiento()) return
+    setVista3d('aerea')
+    const t = setTimeout(() => setVista3d('tv'), 350)
+    return () => clearTimeout(t)
+  }, [listo3d]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Bucle de animación: mover, cámara y profundidad ----------
   const pintar = useCallback((e: Ente) => {
@@ -364,6 +484,17 @@ export default function Plaza() {
     e.el.classList.toggle('camina', e.camina)
     if (e.cuerpo) e.cuerpo.style.transform = `scaleX(${e.mira})`
   }, [s])
+
+  /** En 3D: el nombre y el globo de cada uno flotan sobre su cabeza. */
+  const etiqueta = (e: Ente, m: Mundo3D, esYo: boolean, oculto?: boolean) => {
+    if (!e.el) return
+    const p = oculto ? null : m.proyectar(e.x, e.y, 1.62)
+    if (!p || (esYo && (m.vista === 'primera' || miAsiento.current || carpaAbierta.current))) { e.el.style.visibility = 'hidden'; return }
+    e.el.style.visibility = ''
+    e.el.style.transform = `translate3d(${Math.round(p.x)}px, ${Math.round(p.y)}px, 0)`
+    e.el.classList.toggle('lejos', p.d > 26)
+    e.el.style.zIndex = String(1000 - Math.round(p.d * 10))
+  }
 
   useEffect(() => {
     let raf = 0, ant = performance.now(), tCerca = 0, tTecla = 0, conTecla = false
@@ -383,14 +514,18 @@ export default function Plaza() {
       const dt = Math.min(0.1, (t - ant) / 1000); ant = t
       const y0 = yo.current
       const k = teclas.current
-      const dx = (k.has('ArrowRight') || k.has('d') ? 1 : 0) - (k.has('ArrowLeft') || k.has('a') ? 1 : 0)
-      const dy = (k.has('ArrowDown') || k.has('s') ? 1 : 0) - (k.has('ArrowUp') || k.has('w') ? 1 : 0)
+      const m3 = mundo.current
+      const ix = (k.has('ArrowRight') || k.has('d') ? 1 : 0) - (k.has('ArrowLeft') || k.has('a') ? 1 : 0)
+      const iy = (k.has('ArrowDown') || k.has('s') ? 1 : 0) - (k.has('ArrowUp') || k.has('w') ? 1 : 0)
+      // En 3D las flechas van según hacia dónde mira la cámara
+      const ya = m3 ? m3.yaw : 0, cy0 = Math.cos(ya), sy0 = Math.sin(ya)
+      const dx = m3 ? ix * cy0 + iy * sy0 : ix, dy = m3 ? -ix * sy0 + iy * cy0 : iy
       if (dx || dy) {
         const n = Math.hypot(dx, dy), vx = (dx / n) * VEL * dt, vy = (dy / n) * VEL * dt
         y0.ruta = []; usoPendiente.current = null
         if (transitable(Math.floor(y0.x + vx + Math.sign(vx) * 0.25), Math.floor(y0.y), abierto)) y0.x += vx
         if (transitable(Math.floor(y0.x), Math.floor(y0.y + vy + Math.sign(vy) * 0.1), abierto)) y0.y += vy
-        if (dx) y0.mira = dx < 0 ? -1 : 1
+        if (Math.abs(dx) > 0.1) y0.mira = dx < 0 ? -1 : 1
         y0.camina = true; conTecla = true
         tTecla += dt
         if (tTecla > 0.25) { tTecla = 0; conexion.current?.ir({ x: y0.x, y: y0.y }, { x: y0.x + (dx / n) * 1.2, y: y0.y + (dy / n) * 1.2 }) }
@@ -404,11 +539,33 @@ export default function Plaza() {
         usoPendiente.current = null
         if (ob?.uso && Math.hypot(ob.uso.x - y0.x, ob.uso.y - y0.y) < 1.7) usar(ob)
       }
-      pintar(y0)
-      for (const e of otros.current.values()) { avanzar(e, dt); pintar(e) }
+      // Quienes miran el culto están en su asiento; quienes duermen, dentro de su carpa
+      for (const [id, e] of otros.current) {
+        const tm = tiempos.current.get(id)
+        if (tm?.cul && !e.ruta.length) { const a = asientoPara(id); if (a) { e.x = a.x; e.y = a.y } }
+        avanzar(e, dt)
+      }
+      if (m3) {
+        const lista3d: Ente3D[] = [{ id: perfil?.id ?? 'yo', x: y0.x, y: y0.y, avatar: perfil?.avatar, rango: perfil?.rango ?? 'conquistador', camina: y0.camina, saluda: (gestosRef.current[perfil?.id ?? '']?.t ?? 0) > Date.now() - VIDA_GLOBO, visible: !carpaAbierta.current, mira: miAsiento.current ? { x: 0, y: -1 } : undefined }]
+        for (const [id, e] of otros.current) {
+          const j = perfiles.current.get(id)
+          if (!j) continue
+          lista3d.push({ id, x: e.x, y: e.y, avatar: j.avatar, rango: j.rango, camina: e.camina, saluda: (gestosRef.current[id]?.t ?? 0) > Date.now() - VIDA_GLOBO, visible: !tiempos.current.get(id)?.dur, mira: tiempos.current.get(id)?.cul && !e.ruta.length ? { x: 0, y: -1 } : undefined })
+        }
+        VENDEDORES.forEach((v, i) => lista3d.push({ id: `vend-${i}`, x: v.x, y: v.y, avatar: v.a, rango: 'lider', camina: false, saluda: false }))
+        m3.entes(lista3d, perfil?.id ?? null)
+        m3.cuadro(dt, miAsiento.current ?? y0)
+        etiqueta(y0, m3, true)
+        for (const [id, e] of otros.current) etiqueta(e, m3, false, tiempos.current.get(id)?.dur)
+      } else {
+        pintar(y0)
+        for (const [id, e] of otros.current) { pintar(e); if (e.el) e.el.style.visibility = tiempos.current.get(id)?.dur ? 'hidden' : '' }
+      }
 
       // Cámara: sigue a tu personaje con suavidad, con un margen de mar alrededor
-      const c = cam.current, vw = vista.w / (B * s), vh = vista.h / (B * s)
+      const c = cam.current
+      if (!m3) {
+      const vw = vista.w / (B * s), vh = vista.h / (B * s)
       c.x += (y0.x - c.x) * Math.min(1, dt * 5); c.y += (y0.y - c.y) * Math.min(1, dt * 5)
       const cx = vw >= ANCHO + 4 ? ANCHO / 2 : Math.min(ANCHO + 2 - vw / 2, Math.max(vw / 2 - 2, c.x))
       const cy = vh >= ALTO + 9 ? ALTO / 2 : Math.min(ALTO + 3 - vh / 2, Math.max(vh / 2 - 6, c.y + 1.5))
@@ -416,6 +573,7 @@ export default function Plaza() {
       const tr = `translate3d(${c.ox}px, ${c.oy}px, 0)`
       if (capa.current) capa.current.style.transform = tr
       if (capaLuz.current) capaLuz.current.style.transform = tr
+      }
 
       tCerca += dt
       if (tCerca > 0.25) {
@@ -427,14 +585,14 @@ export default function Plaza() {
     }
     raf = requestAnimationFrame(bucle)
     return () => cancelAnimationFrame(raf)
-  }, [vista, s, abierto, pintar, usar])
+  }, [vista, s, abierto, pintar, usar, listo3d]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Teclado (en PC)
   useEffect(() => {
     const valida = (k: string) => ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(k)
     const abajo = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (cultoAbierto.current || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.closest('.velo')))) return
+      if (cultoAbierto.current || carpaAbierta.current || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.closest('.velo')))) return
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key
       if (valida(k)) { teclas.current.add(k); e.preventDefault(); romperFilas() }
       if ((k === 'Enter' || k === ' ' || k === 'e') && cerca && !(t?.tagName === 'BUTTON')) { e.preventDefault(); usar(cerca) }
@@ -445,11 +603,54 @@ export default function Plaza() {
     return () => { window.removeEventListener('keydown', abajo); window.removeEventListener('keyup', arriba); window.removeEventListener('blur', soltarTodo) }
   }, [cerca, usar]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---------- 3D: arrastrar gira la cámara, pellizcar o la rueda acercan, tocar camina ----------
+  const punteros = useRef(new Map<number, { x: number; y: number; x0: number; y0: number }>())
+  const arrastre = useRef({ movio: false, dist: 0 })
+  const abajo3d = (ev: React.PointerEvent<HTMLDivElement>) => {
+    if (ev.button !== 0 && ev.pointerType === 'mouse') return
+    punteros.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, x0: ev.clientX, y0: ev.clientY })
+    if (punteros.current.size === 1) arrastre.current = { movio: false, dist: 0 }
+    else { const [a, b] = [...punteros.current.values()]; arrastre.current = { movio: true, dist: Math.hypot(a.x - b.x, a.y - b.y) } }
+    caja.current?.setPointerCapture(ev.pointerId)
+  }
+  const mover3d = (ev: React.PointerEvent<HTMLDivElement>) => {
+    const p = punteros.current.get(ev.pointerId), m = mundo.current
+    if (!p || !m) return
+    const dx = ev.clientX - p.x, dy = ev.clientY - p.y
+    p.x = ev.clientX; p.y = ev.clientY
+    if (punteros.current.size >= 2) {
+      const [a, b] = [...punteros.current.values()], d = Math.hypot(a.x - b.x, a.y - b.y)
+      if (arrastre.current.dist > 0 && d > 0) m.zoom(arrastre.current.dist / d)
+      arrastre.current.dist = d
+      return
+    }
+    if (!arrastre.current.movio && Math.hypot(ev.clientX - p.x0, ev.clientY - p.y0) > 8) arrastre.current.movio = true
+    if (arrastre.current.movio) m.rotar(dx, dy)
+  }
+  const arriba3d = (ev: React.PointerEvent<HTMLDivElement>) => {
+    const p = punteros.current.get(ev.pointerId)
+    punteros.current.delete(ev.pointerId)
+    if (!p || arrastre.current.movio || punteros.current.size) return
+    const m = mundo.current
+    if (!m || !caja.current) return
+    const r = m.elegir(ev.clientX, ev.clientY, caja.current.getBoundingClientRect())
+    if (!r) return
+    if (r.tipo === 'ente') {
+      const j = perfiles.current.get(r.id)
+      if (j) { sfx.click(); setElegido(j); setHablar(false); setAviso(null) }
+      return
+    }
+    if (culto) return
+    caminarA(r.x, r.y)
+  }
+
   // Tocar el suelo: caminar hasta ahí (o hasta lo que tocaste, y usarlo al llegar)
   const tocar = (ev: React.PointerEvent<HTMLDivElement>) => {
     if (ev.button !== 0 && ev.pointerType === 'mouse') return
     const r = caja.current!.getBoundingClientRect(), c = cam.current
-    const tx = (ev.clientX - r.left - c.ox) / (B * s), ty = (ev.clientY - r.top - c.oy) / (B * s)
+    caminarA((ev.clientX - r.left - c.ox) / (B * s), (ev.clientY - r.top - c.oy) / (B * s))
+  }
+  const caminarA = (tx: number, ty: number) => {
     const ob = objetoEn(tx, ty)
     const destino = ob?.uso ?? { x: tx, y: ty }
     const camino = ruta(yo.current, destino, abierto)
@@ -460,7 +661,7 @@ export default function Plaza() {
     yo.current.ruta = camino
     const fin = camino[camino.length - 1]
     conexion.current?.ir({ x: yo.current.x, y: yo.current.y }, fin)
-    if (marca.current) {
+    if (marca.current && !mundo.current) {
       marca.current.style.transform = `translate3d(${fin.x * B * s}px, ${fin.y * B * s}px, 0)`
       marca.current.classList.remove('on'); void marca.current.offsetWidth; marca.current.classList.add('on')
     }
@@ -530,19 +731,38 @@ export default function Plaza() {
   const invitarVisible = !!invitar
 
   return (
-    <div className="pantalla plaza">
+    <div className={`pantalla plaza ${culto && tres ? 'culto-3d' : ''}`}>
+      {tres ? (
+      <div className={`plaza-vista tres ${culto ? 'en-culto' : ''}`} ref={caja} onPointerDown={abajo3d} onPointerMove={mover3d} onPointerUp={arriba3d} onPointerCancel={arriba3d}
+        onWheel={e => mundo.current?.zoom(e.deltaY > 0 ? 1.12 : 0.89)} aria-label="Gran Campamento en 3D. Toca el suelo para caminar; arrastra para girar la cámara.">
+        <canvas ref={lienzo3d} className={`plaza-3d ${nitido ? 'nitido' : ''}`} />
+        {!listo3d && <div className="plaza-cargando">Armando el Gran Campamento…</div>}
+        <div className="p3-capa" aria-hidden={false}>
+          {lista.map(j => (
+            <button key={j.id} className="p3-etq" ref={el => { const e = otros.current.get(j.id); if (e) e.el = el }}
+              onPointerDown={e => e.stopPropagation()} onClick={() => { sfx.click(); setElegido(j); setHablar(false); setAviso(null) }} aria-label={`${j.apodo}, de ${j.club}`}>
+              {globo(j.id)}<span className="plaza-nombre">{j.apodo}</span>
+            </button>
+          ))}
+          <div className="p3-etq yo" ref={el => { yo.current.el = el }}>{globo(perfil.id)}<span className="plaza-nombre">Tú</span></div>
+        </div>
+      </div>
+      ) : (
       <div className="plaza-vista" ref={caja} onPointerDown={tocar} aria-label="Gran Campamento. Toca el suelo para caminar.">
         <div className="plaza-zoom">
           <div className="plaza-capa" ref={capa} style={{ width: ANCHO * B * s, height: ALTO * B * s }}>
             <canvas ref={suelo0} className="plaza-suelo" style={{ width: ANCHO * B * s, height: ALTO * B * s }} aria-hidden />
             <canvas ref={suelo1} className="plaza-suelo isla-ola" style={{ width: ANCHO * B * s, height: ALTO * B * s }} aria-hidden />
             {sprites.map(({ clave, sp }) => <SpriteObjeto key={clave} sp={sp} s={s} />)}
-            {/* Banderas de cada campamento: país, Conquistadores y (si tiene) la del club. Suben a las 7:00 y bajan a las 19:00. */}
-            {[...clubDeParcela.entries()].map(([i, club]) => OBJETOS.filter(o => o.tipo === 'asta' && o.parcela === i && (o.slot! < 2 || club.bandera)).map(o => (
-              <div key={`b-${i}-${o.slot}`} className="plaza-bandera" style={{ left: (o.x * B + 9) * s, top: (o.y * B - 36 + (1 - altura) * 32) * s, zIndex: o.y * B + B + 1 }}>
-                <Bandera tipo={o.slot === 0 ? 'pais' : o.slot === 1 ? 'conquis' : 'club'} pais={club.pais} bandera={club.bandera} alto={10 * s} />
-              </div>
-            )))}
+            {/* Banderas amarradas en el pórtico de cada campamento: país, Conquistadores y (si tiene) la del club. Suben a las 7:00 y bajan a las 18:00. */}
+            {[...clubDeParcela.entries()].map(([i, club]) => {
+              const o = OBJETOS.find(x => x.tipo === 'portada' && x.parcela === i)!
+              return (club.bandera ? ['pais', 'conquis', 'club'] as const : ['pais', 'conquis'] as const).map((t, k) => (
+                <div key={`b-${i}-${t}`} className="plaza-bandera" style={{ left: (o.x * B + 2) * s, top: (o.y * B - 30 + k * 15 + (1 - altura) * 12) * s, zIndex: o.y * B + o.h * B + 1 }}>
+                  <Bandera tipo={t} pais={club.pais} bandera={club.bandera} alto={8 * s} />
+                </div>
+              ))
+            })}
             {/* Nombre del club en cada portada */}
             {OBJETOS.filter(o => o.tipo === 'portada').map(o => {
               const club = clubDeParcela.get(o.parcela!)
@@ -582,6 +802,22 @@ export default function Plaza() {
           {luces.map((l, i) => <i key={i} className={l.calida ? 'calida' : ''} style={{ left: l.x * B * s, top: l.y * B * s, width: l.r * 2 * B * s, height: l.r * 2 * B * s }} />)}
         </div>
       </div>
+      )}
+      {/* Cámara: girar, acercar, cambiar de vista (y volver a la vista clásica) */}
+      {tres && listo3d && !carpa && (
+        <div className={`cam3d ${culto ? 'en-culto' : ''}`} onPointerDown={e => e.stopPropagation()}>
+          <button onClick={() => mundo.current?.girar(Math.PI / 4)} aria-label="Girar a la izquierda">⟲</button>
+          <button onClick={() => mundo.current?.girar(-Math.PI / 4)} aria-label="Girar a la derecha">⟳</button>
+          {!culto && <>
+            <button onClick={() => mundo.current?.zoom(0.8)} aria-label="Acercar">＋</button>
+            <button onClick={() => mundo.current?.zoom(1.25)} aria-label="Alejar">－</button>
+            <button className="vista" onClick={() => { sfx.click(); setVista3d(v => VISTAS[(VISTAS.indexOf(v) + 1) % VISTAS.length]) }} aria-label="Cambiar la vista de la cámara">🎥<small>{VISTA_TXT[vista3d]}</small></button>
+            <button className="vista" onClick={() => setNitido(n => !n)} aria-label="Cambiar la calidad">{nitido ? 'HD' : 'Retro'}</button>
+            <button className="vista" onClick={() => { guardarVista('2d'); setTres(false) }} aria-label="Vista clásica (2D)">2D</button>
+          </>}
+        </div>
+      )}
+      {!tres && soporta3D() && <button className="cam3d-volver" onClick={() => { guardarVista('3d'); setTres(true) }}>Ver en 3D</button>}
       <div className="mundo-flash" ref={flash} style={{ opacity: llegada?.tipo === 'llegar' && !menosMovimiento() ? 1 : 0 }} aria-hidden />
 
       <header className="hud">
@@ -616,7 +852,7 @@ export default function Plaza() {
 
       {invitar && (
         <div className="plaza-ceremonia pop" role="dialog" aria-label="Ceremonia de banderas">
-          <b>🎺 {cer!.tipo === 'izamiento' ? 'Izamiento de banderas — 7:00' : 'Arriamiento de banderas — 19:00'}</b>
+          <b>🎺 {cer!.tipo === 'izamiento' ? 'Izamiento de banderas — 7:00' : 'Arriamiento de banderas — 18:00'}</b>
           <p>{cer!.fase === 'invitacion' ? `Empieza en ${Math.max(1, Math.ceil(-cer!.minutos))} min` : '¡Está empezando!'} en el campamento de tu club. Varones a la izquierda, damas a la derecha, en filas de 8; los líderes adelante y atrás, y tres izan las banderas.</p>
           <div className="fila-botones">
             <Boton tipo="fantasma" onClick={() => setRechazoCer(`${cer!.tipo}-${Math.floor(hora)}`)}>Ahora no</Boton>
@@ -649,7 +885,20 @@ export default function Plaza() {
 
       {tablero && <TableroRetos onCerrar={() => setTablero(false)} onRanking={() => ir('ranking')} sabado={sabado} />}
       {culto && <Culto publico={[{ id: perfil.id, apodo: perfil.apodo, avatar: perfil.avatar, rango: perfil.rango }, ...lista.map(j => ({ id: j.id, apodo: j.apodo, avatar: j.avatar, rango: j.rango }))]}
-        gestos={gestos} onGesto={decir} puedeReaccionar={red === 'vivo'} sabado={sabado} luz={luz} onCerrar={salirCulto} />}
+        gestos={gestos} onGesto={decir} puedeReaccionar={red === 'vivo'} sabado={sabado} luz={luz} onCerrar={salirCulto}
+        modo3d={tres && listo3d} onEscena={tres ? enEscena : undefined} />}
+      {carpa && (() => {
+        const mia = asignacion.carpas.get(perfil.id)
+        const club = miParcela !== undefined ? clubDeParcela.get(miParcela) : undefined
+        const companeros: Companero[] = mia ? [...asignacion.carpas.entries()]
+          .filter(([id, c]) => id !== perfil.id && c.parcela === mia.parcela && c.sexo === mia.sexo && c.slot === mia.slot)
+          .map(([id]) => perfiles.current.get(id)).filter((j): j is PerfilPublico => !!j)
+          .map(j => ({ id: j.id, apodo: j.apodo, avatar: j.avatar, rango: j.rango, durmiendo: !!tiempos.current.get(j.id)?.dur })) : []
+        return <Carpa yo={{ id: perfil.id, apodo: perfil.apodo, avatar: perfil.avatar, rango: perfil.rango }} color={club?.color ?? '#1E9A4B'} club={club ? `Campamento de ${club.nombre}` : 'Gran Campamento'}
+          items={bolsa?.items ?? []} aprobados={Object.values(puntajes).filter(p => p >= 400).length} campeon={[]} racha={rachaVigente(rachaObj)}
+          companeros={companeros} inicio={carpa.inicio} horasDormidas={carpa.horas} oscuridad={luz.oscuridad}
+          onDormir={dormir} onDespertar={despertar} onSalir={() => setCarpa(null)} />
+      })()}
 
       {zarpar && <Travesia texto="Zarpando del" destino="Gran Campamento" color="#F2B90F"
         onFin={() => { marcarTransicion({ tipo: 'alejar', desde: CAMPAMENTO_CENTRAL.id }); ir('campamentos') }} />}

@@ -64,3 +64,21 @@ export const sfx = {
   zas: () => { tono(1400, 0.05, 'square', 0.04); tono(700, 0.09, 'triangle', 0.08, 0.03) },
   trompeta: () => [392, 523, 659, 784].forEach((f, i) => tono(f, i === 3 ? 0.45 : 0.14, 'sawtooth', 0.05, i * 0.15)),
 }
+
+/** Un acorde de guitarra (cuerda pulsada sintetizada, Karplus-Strong). */
+export function rasguear(acorde: number[] = [196, 247, 294, 392, 494, 587]) {
+  if (!useJuego.getState().sonido) return
+  try {
+    const ctx = audio()
+    void ctx.resume?.()
+    acorde.forEach((f, i) => {
+      const n = Math.round(ctx.sampleRate / f), dur = 2.2, b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate), d = b.getChannelData(0)
+      const ruido = new Float32Array(n).map(() => Math.random() * 2 - 1)
+      for (let k = 0; k < d.length; k++) { const v = ruido[k % n]; d[k] = v; ruido[k % n] = 0.996 * 0.5 * (v + ruido[(k + 1) % n]) }
+      const src = ctx.createBufferSource(), g = ctx.createGain()
+      src.buffer = b; g.gain.value = 0.12
+      src.connect(g).connect(ctx.destination)
+      src.start(ctx.currentTime + i * 0.022)
+    })
+  } catch { /* sin audio */ }
+}

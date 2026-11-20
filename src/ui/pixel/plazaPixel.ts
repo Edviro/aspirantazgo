@@ -358,10 +358,12 @@ export function spriteDe(ob: Objeto, abierto: boolean, extra: ExtraSprite = {}):
     case 'escenario': return {
       x: X, y: Y - 28, w: W, h: H + 28, pie: Y + H,
       dibujar: p => {
-        p(4, 0, W - 8, 30, TINTA); p(6, 2, W - 12, 26, extra.sabado ? '#2a3f8f' : ROJO_O)
-        for (let i = 8; i < W - 8; i += 6) p(i, 4, 3, 24, extra.sabado ? '#3b55b5' : ROJO)
-        p(6, 2, W - 12, 4, ORO); p(6, 5, W - 12, 1, ORO_O)
-        if (extra.sabado) { p(W / 2 - 1, 8, 3, 14, '#fff'); p(W / 2 - 5, 12, 11, 3, '#fff') } // cruz: culto
+        // Fondo full Conquistadores: azul noche, dos emblemas C1 y la pantalla LED al centro
+        p(4, 0, W - 8, 30, TINTA); p(6, 2, W - 12, 26, '#0d1636')
+        for (let i = 8; i < W - 8; i += 6) p(i, 4, 3, 24, '#13204a')
+        p(6, 2, W - 12, 3, ORO); p(6, 5, W - 12, 1, ROJO)
+        for (const ex of [14, W - 26]) { p(ex, 9, 12, 2, ORO); p(ex + 1, 11, 10, 1, ROJO); p(ex + 2, 12, 8, 2, ROJO); p(ex + 4, 14, 4, 2, ROJO); p(ex + 5, 16, 2, 2, ORO) }
+        p(W / 2 - 16, 7, 32, 18, TINTA); p(W / 2 - 15, 8, 30, 16, extra.sabado ? '#1d3a8a' : '#10245c'); p(W / 2 - 10, 14, 20, 2, '#a9c1ff')
         p(0, 28, W, H, TINTA); p(1, 29, W - 2, 5, '#c98d55')
         for (let i = 0; i < 3; i++) p(1, 35 + i * 4, W - 2, 3, i % 2 ? COL.madera : '#9a6436')
         p(2, 18, 8, 11, TINTA); p(3, 19, 6, 9, '#3b3b3b'); p(5, 22, 2, 2, '#888')
@@ -380,11 +382,6 @@ export function spriteDe(ob: Objeto, abierto: boolean, extra: ExtraSprite = {}):
         for (let i = 0; i < 9; i++) { const w = 14 - Math.round(i * 1.5) + (f ? -1 : 0); p(6, 2 + i, Math.max(1, w), 1, TINTA); if (w > 2) p(6, 2 + i, w - 1, 1, i < 4 ? AZUL : '#fff') }
       },
       animado: true,
-    }
-    case 'asta': return {
-      // solo el mástil: las banderas van aparte (suben y bajan en la ceremonia)
-      x: X + 4, y: Y - 40, w: 10, h: 56, pie: Y + B,
-      dibujar: p => { p(0, 50, 10, 4, '#8d8d86'); p(1, 51, 8, 2, '#a9a9a1'); p(4, 2, 2, 50, TINTA); p(3, 0, 4, 3, ORO) },
     }
     case 'portada': {
       const color = extra.color ?? '#8d8d86', vertical = H > W
