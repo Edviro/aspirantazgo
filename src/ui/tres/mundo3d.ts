@@ -129,6 +129,10 @@ export class Mundo3D {
   private pantallaTex: THREE.CanvasTexture
   private pantallaMat: THREE.MeshBasicMaterial
   private fondoEsc: THREE.CanvasTexture
+  private fondoMat: THREE.MeshLambertMaterial | null = null
+  private luzEscenario: THREE.PointLight | null = null
+  private emblema: HTMLImageElement | null = null
+  private ultimaPantalla: Pantalla3D = { texto: '', encendida: false }
   private barco: THREE.Group | null = null
   private pjs = new Map<string, Pj>()
   private texCache = new Map<string, THREE.CanvasTexture>()
@@ -302,7 +306,13 @@ export class Mundo3D {
     caja.poner(cx, 5.1, z0 + 0.2, x1 - x0, 0.3, 0.3, 0x2e323b)
     for (const dx of [-2.6, -1, 1, 2.6]) caja.poner(cx + dx, 4.85, z0 + 0.35, 0.3, 0.22, 0.3, 0x1e140c)
     // Fondo full Conquistadores (dos emblemas C1) y la pantalla LED al centro
-    const fondo = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0 - 0.6, 4.3), new THREE.MeshLambertMaterial({ map: this.fondoEsc }))
+    // El fondo brilla un poco por sí mismo (como un telón iluminado): de noche no queda negro
+    this.fondoMat = new THREE.MeshLambertMaterial({ map: this.fondoEsc, emissive: 0xffffff, emissiveMap: this.fondoEsc, emissiveIntensity: 0.15 })
+    const fondo = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0 - 0.6, 4.3), this.fondoMat)
+    // Luz del escenario: ilumina el piso, el atril y al público de las primeras filas
+    this.luzEscenario = new THREE.PointLight(0xfff0d0, 0, 16, 1.4)
+    this.luzEscenario.position.set(cx, 4.2, z1 + 2.2)
+    this.estatico.add(this.luzEscenario)
     fondo.position.set(cx, 0.6 + 2.15, z0 + 0.05)
     const marco = new THREE.Mesh(new THREE.BoxGeometry(3.7, 2.15, 0.08), new THREE.MeshLambertMaterial({ color: 0x16181d }))
     marco.position.set(cx, 3.0, z0 + 0.1)
@@ -453,6 +463,8 @@ export class Mundo3D {
     img.onload = () => {
       for (const cx of [48, 272]) x.drawImage(img, cx - 38, 40, 76, 76)
       this.fondoEsc.needsUpdate = true
+      this.emblema = img
+      this.setPantalla(this.ultimaPantalla)
     }
     img.src = `${import.meta.env.BASE_URL}assets/emblema-c1.webp`
     return c
@@ -460,9 +472,20 @@ export class Mundo3D {
 
   /** Lo que se proyecta en la pantalla LED del escenario. */
   setPantalla(p: Pantalla3D) {
+    this.ultimaPantalla = p
     const c = this.pantallaCv, x = c.getContext('2d')!
-    x.fillStyle = p.encendida ? '#10245c' : '#0b0d12'; x.fillRect(0, 0, 256, 144)
-    if (p.encendida) { const g = x.createRadialGradient(128, 0, 10, 128, 0, 220); g.addColorStop(0, 'rgba(70,120,255,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 144) }
+    x.fillStyle = '#10245c'; x.fillRect(0, 0, 256, 144)
+    const g = x.createRadialGradient(128, 0, 10, 128, 0, 220); g.addColorStop(0, 'rgba(70,120,255,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 144)
+    // Sin programa: la pantalla muestra el emblema (nunca queda negra)
+    if (!p.encendida || !p.texto) {
+      if (this.emblema) x.drawImage(this.emblema, 128 - 40, 16, 80, 80)
+      x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#F2C230'; x.font = '900 13px Nunito, system-ui, sans-serif'
+      x.fillText(p.texto || 'GRAN CAMPAMENTO', 128, 112)
+      x.fillStyle = '#a9c1ff'; x.font = '800 10px Nunito, system-ui, sans-serif'
+      x.fillText(p.arriba ?? 'Escenario de cultos y programas', 128, 130)
+      this.pantallaTex.needsUpdate = true
+      return
+    }
     x.textAlign = 'center'; x.textBaseline = 'middle'
     if (p.arriba) { x.fillStyle = '#a9c1ff'; x.font = '800 11px Nunito, system-ui, sans-serif'; x.fillText(p.arriba.slice(0, 40), 128, 14) }
     if (p.abajo) { x.fillStyle = '#a9c1ff'; x.font = '800 10px Nunito, system-ui, sans-serif'; x.fillText(p.abajo.slice(0, 40), 128, 132) }
@@ -513,7 +536,9 @@ export class Mundo3D {
     this.scene.background = cielo
     ;(this.scene.fog as THREE.Fog).color = cielo
     const k = 1 - (l.oscuridad / 0.78) * 0.82
-    this.hemi.intensity = 2.2 * k + 0.25
+    this.hemi.intensity = 2.2 * k + 0.42
+    if (this.fondoMat) this.fondoMat.emissiveIntensity = 0.12 + (1 - k) * 0.55
+    if (this.luzEscenario) this.luzEscenario.intensity = (1 - k) * 22 + 2
     this.hemi.color = mezclar(new THREE.Color(0xcfe8ff), new THREE.Color(0x6a7ab8), 1 - k)
     this.sol.intensity = 2.0 * k
     this.sol.color = mezclar(new THREE.Color(0xfff2d6), new THREE.Color(0xff9a5a), l.dorado)

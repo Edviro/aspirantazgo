@@ -5,6 +5,7 @@ import { rachaVigente, retoDelDia } from '../../domain/diario'
 import type { Ente3D, Mundo3D, Vista } from '../tres/mundo3d'
 import { guardarVista, prefiere3D, soporta3D } from '../tres/soporte'
 import { Carpa, type Companero } from '../componentes/plaza/Carpa'
+import { Joystick } from '../componentes/plaza/Joystick'
 import {
   ALTO, ANCHO, OBJETOS, PARCELAS, MUELLE, SALIDA, alturaBanderas, asignar, ceremoniaAhora, esSabado, formacion, horaLima, luzDelDia,
   objetoEn, ruta, transitable, usableCerca, zonaDe, type Campista, type Objeto, type Zona,
@@ -137,7 +138,7 @@ export default function Plaza() {
   const [programa, setPrograma] = useState<ProgramaVivo | null>(null)
   const cultoAbierto = useRef(false)
   cultoAbierto.current = culto
-  const [carpa, setCarpa] = useState<{ inicio: 'despierto' | 'amaneciendo'; horas?: number } | null>(null)
+  const [carpa, setCarpa] = useState<{ inicio: 'despierto' | 'amaneciendo' | 'durmiendo'; horas?: number } | null>(null)
   const carpaAbierta = useRef(false)
   carpaAbierta.current = !!carpa
   // ---------- 3D: mundo con cámara libre (estilo consola de los 90) ----------
@@ -152,6 +153,9 @@ export default function Plaza() {
   const marca = useRef<HTMLDivElement>(null)
   const usoPendiente = useRef<Objeto | null>(null)
   const teclas = useRef(new Set<string>())
+  const palanca = useRef({ x: 0, y: 0 })
+  const [tactil] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches)
+  const [ayudaTeclas, setAyudaTeclas] = useState(() => { try { return localStorage.getItem('asp_ayuda_teclas') !== '0' } catch { return true } })
   const cam = useRef({ x: yo.current.x, y: yo.current.y, ox: 0, oy: 0 })
   const colocado = useRef(llegada?.tipo === 'llegar')
   const miClub = perfil?.club.id ?? 'mi-club'
@@ -173,7 +177,7 @@ export default function Plaza() {
 
   // Pide (en lote) los nombres, clubes y logros verdaderos de quienes aparecen: vienen de la base de datos, no del canal
   const pidiendo = useRef<number>(0)
-  const resolver = useCallback(() => {
+  const resolver = useCallback((): void => {
     clearTimeout(pidiendo.current)
     pidiendo.current = window.setTimeout(async () => {
       const faltan = [...otros.current.keys()].filter(id => !perfiles.current.has(id) && !rechazados.current.has(id)).slice(0, 60)
@@ -183,7 +187,7 @@ export default function Plaza() {
         for (const j of l) perfiles.current.set(j.id, j)
         for (const id of faltan) if (!perfiles.current.has(id)) rechazados.current.add(id)
         actualizarLista(); setVer(v => v + 1)
-      } catch { /* se reintenta con el próximo cambio */ }
+      } catch { pidiendo.current = window.setTimeout(() => resolver(), 4000) /* se reintenta solo */ }
     }, 250)
   }, [repo.salas, actualizarLista])
 
@@ -268,8 +272,13 @@ export default function Plaza() {
     conexion.current?.quieto(p)
     // Si te quedaste durmiendo en tu carpa, amanece ahí mismo
     let desde = 0
-    try { desde = Number(localStorage.getItem(claveSueno(perfil.id))) || 0; localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ }
-    if (desde && carpa) setCarpa({ inicio: 'amaneciendo', horas: (Date.now() - desde) / 3600000 })
+    try { desde = Number(localStorage.getItem(claveSueno(perfil.id))) || 0 } catch { /* sin almacenamiento */ }
+    if (desde && carpa) {
+      const h = horaActual(), deNoche = h < 5.5 || h >= 18.5
+      // Si aún es de noche sigues durmiendo; si ya amaneció, despiertas con el sol
+      if (deNoche) { setCarpa({ inicio: 'durmiendo' }); conexion.current?.marcar({ dur: true }) }
+      else { try { localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ } setCarpa({ inicio: 'amaneciendo', horas: (Date.now() - desde) / 3600000 }) }
+    }
   }, [red, asignacion, miParcela, perfil])
 
   // ---------- Sprites (se reutilizan si no cambian) ----------
@@ -422,7 +431,7 @@ export default function Plaza() {
     try { if (perfil) localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ }
     conexion.current?.marcar({ dur: false })
   }
-  useEffect(() => { if (carpa?.inicio === 'amaneciendo') conexion.current?.marcar({ dur: false }) }, [carpa?.inicio, red])
+  useEffect(() => { if (carpa?.inicio === 'amaneciendo') conexion.current?.marcar({ dur: false }); if (carpa?.inicio === 'durmiendo') conexion.current?.marcar({ dur: true }) }, [carpa?.inicio, red])
 
   // ---------- Mundo 3D ----------
   useEffect(() => {
@@ -515,13 +524,18 @@ export default function Plaza() {
       const y0 = yo.current
       const k = teclas.current
       const m3 = mundo.current
-      const ix = (k.has('ArrowRight') || k.has('d') ? 1 : 0) - (k.has('ArrowLeft') || k.has('a') ? 1 : 0)
-      const iy = (k.has('ArrowDown') || k.has('s') ? 1 : 0) - (k.has('ArrowUp') || k.has('w') ? 1 : 0)
+      // Teclado (flechas o WASD) o la palanca del celular (con intensidad: más lejos, más rápido)
+      const pj = palanca.current, conPalanca = Math.hypot(pj.x, pj.y) > 0.18
+      const ix = conPalanca ? pj.x : (k.has('ArrowRight') || k.has('d') ? 1 : 0) - (k.has('ArrowLeft') || k.has('a') ? 1 : 0)
+      const iy = conPalanca ? pj.y : (k.has('ArrowDown') || k.has('s') ? 1 : 0) - (k.has('ArrowUp') || k.has('w') ? 1 : 0)
+      const ritmo = conPalanca ? Math.min(1, Math.hypot(pj.x, pj.y)) * 1.15 : k.has('Shift') ? 1.6 : 1
+      if (m3 && k.has('q')) m3.girar(dt * 1.9)
+      if (m3 && k.has('e')) m3.girar(-dt * 1.9)
       // En 3D las flechas van según hacia dónde mira la cámara
       const ya = m3 ? m3.yaw : 0, cy0 = Math.cos(ya), sy0 = Math.sin(ya)
       const dx = m3 ? ix * cy0 + iy * sy0 : ix, dy = m3 ? -ix * sy0 + iy * cy0 : iy
       if (dx || dy) {
-        const n = Math.hypot(dx, dy), vx = (dx / n) * VEL * dt, vy = (dy / n) * VEL * dt
+        const n = Math.hypot(dx, dy), vx = (dx / n) * VEL * ritmo * dt, vy = (dy / n) * VEL * ritmo * dt
         y0.ruta = []; usoPendiente.current = null
         if (transitable(Math.floor(y0.x + vx + Math.sign(vx) * 0.25), Math.floor(y0.y), abierto)) y0.x += vx
         if (transitable(Math.floor(y0.x), Math.floor(y0.y + vy + Math.sign(vy) * 0.1), abierto)) y0.y += vy
@@ -589,13 +603,17 @@ export default function Plaza() {
 
   // Teclado (en PC)
   useEffect(() => {
-    const valida = (k: string) => ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(k)
+    const valida = (k: string) => ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'Shift'].includes(k)
     const abajo = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
       if (cultoAbierto.current || carpaAbierta.current || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.closest('.velo')))) return
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key
-      if (valida(k)) { teclas.current.add(k); e.preventDefault(); romperFilas() }
-      if ((k === 'Enter' || k === ' ' || k === 'e') && cerca && !(t?.tagName === 'BUTTON')) { e.preventDefault(); usar(cerca) }
+      if (valida(k)) { teclas.current.add(k); if (k !== 'Shift') { e.preventDefault(); romperFilas() } }
+      if (k === 'q' || k === 'e') teclas.current.add(k)
+      if (mundo.current && (k === '+' || k === 'z')) mundo.current.zoom(0.85)
+      if (mundo.current && (k === '-' || k === 'x')) mundo.current.zoom(1.18)
+      if (mundo.current && k === 'v') setVista3d(v => VISTAS[(VISTAS.indexOf(v) + 1) % VISTAS.length])
+      if ((k === 'Enter' || k === ' ' || k === 'f') && cerca && !(t?.tagName === 'BUTTON')) { e.preventDefault(); usar(cerca) }
     }
     const arriba = (e: KeyboardEvent) => teclas.current.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key)
     const soltarTodo = () => teclas.current.clear()
@@ -805,16 +823,45 @@ export default function Plaza() {
       )}
       {/* Cámara: girar, acercar, cambiar de vista (y volver a la vista clásica) */}
       {tres && listo3d && !carpa && (
-        <div className={`cam3d ${culto ? 'en-culto' : ''}`} onPointerDown={e => e.stopPropagation()}>
-          <button onClick={() => mundo.current?.girar(Math.PI / 4)} aria-label="Girar a la izquierda">⟲</button>
-          <button onClick={() => mundo.current?.girar(-Math.PI / 4)} aria-label="Girar a la derecha">⟳</button>
+        <div className={`cam3d ${culto ? 'en-culto' : ''} ${tactil ? 'tactil' : ''}`} onPointerDown={e => e.stopPropagation()} role="toolbar" aria-label="Cámara">
+          <div className="cam3d-grupo">
+            <button onClick={() => mundo.current?.girar(Math.PI / 4)} title="Girar a la izquierda (Q)" aria-label="Girar a la izquierda">
+              <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7" /><path d="M4 4v4h4" /></svg>
+            </button>
+            <button onClick={() => mundo.current?.girar(-Math.PI / 4)} title="Girar a la derecha (E)" aria-label="Girar a la derecha">
+              <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7" /><path d="M20 4v4h-4" /></svg>
+            </button>
+          </div>
           {!culto && <>
-            <button onClick={() => mundo.current?.zoom(0.8)} aria-label="Acercar">＋</button>
-            <button onClick={() => mundo.current?.zoom(1.25)} aria-label="Alejar">－</button>
-            <button className="vista" onClick={() => { sfx.click(); setVista3d(v => VISTAS[(VISTAS.indexOf(v) + 1) % VISTAS.length]) }} aria-label="Cambiar la vista de la cámara">🎥<small>{VISTA_TXT[vista3d]}</small></button>
-            <button className="vista" onClick={() => setNitido(n => !n)} aria-label="Cambiar la calidad">{nitido ? 'HD' : 'Retro'}</button>
-            <button className="vista" onClick={() => { guardarVista('2d'); setTres(false) }} aria-label="Vista clásica (2D)">2D</button>
+            <div className="cam3d-grupo">
+              <button onClick={() => mundo.current?.zoom(0.8)} title="Acercar (Z o rueda)" aria-label="Acercar"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button>
+              <button onClick={() => mundo.current?.zoom(1.25)} title="Alejar (X o rueda)" aria-label="Alejar"><svg viewBox="0 0 24 24"><path d="M5 12h14" /></svg></button>
+            </div>
+            <button className="cam3d-vista" onClick={() => { sfx.click(); setVista3d(v => VISTAS[(VISTAS.indexOf(v) + 1) % VISTAS.length]) }} title="Cambiar la cámara (V)" aria-label={`Cámara: ${VISTA_TXT[vista3d]}. Cambiar`}>
+              <svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2" /><path d="M16 11l5-3v8l-5-3z" /></svg>
+              <small>{VISTA_TXT[vista3d]}</small>
+            </button>
+            <details className="cam3d-mas">
+              <summary title="Más opciones" aria-label="Más opciones de imagen"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg></summary>
+              <div>
+                <button onClick={() => setNitido(n => !n)}>{nitido ? 'Imagen retro (90)' : 'Imagen nítida (HD)'}</button>
+                <button onClick={() => { guardarVista('2d'); setTres(false) }}>Vista clásica 2D</button>
+              </div>
+            </details>
           </>}
+        </div>
+      )}
+      {/* Para caminar: palanca en el celular; en la PC, teclado */}
+      {tactil && !culto && !carpa && <Joystick valor={palanca} onUsar={() => cerca && usar(cerca)} />}
+      {!tactil && tres && listo3d && !culto && !carpa && ayudaTeclas && (
+        <div className="ayuda-teclas" role="note">
+          <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> caminar</span>
+          <span><kbd>Shift</kbd> correr</span>
+          <span><kbd>Q</kbd><kbd>E</kbd> girar</span>
+          <span><kbd>V</kbd> cámara</span>
+          <span><kbd>Enter</kbd> usar</span>
+          <span>Arrastra con el mouse para mirar</span>
+          <button onClick={() => { setAyudaTeclas(false); try { localStorage.setItem('asp_ayuda_teclas', '0') } catch { /* sin almacenamiento */ } }} aria-label="Ocultar ayuda">✕</button>
         </div>
       )}
       {!tres && soporta3D() && <button className="cam3d-volver" onClick={() => { guardarVista('3d'); setTres(true) }}>Ver en 3D</button>}
@@ -870,7 +917,7 @@ export default function Plaza() {
 
       {hablar && red === 'vivo' && <div className="plaza-frases pop"><BarraFrases onEnviar={decir} /></div>}
 
-      <nav className="plaza-acciones">
+      <nav className={`plaza-acciones ${tactil ? 'con-palanca' : ''}`}>
         {red === 'vivo' && <button className={`btn-hablar ${hablar ? 'on' : ''}`} onClick={() => setHablar(h => !h)} aria-expanded={hablar} aria-label="Decir algo">💬<span>Decir</span></button>}
         {cerca
           ? <Boton onClick={() => usar(cerca)}>{ACCION[cerca.tipo]}</Boton>
@@ -896,7 +943,7 @@ export default function Plaza() {
           .map(j => ({ id: j.id, apodo: j.apodo, avatar: j.avatar, rango: j.rango, durmiendo: !!tiempos.current.get(j.id)?.dur })) : []
         return <Carpa yo={{ id: perfil.id, apodo: perfil.apodo, avatar: perfil.avatar, rango: perfil.rango }} color={club?.color ?? '#1E9A4B'} club={club ? `Campamento de ${club.nombre}` : 'Gran Campamento'}
           items={bolsa?.items ?? []} aprobados={Object.values(puntajes).filter(p => p >= 400).length} campeon={[]} racha={rachaVigente(rachaObj)}
-          companeros={companeros} inicio={carpa.inicio} horasDormidas={carpa.horas} oscuridad={luz.oscuridad}
+          companeros={companeros} inicio={carpa.inicio} horasDormidas={carpa.horas} oscuridad={luz.oscuridad} hora={hora}
           onDormir={dormir} onDespertar={despertar} onSalir={() => setCarpa(null)} />
       })()}
 

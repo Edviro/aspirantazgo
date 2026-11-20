@@ -47,6 +47,7 @@ const MENSAJES: Record<string, string> = {
   TEXTO_INVALIDO: 'Usa solo letras, números y espacios.',
   FECHA_INVALIDA: 'Elige una fecha futura (máximo 6 meses).',
   DEMASIADAS_SOLICITUDES: 'Ya tienes 5 solicitudes pendientes. Espera la respuesta.',
+  APODO_YA_ES_TUYO: 'Ese apodo ya existe en tu club. Si es tuyo, toca «Ya tengo cuenta» y entra con tu PIN (no se crea otro personaje).',
   APODO_CORTO: 'El apodo debe tener de 3 a 16 letras o números.',
   APODO_CON_DATOS: 'El apodo no puede tener teléfonos, correos ni enlaces.',
   CORREO_INVALIDO: 'Escribe un correo válido.',

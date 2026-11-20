@@ -286,3 +286,7 @@ end $function$;
 
 -- ===== tope_monedas_search_path =====
 alter function public._tope_monedas() set search_path = '';
+
+-- ===== campeones_delete_con_where =====
+-- La API (pg_safeupdate) no permite DELETE sin WHERE: perfiles_publicos fallaba y no se veía a los demás en la plaza.
+-- Se cambió en _refrescar_campeones: delete from public.campeones where true;

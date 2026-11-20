@@ -20,16 +20,21 @@ const ACORDES = [[196, 247, 294, 392, 494, 587], [220, 262, 330, 440, 523, 659],
  * Tu carpa por dentro: tu sleeping, tu mochila, tu Biblia, lo que compraste con ConquisCoins, tus parches, pines y
  * logros. Si te duermes aquí y cierras el juego, al volver amanece y sigues dentro de tu carpa.
  */
-export function Carpa({ yo, color, club, items, aprobados, campeon, racha, companeros, inicio, horasDormidas, oscuridad, onDormir, onDespertar, onSalir }: {
+/** De noche (antes de las 5:30 o desde las 18:30) no amanece aunque te despiertes. */
+const esDeNoche = (h: number) => h < 5.5 || h >= 18.5
+
+export function Carpa({ yo, color, club, items, aprobados, campeon, racha, companeros, inicio, horasDormidas, oscuridad, hora, onDormir, onDespertar, onSalir }: {
   yo: { id: string; apodo: string; avatar: AvatarConfig; rango: Rango }; color: string; club: string
   items: string[]; aprobados: number; campeon: string[]; racha: number; companeros: Companero[]
-  inicio: Estado; horasDormidas?: number; oscuridad: number
+  inicio: Estado; horasDormidas?: number; oscuridad: number; hora: number
   onDormir: () => void; onDespertar: () => void; onSalir: () => void
 }) {
   const [estado, setEstado] = useState<Estado>(inicio)
   const [luzOn, setLuzOn] = useState(true)
   const [dialogo, setDialogo] = useState<'biblia' | 'brujula' | 'mochila' | null>(null)
-  const [verso, setVerso] = useState(() => (inicio === 'amaneciendo' ? VERSICULOS.find(v => v.tema === 'despertar')! : versiculoDelDia()))
+  const [verso, setVerso] = useState(() => (inicio === 'amaneciendo' ? VERSICULOS.find(v => v.tema === 'despertar')! : inicio === 'durmiendo' ? VERSICULOS.find(v => v.tema === 'dormir')! : versiculoDelDia()))
+  const [nota, setNota] = useState<string | null>(inicio === 'durmiendo' ? 'Sigues durmiendo en tu carpa: todavía no amanece (amanece a las 5:30).' : null)
+  const noche = esDeNoche(hora)
   const [saliendo, setSaliendo] = useState(false)
   const tengo = new Set(items)
   const pines = items.filter(i => i.startsWith('pin-')), parches = items.filter(i => i.startsWith('parche-'))
@@ -65,6 +70,13 @@ export function Carpa({ yo, color, club, items, aprobados, campeon, racha, compa
     ctx.fillStyle = '#1E140C'; ctx.fillRect(x, y, 16, 10); ctx.fillStyle = '#3a2a6a'; ctx.fillRect(x + 1, y + 1, 14, 8); ctx.fillStyle = '#F2B90F'; ctx.fillRect(x + 7, y + 2, 2, 6); ctx.fillRect(x + 5, y + 4, 6, 1)
   }, [claveCamas]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Si te quedaste durmiendo y llega el amanecer (5:30), despiertas con el sol
+  const nochePrev = useRef(noche)
+  useEffect(() => {
+    if (nochePrev.current && !noche && estado === 'durmiendo') despertar()
+    nochePrev.current = noche
+  }, [noche]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Amanecer: la luz entra poco a poco por la lona
   useEffect(() => {
     if (estado !== 'amaneciendo') return
@@ -73,8 +85,13 @@ export function Carpa({ yo, color, club, items, aprobados, campeon, racha, compa
     return () => clearTimeout(t)
   }, [estado])
 
-  const dormir = () => { setDialogo(null); setEstado('durmiendo'); setVerso(VERSICULOS.find(v => v.tema === 'dormir')!); onDormir() }
-  const despertar = () => { setEstado('amaneciendo'); setVerso(VERSICULOS.find(v => v.tema === 'despertar')!); onDespertar() }
+  const dormir = () => { setNota(null); setDialogo(null); setEstado('durmiendo'); setVerso(VERSICULOS.find(v => v.tema === 'dormir')!); onDormir() }
+  const despertar = () => {
+    onDespertar()
+    // Si todavía es de noche, te levantas a oscuras (no amanece de mentira); si ya es de día, entra la luz del sol
+    if (noche) { setEstado('despierto'); setLuzOn(true); setNota('Todavía es de noche: afuera brillan las estrellas. Prende tu linterna o vuelve a dormir; amanece a las 5:30.'); return }
+    setNota(null); setEstado('amaneciendo'); setVerso(VERSICULOS.find(v => v.tema === 'despertar')!)
+  }
   const salir = () => { if (menosMovimiento()) { onSalir(); return } setSaliendo(true); sfx.zas(); setTimeout(onSalir, 380) }
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (dialogo) setDialogo(null); else if (estado === 'despierto') salir() } }
@@ -83,7 +100,8 @@ export function Carpa({ yo, color, club, items, aprobados, campeon, racha, compa
   }) // eslint-disable-line react-hooks/exhaustive-deps
 
   const pos = (r: { x: number; y: number; w: number; h: number }) => ({ left: r.x * s, top: r.y * s, width: r.w * s, height: r.h * s })
-  const oscuro = estado === 'durmiendo' ? 0.82 : estado === 'amaneciendo' ? 0 : Math.max(0, oscuridad * (luzOn && tengo.has('obj-linterna') ? 0.35 : 0.85))
+  // De noche siempre hay una lamparita: con linterna se ve casi como de día
+  const oscuro = estado === 'durmiendo' ? 0.82 : estado === 'amaneciendo' ? 0 : Math.max(0, oscuridad * (luzOn && tengo.has('obj-linterna') ? 0.25 : 0.62))
 
   return (
     <div className={`carpa ${saliendo ? 'saliendo' : ''}`} role="dialog" aria-modal="true" aria-label="Dentro de tu carpa">
@@ -131,11 +149,12 @@ export function Carpa({ yo, color, club, items, aprobados, campeon, racha, compa
       </div>
 
       <section className="culto-panel carpa-panel">
+        {nota && <p className="carpa-nota" role="status">🌙 {nota}</p>}
         {estado === 'durmiendo' ? (
           <>
             <p className="carpa-verso">«{verso.texto}» <small>{verso.ref}</small></p>
             <p className="nota">Puedes cerrar el juego: tu personaje se queda durmiendo en tu carpa y, cuando vuelvas, amanece aquí.</p>
-            <Boton onClick={despertar}>Despertar</Boton>
+            <Boton onClick={despertar}>{noche ? 'Levantarme (aún es de noche)' : 'Despertar'}</Boton>
           </>
         ) : estado === 'amaneciendo' ? (
           <>

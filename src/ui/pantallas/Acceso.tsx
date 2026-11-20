@@ -27,6 +27,21 @@ function Google() {
   )
 }
 
+/** Cuentas de conquistador usadas en este equipo (club y apodo, nunca el PIN). */
+interface Recordada { codigo: string; apodo: string; club: string }
+const CLAVE_CUENTAS = 'asp_cuentas'
+function leerRecordadas(): Recordada[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(CLAVE_CUENTAS) ?? '[]')
+    return Array.isArray(v) ? v.filter((c): c is Recordada => c && /^[A-Z0-9]{4,8}$/.test(c.codigo) && typeof c.apodo === 'string' && c.apodo.length <= 16 && typeof c.club === 'string').slice(0, 5) : []
+  } catch { return [] }
+}
+function recordar(c: Recordada) {
+  const l = [c, ...leerRecordadas().filter(x => !(x.codigo === c.codigo && x.apodo.toLowerCase() === c.apodo.toLowerCase()))].slice(0, 5)
+  try { localStorage.setItem(CLAVE_CUENTAS, JSON.stringify(l.map(x => ({ ...x, club: x.club.slice(0, 40) })))) } catch { /* sin almacenamiento */ }
+  return l
+}
+
 export default function Acceso() {
   const { setSesion, ir, verLegal } = useJuego()
   const cuentas = repoEnLinea?.cuentas ?? null
@@ -39,8 +54,10 @@ export default function Acceso() {
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
-  // Niño: código del club + apodo + PIN (sin correo ni datos personales)
-  const [nuevo, setNuevo] = useState(true)
+  // Niño: código del club + apodo + PIN (sin correo ni datos personales).
+  // En este equipo se recuerdan las cuentas que ya entraron (club y apodo, nunca el PIN): solo falta el PIN.
+  const [recordadas, setRecordadas] = useState(leerRecordadas)
+  const [nuevo, setNuevo] = useState(() => leerRecordadas().length === 0)
   const [codigo, setCodigo] = useState('')
   const [apodo, setApodo] = useState('')
   const [pin, setPin] = useState('')
@@ -114,9 +131,12 @@ export default function Acceso() {
   const entrarNino = () => accion(async () => {
     if (!repoEnLinea) throw new Error('SIN_CONEXION')
     validarApodo()
-    const p = nuevo ? await repoEnLinea.unirseNino(codigo, apodo, pin) : await repoEnLinea.entrarNino(codigo, apodo, pin)
+    let p
+    try { p = nuevo ? await repoEnLinea.unirseNino(codigo, apodo, pin) : await repoEnLinea.entrarNino(codigo, apodo, pin) }
+    catch (e) { if (nuevo && e instanceof Error && e.message.includes('APODO_OCUPADO')) throw new Error('APODO_YA_ES_TUYO'); throw e }
+    setRecordadas(recordar({ codigo: codigo.toUpperCase(), apodo: apodo.trim(), club: p.club.nombre }))
     await setSesion('en_linea', p)
-    ir(nuevo ? 'editor' : 'mapa')
+    ir(nuevo || !p.avatar?.genero ? 'editor' : 'plaza')
   })
 
   const cuenta = () => accion(async () => {
@@ -186,9 +206,20 @@ export default function Acceso() {
         {tab === 'nino' && (
           <form className="form" onSubmit={e => { e.preventDefault(); entrarNino() }}>
             <div className="segmento">
-              <button type="button" className={nuevo ? 'on' : ''} onClick={() => setNuevo(true)}>Soy nuevo</button>
               <button type="button" className={!nuevo ? 'on' : ''} onClick={() => setNuevo(false)}>Ya tengo cuenta</button>
+              <button type="button" className={nuevo ? 'on' : ''} onClick={() => setNuevo(true)}>Soy nuevo</button>
             </div>
+            {!nuevo && recordadas.length > 0 && (
+              <div className="cuentas-recordadas" aria-label="Cuentas de este equipo">
+                {recordadas.map(c => (
+                  <button type="button" key={c.codigo + c.apodo} className={c.codigo === codigo && c.apodo === apodo ? 'on' : ''}
+                    onClick={() => { setCodigo(c.codigo); setApodo(c.apodo); setPin(''); setError('') }}>
+                    <b>{c.apodo}</b><small>{c.club}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+            {!nuevo && <p className="ayuda">Entras con tu misma cuenta: tu personaje, tus puntos y tus parches siguen ahí. No se crea otro personaje.</p>}
             <label>Código de tu club<input value={codigo} onChange={e => setCodigo(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} maxLength={6} placeholder="Ej. K7P2QA" autoCapitalize="characters" autoComplete="off" required /></label>
             <label>Tu apodo de jugador<input value={apodo} onChange={e => setApodo(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü_ ]/g, ''))} maxLength={16} placeholder="Ej. HalconVeloz" autoComplete="nickname" required /></label>
             <p className="ayuda">No uses tu nombre real ni tu apellido. Tu apodo es lo único que verán los demás.</p>
