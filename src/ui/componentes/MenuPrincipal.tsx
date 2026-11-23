@@ -19,8 +19,8 @@ export function useSalaDelEnlace(entrar: (codigo: string) => void) {
  * Menú principal (Plaza Central y mapa de cada campamento): parches, ranking, personaje, salas, paneles,
  * sonido, privacidad y cuenta. Incluye los diálogos de "unirme a una sala" y "borrar mi cuenta".
  */
-export function MenuPrincipal({ abierto, onCerrar, onCampamentos, textoCampamentos = 'Mapa de campamentos' }: {
-  abierto: boolean; onCerrar: () => void; onCampamentos: () => void; textoCampamentos?: string
+export function MenuPrincipal({ abierto, onCerrar, onCampamentos, textoCampamentos = 'Mapa de campamentos', onIntercambios }: {
+  abierto: boolean; onCerrar: () => void; onCampamentos: () => void; textoCampamentos?: string; onIntercambios?: () => void
 }) {
   const { perfil, ir, modo, sonido, toggleSonido, musica: conMusica, toggleMusica, salir, abrirSala, repo } = useJuego()
   const [borrar, setBorrar] = useState(false)
@@ -49,6 +49,7 @@ export function MenuPrincipal({ abierto, onCerrar, onCampamentos, textoCampament
           <button onClick={() => ir('editor')}>Mi personaje</button>
           {puedeSalas && <button onClick={() => ir('unidad')}>Mi unidad</button>}
           {puedeSalas && <button onClick={() => ir('miclub')}>Mi club: historia y museo</button>}
+          {onIntercambios && <button onClick={() => { onCerrar(); onIntercambios() }}>Intercambios de pines y parches</button>}
           {puedeSalas && <button onClick={() => ir('club')}>Campamento del club en vivo</button>}
           {puedeSalas && <button onClick={() => setUnirse(true)}>Unirme a una sala</button>}
           {puedeSalas && esAdulto && <button onClick={() => ir('director')}>{perfil.club.soy_director ? 'Panel del club' : 'Panel del líder'}</button>}

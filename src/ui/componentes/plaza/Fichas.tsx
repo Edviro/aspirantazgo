@@ -6,7 +6,7 @@ import { Bandera, CAMPEON_TXT, IconoItem } from './Iconos'
 export const RANGO_TXT: Record<string, string> = { conquistador: 'Conquistador', lider: 'Líder', guia_mayor: 'Guía Mayor', gm_master: 'GM Máster', gm_master_avanzado: 'GM Máster Avanzado' }
 
 /** Lo que se ve al tocar a alguien en el Gran Campamento: quién es, de dónde, sus logros y dónde está. */
-export function FichaJugador({ j, zona, onCerrar, onRetar }: { j: PerfilPublico; zona: string; onCerrar: () => void; onRetar?: () => void }) {
+export function FichaJugador({ j, zona, onCerrar, onRetar, onIntercambiar }: { j: PerfilPublico; zona: string; onCerrar: () => void; onRetar?: () => void; onIntercambiar?: () => void }) {
   return (
     <div className="plaza-ficha pop" role="dialog" aria-label={`${j.apodo}, de ${j.club}`}>
       <PixelAvatar a={j.avatar ?? {}} rango={j.rango} animo="saluda" alto={92} />
@@ -23,6 +23,7 @@ export function FichaJugador({ j, zona, onCerrar, onRetar }: { j: PerfilPublico;
       </div>
       <div className="fila-botones">
         <Boton tipo="fantasma" onClick={onCerrar}>Cerrar</Boton>
+        {onIntercambiar && <Boton tipo="azul" onClick={onIntercambiar}>Intercambiar</Boton>}
         {onRetar && <Boton tipo="rojo" onClick={onRetar}>Retar</Boton>}
       </div>
     </div>

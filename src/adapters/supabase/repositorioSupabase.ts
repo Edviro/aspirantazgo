@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
   Bolsa, ItemTienda, MiembroConAvatar, ClubRetable, ProgramaAdmin, ProgramaVivo, PuertoCulto, RetoClub, Torneo, TorneoAdmin,
-  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, SolicitudCargo, PuertoUnidades, Unidad, RolUnidad, PuertoClubPerfil, PiezaMuseo, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
+  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, SolicitudCargo, PuertoUnidades, Unidad, RolUnidad, PuertoClubPerfil, PiezaMuseo, PuertoIntercambios, ItemCambio, Intercambio, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
   RegistroAdulto, RepositorioJuego, ResultadoServidor, Vidas, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
 import type { Dificultad, Rango } from '../../domain/tipos'
@@ -58,6 +58,7 @@ export class RepositorioSupabase implements RepositorioJuego {
   readonly culto: PuertoCulto
   readonly unidades: PuertoUnidades
   readonly clubPerfil: PuertoClubPerfil
+  readonly intercambios: PuertoIntercambios
   private sb: SupabaseClient
 
   constructor(url: string, clave: string) {
@@ -162,6 +163,27 @@ export class RepositorioSupabase implements RepositorioJuego {
     }
 
     this.clubPerfil = crearClubPerfil(this.sb, rpc, token)
+    const ITEM = /^[a-z0-9-]{2,40}$/
+    const items = (v: unknown): ItemCambio[] => (Array.isArray(v) ? v : []).slice(0, 60).map(x => x as Record<string, unknown>)
+      .filter(x => typeof x.id === 'string' && ITEM.test(x.id)).map(x => ({ id: x.id as string, tipo: txt(x.tipo, 20), nombre: txt(x.nombre, 60) }))
+    const ESTADOS = ['pendiente', 'aceptado', 'rechazado', 'cancelado', 'vencido']
+    this.intercambios = {
+      intercambiables: async j => items(await rpc('intercambiables', { p_token: token(), p_jugador: j ?? null })),
+      async proponer(para, doy, pido) {
+        if (!esUuid(para) || ![...doy, ...pido].every(x => ITEM.test(x))) throw new Error('DATOS_INVALIDOS')
+        await rpc('intercambio_proponer', { p_token: token(), p_para: para, p_doy: doy, p_pido: pido })
+      },
+      async lista() {
+        const l = await rpc<unknown>('mis_intercambios', { p_token: token() })
+        return (Array.isArray(l) ? l : []).slice(0, 40).map(x => x as Record<string, unknown>).filter(x => esUuid(x.id) && ESTADOS.includes(x.estado as string)).map(x => {
+          const o = (x.otro && typeof x.otro === 'object' ? x.otro : null) as Record<string, unknown> | null
+          return { id: x.id as string, recibido: x.recibido === true, estado: x.estado as Intercambio['estado'], creado: txt(x.creado, 40),
+            otro: o && esUuid(o.id) ? { id: o.id, apodo: txt(o.apodo, 20), club: txt(o.club, 80) } : null, doy: items(x.doy), pido: items(x.pido) }
+        })
+      },
+      async responder(id, aceptar) { await rpc('intercambio_responder', { p_token: token(), p_id: id, p_aceptar: aceptar }) },
+      pendientes: async () => Number(await rpc('intercambios_pendientes', { p_token: token() })) || 0,
+    }
     const unidad = (v: unknown) => { const u = limpiarUnidad(v); if (!u) throw new Error('DATOS_INVALIDOS'); return u }
     this.unidades = {
       async estado() {

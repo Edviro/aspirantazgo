@@ -250,6 +250,26 @@ export interface RepositorioJuego {
   readonly unidades?: PuertoUnidades
   /** Perfil y museo del club (solo en línea). */
   readonly clubPerfil?: PuertoClubPerfil
+  /** Intercambio de pines y parches (solo en línea). */
+  readonly intercambios?: PuertoIntercambios
+}
+
+// ---------- Intercambios (solo lo comprado o de recuerdo, nunca lo ganado) ----------
+export interface ItemCambio { id: string; tipo: string; nombre: string }
+export interface Intercambio {
+  id: string; recibido: boolean; estado: 'pendiente' | 'aceptado' | 'rechazado' | 'cancelado' | 'vencido'; creado: string
+  otro: { id: string; apodo: string; club: string } | null
+  /** Lo que da quien propuso y lo que pide a cambio. */
+  doy: ItemCambio[]; pido: ItemCambio[]
+}
+export interface PuertoIntercambios {
+  /** Pines y parches que se pueden intercambiar (los tuyos, o los de otro jugador). */
+  intercambiables(jugador?: string): Promise<ItemCambio[]>
+  proponer(para: string, doy: string[], pido: string[]): Promise<void>
+  lista(): Promise<Intercambio[]>
+  /** Aceptar o rechazar (si te lo propusieron) o cancelar (si lo propusiste tú). */
+  responder(id: string, aceptar: boolean): Promise<void>
+  pendientes(): Promise<number>
 }
 
 // ---------- Perfil y museo del club ----------

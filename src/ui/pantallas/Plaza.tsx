@@ -8,6 +8,7 @@ import { Carpa, type Companero } from '../componentes/plaza/Carpa'
 import { Joystick } from '../componentes/plaza/Joystick'
 import { MapaViaje, nombreLugar } from '../componentes/plaza/MapaViaje'
 import { Radar, type RadarRef } from '../componentes/plaza/Radar'
+import { MisIntercambios, ProponerIntercambio } from '../componentes/plaza/Intercambios'
 import {
   ALTO, ANCHO, CARPAS_POR_LADO, OBJETOS, PARCELAS, POR_CARPA, MUELLE, SALIDA, alturaBanderas, asignar, ceremoniaAhora, esSabado, formacion, horaLima, luzDelDia,
   objetoEn, ruta, transitable, usableCerca, zonaDe, type Asignacion, type Campista, type Objeto, type Zona,
@@ -184,6 +185,18 @@ export default function Plaza() {
   const miClub = perfil?.club.id ?? 'mi-club'
 
   useEffect(() => { repo.bolsa?.().then(setBolsa).catch(() => undefined) }, [repo])
+  // Aviso cuando alguien te propone un intercambio (cada 2 minutos)
+  useEffect(() => {
+    if (!repo.intercambios || modo !== 'en_linea' || perfil?.invitado) return
+    let antes = 0
+    const ver = () => repo.intercambios!.pendientes().then(n => {
+      if (n > antes) setAviso(`🔁 Tienes ${n === 1 ? 'una propuesta' : `${n} propuestas`} de intercambio. Ábrelas en el menú › Intercambios.`)
+      antes = n
+    }).catch(() => undefined)
+    void ver()
+    const t = setInterval(ver, 120000)
+    return () => clearInterval(t)
+  }, [repo, modo, perfil?.invitado])
   // Director: aviso cuando alguien pide entrar a su club (se revisa cada 2 minutos)
   useEffect(() => {
     if (!perfil?.club.soy_director || !repo.lider?.pendientes) return
@@ -263,6 +276,8 @@ export default function Plaza() {
   const [camp, setCamp] = useState<Campamento | null>(null)
   const [campListo, setCampListo] = useState(false)
   const [mapa, setMapa] = useState(false)
+  const [cambioCon, setCambioCon] = useState<{ id: string; apodo: string } | null>(null)
+  const [misCambios, setMisCambios] = useState(false)
   // En el muelle: zarpar a las islas de desafíos o navegar a descubrir otros campamentos
   const [muelle, setMuelle] = useState(false)
   const [porBarco, setPorBarco] = useState(false)
@@ -1056,7 +1071,7 @@ export default function Plaza() {
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>
         </button>
       </header>
-      <MenuPrincipal abierto={menu} onCerrar={() => setMenu(false)} onCampamentos={() => setZarpar(true)} />
+      <MenuPrincipal abierto={menu} onCerrar={() => setMenu(false)} onCampamentos={() => setZarpar(true)} onIntercambios={repo.intercambios && enLinea ? () => setMisCambios(true) : undefined} />
 
       <div className="plaza-titulo">
         <h1>{nombreZona(zona)}</h1>
@@ -1088,6 +1103,7 @@ export default function Plaza() {
       {formado && cer && <div className="plaza-formado" role="status">{cer.fase === 'invitacion' ? '¡Atención! Formados para la ceremonia…' : cer.fase === 'en_curso' ? (cer.tipo === 'izamiento' ? '🎺 Izando las banderas…' : '🎺 Arriando las banderas…') : '¡Rompan filas!'}</div>}
 
       {elegido && <FichaJugador j={elegido} zona={zonaDeOtro(elegido.id)} onCerrar={() => setElegido(null)}
+        onIntercambiar={repo.intercambios && enLinea && !sabado ? () => { setCambioCon({ id: elegido.id, apodo: elegido.apodo }); setElegido(null) } : undefined}
         onRetar={presencia && !sabado ? () => { setRivales([elegido]); setElegido(null) } : undefined} />}
       {carpaVista && <FichaCarpa titulo={`${unidadDeCarpa.get(`${carpaVista.parcela}-${carpaVista.sexo}-${carpaVista.slot}`) ? `Unidad ${unidadDeCarpa.get(`${carpaVista.parcela}-${carpaVista.sexo}-${carpaVista.slot}`)}` : `Carpa ${carpaVista.sexo === 'f' ? 'de damas' : 'de varones'} ${(carpaVista.slot ?? 0) + 1}`}${clubDeParcela.get(carpaVista.parcela!) ? ` · ${clubDeParcela.get(carpaVista.parcela!)!.nombre}` : ''}`}
         ocupantes={ocupantesDe(carpaVista)} onCerrar={() => setCarpaVista(null)} />}
@@ -1119,6 +1135,8 @@ export default function Plaza() {
 
       {rivales.length > 0 && <DialogoReto rivales={rivales} setRivales={setRivales} libres={lista} onCerrar={() => setRivales([])} />}
 
+      {cambioCon && repo.intercambios && <ProponerIntercambio api={repo.intercambios} con={cambioCon} onCerrar={() => setCambioCon(null)} />}
+      {misCambios && repo.intercambios && <MisIntercambios api={repo.intercambios} onCerrar={() => setMisCambios(false)} onCambio={() => repo.bolsa?.().then(setBolsa).catch(() => undefined)} />}
       {mapa && repo.salas && <MapaViaje salas={repo.salas} camp={camp} onIr={(l, t) => { if (porBarco) { setMapa(false); setPorBarco(false); setNavegando({ lugar: l, titulo: t ?? 'otro campamento' }) } else viajar(l) }} onCerrar={() => { setMapa(false); setPorBarco(false) }} />}
       {muelle && (
         <div className="velo" onClick={() => setMuelle(false)}>
