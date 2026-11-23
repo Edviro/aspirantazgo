@@ -5,22 +5,23 @@
 -- directorio_clubes_procesar_v2, directorio_clubes_integracion, registrar_adulto_club_oficial,
 -- directorio_clubes_programacion). Esta copia es la referencia; la fuente de verdad es la base.
 --
--- Cómo funciona
---   * La extensión `http` (solo la puede usar el dueño de la base; anon/authenticated sin permiso)
---     descarga las páginas del sitio. _dir_get/_dir_post solo aceptan URLs de clubes.adventistas.org.
---   * _dir_sembrar() lee el menú (uniones → asociaciones/misiones) y llena la cola dir_cola.
---   * pg_cron 'directorio-clubes' (cada minuto) llama _dir_procesar(6): 1 página cada 8 s; si el sitio
---     responde 429 (Retry-After 600) se pausa 11 minutos (dir_estado.pausa_hasta).
---       asociacion → regiones de Conquistadores (+ ciudades) | region → clubes (nombre, miembros)
---       Paraguaya/Uruguaya no tienen regiones en el sitio: departamento → ciudad → página del club.
---       ciudad → completa la ciudad de cada club.
---   * pg_cron 'directorio-sincronizar' (cada hora) → _dir_sincronizar(): crea/actualiza campos
---     (asociaciones/misiones del juego), enlaza clubes del juego por nombre y les pone la ciudad oficial.
---   * pg_cron 'directorio-refrescar' (día 3 de cada mes) → _dir_refrescar(): vuelve a recorrer todo.
---   * Para el juego: clubes_oficiales(p_campo) (anon/authenticated) y registrar_adulto(..., p_oficial).
+-- Cómo funciona (versión final)
+--   * clubes.adventistas.org bloquea la IP del servidor de la base (HTTP 429), así que la descarga la hace
+--     GitHub Actions (.github/workflows/directorio.yml + scripts/directorio_dsa.py, día 2 de cada mes) y
+--     publica directorio_dsa.json en la rama `datos-directorio` (repo público, sin claves).
+--   * pg_cron 'directorio-importar' (diario) → _dir_importar(): baja ese JSON con la extensión http, que vive en
+--     el esquema `privado` (sin USAGE para anon/authenticated), valida cada fila y hace upsert en las tablas
+--     maestras dir_uniones, dir_asociaciones, dir_regiones, dir_clubes. Luego _dir_sincronizar().
+--   * pg_cron 'directorio-sincronizar' (cada hora) → _dir_sincronizar(): campos (asociaciones/misiones del juego),
+--     enlace de clubes del juego por nombre y ciudad oficial.
+--   * El juego SOLO lee las tablas: clubes_oficiales(p_campo), campamento(p_token, p_lugar), mapa_campamentos(p_token)
+--     y registrar_adulto(..., p_oficial).
+--   * Campamento por región: base 'r<region>' ('rn<id>' si es negativo), 'c<campo>' clubes nuevos, 'x' sin asociación;
+--     11 parcelas por sector, orden fijo por fecha de registro del club; carpas fijas por orden de registro del miembro.
 -- =====================================================================================
 
-create extension if not exists http with schema extensions; -- y revoke de todas sus funciones a public/anon/authenticated
+create schema privado; revoke all on schema privado from public, anon, authenticated;
+create extension http with schema privado;
 
 create table public.dir_uniones (id text primary key check (id ~ '^[a-z]{2,8}$'), nombre text not null, pais text not null check (pais ~ '^[A-Z]{2}$'), orden int not null default 0);
 create table public.dir_asociaciones (id text primary key check (id ~ '^[a-z]{2,8}$'), union_id text not null references public.dir_uniones(id) on delete cascade, nombre text not null, orden int not null default 0);
