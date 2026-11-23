@@ -1,29 +1,46 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CatalogoOrg, ClubLista, PuertoCuentas } from '../../application/puertos'
+import type { CatalogoOrg, ClubOficial, PuertoCuentas } from '../../application/puertos'
 
-export const OTRO_CLUB = '__otro__'
+const NUEVO = '__nuevo__'
 
 export interface ClubElegido {
-  /** Id del club registrado, o null si lo escribió a mano. */
-  id: string | null
-  /** Nombre a mostrar (del catálogo o escrito). */
+  /** Asociación o misión (campo) del club. */
+  campo: number
+  /** Id del club en el directorio oficial de la DSA (null si es un club nuevo que aún no figura). */
+  oficial: number | null
+  /** Id del club en el juego, si ya existe. */
+  juego: string | null
   nombre: string
+  conDirector: boolean
+  /** Solo si el club aún no figura en el directorio y se registra a mano. */
+  nuevo?: { nombre: string; ciudad: string }
 }
 
+const MENORES = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y', 'e', 'do', 'da', 'dos', 'das'])
+const titulo = (t: string) => t.toLowerCase().replace(/(^|[\s(/-])(\p{L}+)/gu, (_, a: string, w: string) => a + (a && MENORES.has(w) ? w : w[0].toUpperCase() + w.slice(1)))
+const sinTildes = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
 /**
- * País → Unión → Asociación/Misión → Club, con los clubes que ya existen en el juego para que no se dupliquen.
- * Si el club no está, "Mi club no está en la lista" abre un campo de texto. Si el catálogo no carga
- * (sin conexión), queda solo el campo de texto.
+ * País → Unión → Asociación/Misión → Región → Club, con la lista OFICIAL de clubes de Conquistadores de la DSA
+ * (clubes.adventistas.org). Así nadie escribe nombres inventados ni duplica su club.
+ * Con `permitirNuevo`, un club recién fundado que aún no figura se puede registrar a mano.
  */
-export function SelectorClub({ cuentas, onCambio }: { cuentas: PuertoCuentas | null; onCambio: (c: ClubElegido | null) => void }) {
+export function SelectorClub({ cuentas, onCambio, permitirNuevo = false }: {
+  cuentas: PuertoCuentas | null
+  onCambio: (c: ClubElegido | null) => void
+  permitirNuevo?: boolean
+}) {
   const [cat, setCat] = useState<CatalogoOrg | null>(null)
   const [fallo, setFallo] = useState(false)
   const [pais, setPais] = useState('PE')
   const [unionId, setUnionId] = useState<number | ''>('')
   const [campoId, setCampoId] = useState<number | ''>('')
-  const [clubes, setClubes] = useState<ClubLista[] | null>(null)
-  const [clubId, setClubId] = useState('')
-  const [texto, setTexto] = useState('')
+  const [clubes, setClubes] = useState<ClubOficial[] | null>(null)
+  const [region, setRegion] = useState('')
+  const [buscar, setBuscar] = useState('')
+  const [clave, setClave] = useState('')
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [nuevaCiudad, setNuevaCiudad] = useState('')
 
   useEffect(() => {
     if (!cuentas) { setFallo(true); return }
@@ -33,31 +50,37 @@ export function SelectorClub({ cuentas, onCambio }: { cuentas: PuertoCuentas | n
   }, [cuentas])
 
   useEffect(() => {
-    setClubes(null); setClubId('')
+    setClubes(null); setClave(''); setRegion(''); setBuscar('')
     if (campoId === '' || !cuentas) return
     let vivo = true
-    cuentas.clubesDeCampo(campoId).then(l => { if (vivo) setClubes(l) }).catch(() => { if (vivo) setClubes([]) })
+    cuentas.clubesOficiales(campoId).then(l => { if (vivo) setClubes(l) }).catch(() => { if (vivo) setClubes([]) })
     return () => { vivo = false }
   }, [campoId, cuentas])
 
   const uniones = useMemo(() => cat?.uniones.filter(u => u.pais === pais) ?? [], [cat, pais])
   const campos = useMemo(() => cat?.campos.filter(c => c.union === unionId) ?? [], [cat, unionId])
-  const aMano = fallo || clubId === OTRO_CLUB
+  const regiones = useMemo(() => [...new Set((clubes ?? []).map(c => c.region))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true })), [clubes])
+  const claveDe = (c: ClubOficial) => c.oficial !== null ? 'o' + c.oficial : 'j' + c.juego
+  const visibles = useMemo(() => {
+    const q = sinTildes(buscar.trim())
+    return (clubes ?? []).filter(c => (q ? sinTildes(c.nombre).includes(q) || sinTildes(c.ciudad ?? '').includes(q) : !region || c.region === region))
+  }, [clubes, region, buscar])
 
   // Avisa al formulario qué club quedó elegido (o null si aún falta)
   useEffect(() => {
-    if (aMano) { const t = texto.trim(); onCambio(t.length >= 2 ? { id: null, nombre: t } : null); return }
-    const c = clubes?.find(x => x.id === clubId)
-    onCambio(c ? { id: c.id, nombre: c.nombre } : null)
-  }, [aMano, texto, clubId, clubes]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (campoId === '') { onCambio(null); return }
+    if (clave === NUEVO) {
+      const n = nuevoNombre.trim(), ci = nuevaCiudad.trim()
+      onCambio(n.length >= 2 && ci.length >= 2 ? { campo: campoId, oficial: null, juego: null, nombre: n, conDirector: false, nuevo: { nombre: n, ciudad: ci } } : null)
+      return
+    }
+    const c = clubes?.find(x => claveDe(x) === clave)
+    onCambio(c ? { campo: campoId, oficial: c.oficial, juego: c.juego, nombre: c.nombre, conDirector: c.con_director } : null)
+  }, [campoId, clave, clubes, nuevoNombre, nuevaCiudad]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const limpiar = (v: string) => v.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü .-]/g, '').slice(0, 40)
-  const campoTexto = (
-    <label>{fallo ? 'Tu club' : 'Nombre de tu club'}
-      <input value={texto} onChange={e => setTexto(limpiar(e.target.value))} maxLength={40} placeholder="Ej. Halcones" required autoComplete="off" />
-    </label>
-  )
-  if (fallo) return campoTexto
+  const limpiar = (v: string) => v.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü .'-]/g, '').slice(0, 60)
+
+  if (fallo) return <p className="error" role="alert">No se pudo cargar la lista de clubes. Revisa tu conexión y vuelve a intentar.</p>
 
   return (
     <fieldset className="selector-club">
@@ -73,15 +96,41 @@ export function SelectorClub({ cuentas, onCambio }: { cuentas: PuertoCuentas | n
         </select></label>
       </div>
       <label>Asociación o Misión<select value={campoId} onChange={e => setCampoId(e.target.value ? Number(e.target.value) : '')} disabled={unionId === ''} required>
-        <option value="">{unionId === '' ? 'Primero elige la unión' : campos.length ? 'Elige…' : 'Aún no hay campos para esta unión'}</option>
+        <option value="">{unionId === '' ? 'Primero elige la unión' : 'Elige…'}</option>
         {campos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
       </select></label>
-      <label>Club<select value={clubId} onChange={e => setClubId(e.target.value)} disabled={campoId === '' || clubes === null} required>
-        <option value="">{campoId === '' ? 'Primero elige tu asociación o misión' : clubes === null ? 'Cargando clubes…' : clubes.length ? 'Elige tu club…' : 'No hay clubes aún'}</option>
-        {(clubes ?? []).map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.ciudad})</option>)}
-        {campoId !== '' && clubes !== null && <option value={OTRO_CLUB}>Mi club no está en la lista</option>}
-      </select></label>
-      {clubId === OTRO_CLUB && campoTexto}
+
+      {campoId !== '' && clubes === null && <p className="ayuda">Cargando clubes…</p>}
+      {campoId !== '' && clubes !== null && (
+        <>
+          <div className="dos">
+            <label>Región<select value={region} onChange={e => { setRegion(e.target.value); setBuscar(''); setClave('') }} disabled={!regiones.length}>
+              <option value="">Todas</option>
+              {regiones.map(r => <option key={r} value={r}>{titulo(r)}</option>)}
+            </select></label>
+            <label>Buscar<input value={buscar} onChange={e => { setBuscar(limpiar(e.target.value).slice(0, 30)); setClave('') }} placeholder="Nombre del club" maxLength={30} autoComplete="off" /></label>
+          </div>
+          <label>Club<select value={clave} onChange={e => setClave(e.target.value)} required>
+            <option value="">{visibles.length ? `Elige tu club (${visibles.length})…` : 'Ningún club coincide'}</option>
+            {visibles.map(c => (
+              <option key={claveDe(c)} value={claveDe(c)}>
+                {c.nombre}{c.ciudad ? ` · ${titulo(c.ciudad)}` : ''}{c.juego ? ' ✓' : ''}
+              </option>
+            ))}
+            {permitirNuevo && <option value={NUEVO}>Mi club es nuevo y aún no aparece</option>}
+          </select></label>
+          {clubes.some(c => c.juego) && <p className="ayuda">✓ = ese club ya juega en Aspirantazgo.</p>}
+          {clave === NUEVO && (
+            <>
+              <div className="dos">
+                <label>Nombre del club<input value={nuevoNombre} onChange={e => setNuevoNombre(limpiar(e.target.value))} maxLength={60} required autoComplete="off" /></label>
+                <label>Ciudad<input value={nuevaCiudad} onChange={e => setNuevaCiudad(limpiar(e.target.value))} maxLength={60} required autoComplete="off" /></label>
+              </div>
+              <p className="ayuda">Solo si tu club es nuevo y todavía no figura en el directorio oficial de la DSA. Queda pendiente de verificación.</p>
+            </>
+          )}
+        </>
+      )}
     </fieldset>
   )
 }

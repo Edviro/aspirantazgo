@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { SelectorClub, type ClubElegido } from '../componentes/SelectorClub'
 import { useJuego } from '../estado'
 import { musica } from '../musica'
 import { asset, Boton, Cielo } from '../componentes/Comunes'
 import { repoEnLinea } from '../../adapters/contenedor'
 import { mensajeError } from '../../application/errores'
-import type { CatalogoOrg, ClubLista } from '../../application/puertos'
 import { CARGOS_ADULTO } from '../../application/uniformeJugador'
 import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
 import type { Rango } from '../../domain/tipos'
@@ -14,7 +13,6 @@ const RANGOS_ADULTO: [Rango, string][] = [
   ['lider', 'Líder / directivo (no Guía Mayor)'], ['guia_mayor', 'Guía Mayor'], ['gm_master', 'Guía Mayor Máster'], ['gm_master_avanzado', 'Guía Mayor Máster Avanzado'],
 ]
 const NOMBRES_PROHIBIDOS = /(\d{6,}|@|https?:|www\.|\.com)/i
-const CREAR = '__crear__'
 
 function Google() {
   return (
@@ -70,15 +68,8 @@ export default function Acceso() {
   const [aviso, setAviso] = useState('')
   const [adultoEmail, setAdultoEmail] = useState<string | null>(null)
 
-  // Adulto: registro en su club
-  const [cat, setCat] = useState<CatalogoOrg | null>(null)
-  const [pais, setPais] = useState('PE')
-  const [unionId, setUnionId] = useState<number | ''>('')
-  const [campoId, setCampoId] = useState<number | ''>('')
-  const [clubes, setClubes] = useState<ClubLista[] | null>(null)
-  const [clubId, setClubId] = useState('')
-  const [nombreClub, setNombreClub] = useState('')
-  const [ciudad, setCiudad] = useState('')
+  // Adulto: registro en su club (elegido del directorio oficial de la DSA)
+  const [clubAd, setClubAd] = useState<ClubElegido | null>(null)
   const [soyDirector, setSoyDirector] = useState(false)
   const [rango, setRango] = useState<Rango>('lider')
   const [cargo, setCargo] = useState('CONSEJERO')
@@ -94,17 +85,8 @@ export default function Acceso() {
     return cuentas?.alRecuperar(() => { setTab('adulto'); setModoCuenta('nueva') })
   }, [ir, setSesion, cuentas])
 
-  useEffect(() => { if (adultoEmail && !cat) cuentas?.catalogo().then(setCat).catch(e => setError(mensajeError(e))) }, [adultoEmail, cat, cuentas])
-  useEffect(() => {
-    setClubes(null); setClubId('')
-    if (campoId !== '') cuentas?.clubesDeCampo(campoId).then(setClubes).catch(() => setClubes([]))
-  }, [campoId, cuentas])
-
-  const uniones = useMemo(() => cat?.uniones.filter(u => u.pais === pais) ?? [], [cat, pais])
-  const campos = useMemo(() => cat?.campos.filter(c => c.union === unionId) ?? [], [cat, unionId])
-  const clubSel = clubes?.find(c => c.id === clubId)
-  const creando = clubId === CREAR
-  const puedeDirigir = creando || (clubSel && !clubSel.con_director)
+  const yaTieneDirector = !!(clubAd?.juego && clubAd.conDirector)
+  const puedeDirigir = !!clubAd && !yaTieneDirector
 
   const accion = async (fn: () => Promise<void>) => {
     setError(''); setAviso(''); setCargando(true)
@@ -121,7 +103,7 @@ export default function Acceso() {
     if (!repoEnLinea?.entrarInvitado) throw new Error('SIN_CONEXION')
     if (!/^[A-Z]{5}$/.test(codSala)) throw new Error('SALA_NO_EXISTE')
     if (!clubInv) throw new Error('CLUB_INVALIDO')
-    const r = await repoEnLinea.entrarInvitado(codSala, nombreInv.trim(), clubInv.nombre, clubInv.id)
+    const r = await repoEnLinea.entrarInvitado(codSala, nombreInv.trim(), clubInv.nombre, clubInv.juego)
     try { sessionStorage.setItem('asp_sala_invitado', r.codigo) } catch { /* */ }
     olvidarSalaPendiente()
     await setSesion('en_linea', r.perfil)
@@ -163,12 +145,12 @@ export default function Acceso() {
 
   const registrar = () => accion(async () => {
     validarApodo()
-    if (campoId === '') throw new Error('CAMPO_INVALIDO')
-    if (!clubId) throw new Error('ELIGE_CLUB')
+    if (!clubAd) throw new Error('ELIGE_CLUB')
     if (!acepta) throw new Error('FALTA_CONSENTIMIENTO')
     if (soyDirector && puedeDirigir && !autoriza) throw new Error('FALTA_CONSENTIMIENTO')
     const p = await cuentas!.registrarAdulto({
-      club: creando ? null : clubId, campo: campoId, nombreClub: creando ? nombreClub : undefined, ciudad: creando ? ciudad : undefined,
+      club: clubAd.juego, campo: clubAd.campo, oficial: clubAd.juego ? null : clubAd.oficial,
+      nombreClub: clubAd.nuevo?.nombre, ciudad: clubAd.nuevo?.ciudad,
       soyDirector: !!(soyDirector && puedeDirigir), apodo, rango, cargo: cargo.replace(/\./g, ''), acepta, autoriza,
     })
     await setSesion('en_linea', p)
@@ -272,36 +254,12 @@ export default function Acceso() {
         {tab === 'adulto' && adultoEmail && (
           <form className="form" onSubmit={e => { e.preventDefault(); registrar() }}>
             <p className="ayuda">Conectado como <b>{adultoEmail}</b>. Ahora elige tu club.</p>
-            <div className="dos">
-              <label>País<select value={pais} onChange={e => { setPais(e.target.value); setUnionId(''); setCampoId('') }}>
-                {(cat?.paises ?? []).map(p => <option key={p.codigo} value={p.codigo}>{p.nombre}</option>)}
-              </select></label>
-              <label>Unión<select value={unionId} onChange={e => { setUnionId(e.target.value ? Number(e.target.value) : ''); setCampoId('') }} required>
-                <option value="">Elige…</option>
-                {uniones.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
-              </select></label>
-            </div>
-            <label>Asociación o Misión<select value={campoId} onChange={e => setCampoId(e.target.value ? Number(e.target.value) : '')} required disabled={unionId === ''}>
-              <option value="">{unionId === '' ? 'Primero elige la unión' : campos.length ? 'Elige…' : 'Aún no hay campos cargados para esta unión'}</option>
-              {campos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select></label>
-            <label>Club<select value={clubId} onChange={e => { setClubId(e.target.value); setSoyDirector(false) }} required disabled={campoId === '' || clubes === null}>
-              <option value="">{campoId === '' ? 'Primero elige tu asociación o misión' : clubes === null ? 'Cargando clubes…' : 'Elige tu club…'}</option>
-              {(clubes ?? []).map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.ciudad})</option>)}
-              {campoId !== '' && clubes !== null && <option value={CREAR}>Mi club no está en la lista: registrarlo</option>}
-            </select></label>
-            {creando && (
-              <div className="dos">
-                <label>Nombre del club<input value={nombreClub} onChange={e => setNombreClub(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü .'-]/g, ''))} maxLength={60} required /></label>
-                <label>Ciudad<input value={ciudad} onChange={e => setCiudad(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü .'-]/g, ''))} maxLength={60} required /></label>
-              </div>
-            )}
-            {creando && <p className="ayuda">Antes de registrarlo, revisa que tu club no esté ya en la lista con otro nombre parecido: no se permiten clubes duplicados.</p>}
+            <SelectorClub cuentas={cuentas} permitirNuevo onCambio={c => { setClubAd(c); setSoyDirector(false) }} />
             {puedeDirigir && (
               <label className="check"><input type="checkbox" checked={soyDirector} onChange={e => setSoyDirector(e.target.checked)} />
                 <span>Soy el director de este club (recibo el código para mis Conquistadores).</span></label>
             )}
-            {clubSel?.con_director && <p className="ayuda">Este club ya tiene director. Entrarás como miembro de su directiva.</p>}
+            {yaTieneDirector && <p className="ayuda">Este club ya tiene director. Entrarás como miembro de su directiva.</p>}
             <div className="dos">
               <label>Tu apodo<input value={apodo} onChange={e => setApodo(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü_ ]/g, ''))} maxLength={16} required /></label>
               <label>Tu rango<select value={rango} onChange={e => setRango(e.target.value as Rango)}>{RANGOS_ADULTO.map(([v, n]) => <option key={v} value={v}>{n}</option>)}</select></label>

@@ -96,10 +96,13 @@ export interface CatalogoOrg {
   uniones: { id: number; pais: string; nombre: string }[]
   campos: { id: number; union: number; nombre: string; tipo: 'asociacion' | 'mision' }[]
 }
-export interface ClubLista { id: string; nombre: string; ciudad: string; con_director: boolean; miembros: number }
+/** Club del directorio oficial de la DSA (y, si ya juega, su club en el juego). */
+export interface ClubOficial { oficial: number | null; juego: string | null; nombre: string; region: string; ciudad: string | null; con_director: boolean; miembros: number }
 export interface RegistroAdulto {
   club: string | null
   campo: number | null
+  /** Id del club en el directorio oficial (cuando aún no existe en el juego). */
+  oficial?: number | null
   nombreClub?: string
   ciudad?: string
   soyDirector: boolean
@@ -121,7 +124,7 @@ export interface PuertoCuentas {
   /** Avisa cuando el usuario vuelve desde el enlace de "olvidé mi contraseña". */
   alRecuperar(cb: () => void): () => void
   catalogo(): Promise<CatalogoOrg>
-  clubesDeCampo(campo: number): Promise<ClubLista[]>
+  clubesOficiales(campo: number): Promise<ClubOficial[]>
   registrarAdulto(d: RegistroAdulto): Promise<Perfil>
 }
 

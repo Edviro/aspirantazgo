@@ -43,6 +43,7 @@ const MENSAJES: Record<string, string> = {
   CLUB_YA_EXISTE: 'Ese club ya está registrado en tu asociación o misión. Búscalo en la lista.',
   CAMPO_INVALIDO: 'Elige tu asociación o misión.',
   ELIGE_CLUB: 'Elige tu club de la lista o regístralo.',
+  CLUB_EN_LISTA: 'Ese club ya figura en el directorio oficial de la DSA: elígelo de la lista (puedes usar el buscador).',
   YA_REGISTRADO: 'Esta cuenta ya pertenece a un club.',
   TEXTO_INVALIDO: 'Usa solo letras, números y espacios.',
   FECHA_INVALIDA: 'Elige una fecha futura (máximo 6 meses).',

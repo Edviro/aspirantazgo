@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
   Bolsa, ItemTienda, MiembroConAvatar, ClubRetable, ProgramaAdmin, ProgramaVivo, PuertoCulto, RetoClub, Torneo, TorneoAdmin,
-  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubLista, FilaRanking, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
+  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
   RegistroAdulto, RepositorioJuego, ResultadoServidor, Vidas, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
 import type { Dificultad, Rango } from '../../domain/tipos'
@@ -16,6 +16,21 @@ const guardarToken = (t: string | null) => {
 }
 
 /** Adaptador de salida: toda la comunicación con Supabase pasa por funciones RPC validadas en el servidor. */
+/** Valida cada club que llega del directorio (nunca se confía en la forma de la respuesta). */
+function limpiarClubOficial(v: unknown): ClubOficial | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  const txt = (x: unknown, max: number) => (typeof x === 'string' ? x.slice(0, max) : '')
+  const oficial = Number.isInteger(o.oficial) ? (o.oficial as number) : null
+  const juego = typeof o.juego === 'string' && /^[0-9a-f-]{36}$/i.test(o.juego) ? o.juego : null
+  const nombre = txt(o.nombre, 80)
+  if ((oficial === null && juego === null) || !nombre) return null
+  return {
+    oficial, juego, nombre, region: txt(o.region, 80) || 'Sin región', ciudad: txt(o.ciudad, 60) || null,
+    con_director: o.con_director === true, miembros: Number.isFinite(o.miembros) ? Math.max(0, Math.floor(o.miembros as number)) : 0,
+  }
+}
+
 export class RepositorioSupabase implements RepositorioJuego {
   readonly enLinea = true
   readonly salas: SalasSupabase
@@ -60,9 +75,12 @@ export class RepositorioSupabase implements RepositorioJuego {
         return () => data.subscription.unsubscribe()
       },
       catalogo: () => rpc<CatalogoOrg>('catalogo_org'),
-      clubesDeCampo: campo => rpc<ClubLista[]>('clubes_de_campo', { p_campo: campo }),
+      clubesOficiales: async campo => {
+        const l = await rpc<unknown>('clubes_oficiales', { p_campo: campo })
+        return (Array.isArray(l) ? l : []).map(limpiarClubOficial).filter((c): c is ClubOficial => !!c)
+      },
       registrarAdulto: (d: RegistroAdulto) => rpc<Perfil>('registrar_adulto', {
-        p_club: d.club, p_campo: d.campo, p_nombre_club: d.nombreClub ?? null, p_ciudad: d.ciudad ?? null, p_soy_director: d.soyDirector,
+        p_club: d.club, p_campo: d.campo, p_oficial: d.oficial ?? null, p_nombre_club: d.nombreClub ?? null, p_ciudad: d.ciudad ?? null, p_soy_director: d.soyDirector,
         p_apodo: d.apodo, p_rango: d.rango, p_cargo: d.cargo ?? null, p_acepta: d.acepta, p_autoriza: d.autoriza,
       }),
     }
