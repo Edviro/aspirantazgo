@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
 import { mensajeError } from '../../application/errores'
+import { AdminCargos } from '../componentes/admin/AdminCargos'
 import { AdminCultos } from '../componentes/admin/AdminCultos'
 import { AdminTorneos } from '../componentes/admin/AdminTorneos'
 import type { ClubAdmin, JugadorAdmin, ResumenAdmin, SalaAdmin, SesionAdmin } from '../../application/puertos'
 
-type Pestana = 'resumen' | 'solicitudes' | 'cultos' | 'torneos' | 'usuarios' | 'clubes' | 'salas' | 'importar'
-const PESTANAS: [Pestana, string][] = [['resumen', 'Resumen'], ['solicitudes', 'Solicitudes'], ['cultos', 'Cultos'], ['torneos', 'Torneos'], ['usuarios', 'Usuarios'], ['clubes', 'Clubes'], ['salas', 'Salas'], ['importar', 'Importar']]
+type Pestana = 'resumen' | 'cargos' | 'solicitudes' | 'cultos' | 'torneos' | 'usuarios' | 'clubes' | 'salas' | 'importar'
+const PESTANAS: [Pestana, string][] = [['resumen', 'Resumen'], ['cargos', 'Directores'], ['solicitudes', 'Solicitudes'], ['cultos', 'Cultos'], ['torneos', 'Torneos'], ['usuarios', 'Usuarios'], ['clubes', 'Clubes'], ['salas', 'Salas'], ['importar', 'Importar']]
 const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—')
 const RANGO: Record<string, string> = { conquistador: 'Conquistador', lider: 'Líder', guia_mayor: 'Guía Mayor', gm_master: 'GM Máster', gm_master_avanzado: 'GM Máster Av.' }
 
@@ -127,6 +128,7 @@ export default function Admin() {
           </>
         )}
 
+        {tab === 'cargos' && <AdminCargos admin={admin} hacer={hacer} />}
         {tab === 'cultos' && <AdminCultos admin={admin} hacer={hacer} />}
         {tab === 'torneos' && <AdminTorneos admin={admin} hacer={hacer} />}
 
@@ -162,7 +164,7 @@ export default function Admin() {
 
         {(tab === 'usuarios' || tab === 'clubes') && (
           <form className="admin-buscar" onSubmit={e => { e.preventDefault(); cargar() }}>
-            <input value={buscar} onChange={e => setBuscar(e.target.value.slice(0, 60))} placeholder={tab === 'usuarios' ? 'Buscar por apodo, club o correo' : 'Buscar club o asociación'} />
+            <input value={buscar} onChange={e => setBuscar(e.target.value.slice(0, 60))} placeholder={tab === 'usuarios' ? 'Buscar por nombre, club o correo' : 'Buscar club o asociación'} />
             <Boton type="submit" tipo="azul">Buscar</Boton>
           </form>
         )}
@@ -170,7 +172,7 @@ export default function Admin() {
         {tab === 'usuarios' && (
           <div className="tabla-scroll">
             <table className="admin-tabla">
-              <thead><tr><th>Apodo</th><th>Rango</th><th>Club</th><th>Correo</th><th>Puntos</th><th>Última vez</th><th /></tr></thead>
+              <thead><tr><th>Nombre</th><th>Rango</th><th>Club</th><th>Correo</th><th>Puntos</th><th>Última vez</th><th /></tr></thead>
               <tbody>
                 {jugadores.map(j => (
                   <tr key={j.id} className={j.bloqueado ? 'bloqueado' : ''}>

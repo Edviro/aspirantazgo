@@ -7,6 +7,7 @@ import { guardarVista, prefiere3D, soporta3D } from '../tres/soporte'
 import { Carpa, type Companero } from '../componentes/plaza/Carpa'
 import { Joystick } from '../componentes/plaza/Joystick'
 import { MapaViaje, nombreLugar } from '../componentes/plaza/MapaViaje'
+import { Radar, type RadarRef } from '../componentes/plaza/Radar'
 import {
   ALTO, ANCHO, CARPAS_POR_LADO, OBJETOS, PARCELAS, POR_CARPA, MUELLE, SALIDA, alturaBanderas, asignar, ceremoniaAhora, esSabado, formacion, horaLima, luzDelDia,
   objetoEn, ruta, transitable, usableCerca, zonaDe, type Asignacion, type Campista, type Objeto, type Zona,
@@ -38,13 +39,30 @@ const VENDEDORES = [
   { nombre: 'Tía Rosa', a: { genero: 'f' as const, piel: 2, pelo: 1, colorPelo: 1 }, x: 41.1, y: 27.55 },
 ]
 
-interface Ente { x: number; y: number; ruta: PuntoPlaza[]; mira: 1 | -1; camina: boolean; el?: HTMLElement | null; cuerpo?: HTMLElement | null }
+interface Ente { x: number; y: number; ruta: PuntoPlaza[]; mira: 1 | -1; camina: boolean; el?: HTMLElement | null; cuerpo?: HTMLElement | null; salto?: number }
+/** Altura del salto (en baldosas) según el tiempo: una parábola de ~0,55 s. */
+const DURA_SALTO = 550, ALTO_SALTO = 0.9
+function alturaSalto(e: Ente, ahora: number) {
+  if (!e.salto) return 0
+  const t = (ahora - e.salto) / DURA_SALTO
+  if (t >= 1 || t < 0) { e.salto = undefined; return 0 }
+  return 4 * ALTO_SALTO * t * (1 - t)
+}
 
 /** Asientos frente al escenario para mirar el culto (filas de 9, en orden de llegada). */
 const ASIENTOS = (() => { const l: PuntoPlaza[] = []; for (let r = 0; r < 6; r++) for (let c = 0; c < 9; c++) l.push({ x: 44.9 + c * 0.9 + (r % 2) * 0.3, y: 38.2 + r * 0.95 }); return l })()
 const VISTAS: Vista[] = ['tv', 'cerca', 'aerea', 'primera']
 const VISTA_TXT: Record<Vista, string> = { tv: 'TV', cerca: 'Cerca', aerea: 'Aérea', primera: '1.ª persona' }
 const claveSueno = (id: string) => `asp_durmiendo_${id}`
+/** Último lugar donde estuviste (para volver ahí al entrar). */
+const claveUltimo = (id: string) => `asp_ultimo_${id}`
+function leerUltimo(id: string): { l: string; x: number; y: number; t: number } | null {
+  try {
+    const o = JSON.parse(localStorage.getItem(claveUltimo(id)) ?? 'null') as Record<string, unknown> | null
+    if (!o || typeof o.l !== 'string' || typeof o.x !== 'number' || typeof o.y !== 'number' || typeof o.t !== 'number') return null
+    return { l: o.l, x: o.x, y: o.y, t: o.t }
+  } catch { return null }
+}
 
 const ACCION: Record<string, string> = {
   barco: '⛵ Subir al barco', tablero: '🏆 Torneos y tablero de honor', reto: '⭐ Reto del día', tienda: '🛍️ Tienda de parches y pines',
@@ -155,6 +173,7 @@ export default function Plaza() {
   const formadoRef = useRef(false), durmiendoRef = useRef(false), llegadaRef = useRef(0)
   useEffect(() => { formadoRef.current = formado }, [formado])
   const marca = useRef<HTMLDivElement>(null)
+  const radar = useRef<RadarRef>(null)
   const usoPendiente = useRef<Objeto | null>(null)
   const teclas = useRef(new Set<string>())
   const palanca = useRef({ x: 0, y: 0 })
@@ -269,6 +288,7 @@ export default function Plaza() {
       onPresentes: presentes,
       onIr: m => caminar(m.id, m.desde, m.hasta),
       onGesto: g => recibirGesto(g.de, g.frase),
+      onSalto: id => { const e = otros.current.get(id); if (e && !e.salto) e.salto = Date.now() },
       onCaida: () => { if (!vivo) return; conexion.current = null; setRed('solo'); reintentar(8000) },
     }, lugar).then(c => {
       if (!vivo) { void c.salir(); return }
@@ -327,7 +347,12 @@ export default function Plaza() {
     colocado.current = true
     const c = asignacion.carpas.get(perfil.id)
     const carpa = c && OBJETOS.find(o => o.tipo === 'carpa-p' && o.parcela === c.parcela && o.sexo === c.sexo && o.slot === c.slot)
-    const p = carpa?.uso ?? (miParcela !== undefined ? PARCELAS[miParcela].patio : null)
+    let p = carpa?.uso ?? (miParcela !== undefined ? PARCELAS[miParcela].patio : null)
+    // Si no te fuiste a dormir, vuelves al último lugar donde estabas en este mismo campamento (hasta 24 h después)
+    let durmiendoAntes = false
+    try { durmiendoAntes = !!localStorage.getItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ }
+    const u = leerUltimo(perfil.id)
+    if (!durmiendoAntes && u && u.l === (lugar ?? 'local') && Date.now() - u.t < 86400000 && transitable(Math.floor(u.x), Math.floor(u.y), abierto)) p = { x: u.x, y: u.y }
     if (!p) return
     Object.assign(yo.current, { x: p.x, y: p.y, ruta: [] })
     Object.assign(cam.current, { x: p.x, y: p.y })
@@ -342,6 +367,18 @@ export default function Plaza() {
       else { try { localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ } setCarpa({ inicio: 'amaneciendo', horas: (Date.now() - desde) / 3600000 }) }
     }
   }, [red, asignacion, miParcela, perfil, campListo])
+
+  // Guarda dónde estás (cada pocos segundos y al salir) para volver ahí la próxima vez
+  useEffect(() => {
+    if (!perfil) return
+    const guardar = () => {
+      if (!colocado.current) return
+      try { localStorage.setItem(claveUltimo(perfil.id), JSON.stringify({ l: lugar ?? 'local', x: Math.round(yo.current.x * 10) / 10, y: Math.round(yo.current.y * 10) / 10, t: Date.now() })) } catch { /* sin almacenamiento */ }
+    }
+    const t = setInterval(guardar, 5000)
+    window.addEventListener('pagehide', guardar)
+    return () => { guardar(); clearInterval(t); window.removeEventListener('pagehide', guardar) }
+  }, [perfil, lugar])
 
   // ---------- Sprites (se reutilizan si no cambian) ----------
   const cacheSprites = useRef(new Map<string, Sprite>())
@@ -485,13 +522,33 @@ export default function Plaza() {
     const m = mundo.current
     if (m && !menosMovimiento()) { sfx.zas(); m.acercarA(ob.x + 1, ob.y + 1, abrir) } else abrir()
   }
+  // Compañeros de carpa: también los que no están conectados (se piden sus perfiles al abrir la carpa)
+  const dormidos = useMemo(() => new Set(camp?.clubes.flatMap(c => c.z) ?? []), [camp])
+  const [companerosCarpa, setCompanerosCarpa] = useState<Record<string, PerfilPublico>>({})
+  useEffect(() => {
+    if (!carpa || !perfil || !repo.salas) return
+    const mia = asignacion.carpas.get(perfil.id)
+    if (!mia) return
+    const faltan = [...asignacion.carpas.entries()]
+      .filter(([id, c]) => id !== perfil.id && c.parcela === mia.parcela && c.sexo === mia.sexo && c.slot === mia.slot && !perfiles.current.has(id))
+      .map(([id]) => id)
+    if (!faltan.length) return
+    repo.salas.perfilesPublicos(faltan).then(l => setCompanerosCarpa(c => ({ ...c, ...Object.fromEntries(l.map(j => [j.id, j])) }))).catch(() => undefined)
+  }, [!!carpa, asignacion]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dormir = te acuestas en tu carpa y sales del juego. Al volver, apareces dentro de tu carpa (y amanece si ya es de día).
+  const [buenasNoches, setBuenasNoches] = useState(false)
   const dormir = () => {
     try { if (perfil) localStorage.setItem(claveSueno(perfil.id), String(Date.now())) } catch { /* sin almacenamiento */ }
     durmiendoRef.current = true; conexion.current?.marcar({ dur: true })
+    if (enLinea) void repo.salas?.dormir?.(true).catch(() => undefined)
+    setBuenasNoches(true)
+    window.setTimeout(() => { musica(null); ir('intro') }, menosMovimiento() ? 900 : 2600)
   }
   const despertar = () => {
     try { if (perfil) localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ }
     durmiendoRef.current = false; conexion.current?.marcar({ dur: false })
+    if (enLinea) void repo.salas?.dormir?.(false).catch(() => undefined)
   }
   useEffect(() => {
     if (carpa?.inicio === 'amaneciendo') { durmiendoRef.current = false; conexion.current?.marcar({ dur: false }) }
@@ -553,7 +610,7 @@ export default function Plaza() {
   // ---------- Bucle de animación: mover, cámara y profundidad ----------
   const pintar = useCallback((e: Ente) => {
     if (!e.el) return
-    e.el.style.transform = `translate3d(${Math.round(e.x * B * s)}px, ${Math.round(e.y * B * s)}px, 0)`
+    e.el.style.transform = `translate3d(${Math.round(e.x * B * s)}px, ${Math.round((e.y - alturaSalto(e, Date.now())) * B * s)}px, 0)`
     e.el.style.zIndex = String(Math.round(e.y * B) + 1)
     e.el.classList.toggle('camina', e.camina)
     if (e.cuerpo) e.cuerpo.style.transform = `scaleX(${e.mira})`
@@ -562,7 +619,7 @@ export default function Plaza() {
   /** En 3D: el nombre y el globo de cada uno flotan sobre su cabeza. */
   const etiqueta = (e: Ente, m: Mundo3D, esYo: boolean, oculto?: boolean) => {
     if (!e.el) return
-    const p = oculto ? null : m.proyectar(e.x, e.y, 1.62)
+    const p = oculto ? null : m.proyectar(e.x, e.y, 1.62 + alturaSalto(e, Date.now()))
     if (!p || (esYo && (m.vista === 'primera' || miAsiento.current || carpaAbierta.current))) { e.el.style.visibility = 'hidden'; return }
     e.el.style.visibility = ''
     e.el.style.transform = `translate3d(${Math.round(p.x)}px, ${Math.round(p.y)}px, 0)`
@@ -571,7 +628,7 @@ export default function Plaza() {
   }
 
   useEffect(() => {
-    let raf = 0, ant = performance.now(), tCerca = 0, tTecla = 0, conTecla = false
+    let raf = 0, ant = performance.now(), tCerca = 0, tTecla = 0, conTecla = false, tRadar = 1
     const avanzar = (e: Ente, dt: number) => {
       if (!e.ruta.length) { e.camina = false; return false }
       let paso = VEL * dt
@@ -625,11 +682,11 @@ export default function Plaza() {
         avanzar(e, dt)
       }
       if (m3) {
-        const lista3d: Ente3D[] = [{ id: perfil?.id ?? 'yo', x: y0.x, y: y0.y, avatar: perfil?.avatar, rango: perfil?.rango ?? 'conquistador', camina: y0.camina, saluda: (gestosRef.current[perfil?.id ?? '']?.t ?? 0) > Date.now() - VIDA_GLOBO, visible: !carpaAbierta.current, mira: miAsiento.current ? { x: 0, y: -1 } : undefined }]
+        const lista3d: Ente3D[] = [{ id: perfil?.id ?? 'yo', x: y0.x, y: y0.y, avatar: perfil?.avatar, rango: perfil?.rango ?? 'conquistador', camina: y0.camina, saluda: (gestosRef.current[perfil?.id ?? '']?.t ?? 0) > Date.now() - VIDA_GLOBO, visible: !carpaAbierta.current, mira: miAsiento.current ? { x: 0, y: -1 } : undefined, alto: alturaSalto(y0, Date.now()) }]
         for (const [id, e] of otros.current) {
           const j = perfiles.current.get(id)
           if (!j) continue
-          lista3d.push({ id, x: e.x, y: e.y, avatar: j.avatar, rango: j.rango, camina: e.camina, saluda: (gestosRef.current[id]?.t ?? 0) > Date.now() - VIDA_GLOBO, visible: !tiempos.current.get(id)?.dur, mira: tiempos.current.get(id)?.cul && !e.ruta.length ? { x: 0, y: -1 } : undefined })
+          lista3d.push({ id, x: e.x, y: e.y, avatar: j.avatar, rango: j.rango, camina: e.camina, saluda: (gestosRef.current[id]?.t ?? 0) > Date.now() - VIDA_GLOBO, visible: !tiempos.current.get(id)?.dur, mira: tiempos.current.get(id)?.cul && !e.ruta.length ? { x: 0, y: -1 } : undefined, alto: alturaSalto(e, Date.now()) })
         }
         VENDEDORES.forEach((v, i) => lista3d.push({ id: `vend-${i}`, x: v.x, y: v.y, avatar: v.a, rango: 'lider', camina: false, saluda: false }))
         m3.entes(lista3d, perfil?.id ?? null)
@@ -639,6 +696,15 @@ export default function Plaza() {
       } else {
         pintar(y0)
         for (const [id, e] of otros.current) { pintar(e); if (e.el) e.el.style.visibility = tiempos.current.get(id)?.dur ? 'hidden' : '' }
+      }
+
+      // Radar (10 veces por segundo basta)
+      tRadar += dt
+      if (tRadar > 0.1 && radar.current) {
+        tRadar = 0
+        const otrosR: { x: number; y: number; mio: boolean }[] = []
+        for (const [id, e] of otros.current) if (!tiempos.current.get(id)?.dur) otrosR.push({ x: e.x, y: e.y, mio: perfiles.current.get(id)?.clubId === miClub })
+        radar.current.pintar({ yo: { x: y0.x, y: y0.y }, giro: m3 ? m3.yaw : 0, otros: otrosR })
       }
 
       // Cámara: sigue a tu personaje con suavidad, con un margen de mar alrededor
@@ -666,6 +732,15 @@ export default function Plaza() {
     return () => cancelAnimationFrame(raf)
   }, [vista, s, abierto, pintar, usar, listo3d]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Saltar: tú saltas al instante y los demás lo ven por el canal. */
+  const saltar = () => {
+    const y0 = yo.current
+    if (y0.salto || miAsiento.current || carpaAbierta.current) return
+    y0.salto = Date.now()
+    sfx.click()
+    conexion.current?.saltar()
+  }
+
   // Teclado (en PC)
   useEffect(() => {
     const valida = (k: string) => ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'Shift'].includes(k)
@@ -678,7 +753,8 @@ export default function Plaza() {
       if (mundo.current && (k === '+' || k === 'z')) mundo.current.zoom(0.85)
       if (mundo.current && (k === '-' || k === 'x')) mundo.current.zoom(1.18)
       if (mundo.current && k === 'v') setVista3d(v => VISTAS[(VISTAS.indexOf(v) + 1) % VISTAS.length])
-      if ((k === 'Enter' || k === ' ' || k === 'f') && cerca && !(t?.tagName === 'BUTTON')) { e.preventDefault(); usar(cerca) }
+      if (k === ' ' && !(t?.tagName === 'BUTTON')) { e.preventDefault(); if (!e.repeat) saltar() }
+      if ((k === 'Enter' || k === 'f') && cerca && !(t?.tagName === 'BUTTON')) { e.preventDefault(); usar(cerca) }
     }
     const arriba = (e: KeyboardEvent) => teclas.current.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key)
     const soltarTodo = () => teclas.current.clear()
@@ -916,6 +992,7 @@ export default function Plaza() {
           </>}
         </div>
       )}
+      {!culto && !carpa && <Radar ref={radar} clubes={clubDeParcela} miParcela={miParcela} onIr={caminarA} compacto={tactil} />}
       {/* Para caminar: palanca en el celular; en la PC, teclado */}
       {tactil && !culto && !carpa && <Joystick valor={palanca} onUsar={() => cerca && usar(cerca)} />}
       {!tactil && tres && listo3d && !culto && !carpa && ayudaTeclas && (
@@ -924,6 +1001,7 @@ export default function Plaza() {
           <span><kbd>Shift</kbd> correr</span>
           <span><kbd>Q</kbd><kbd>E</kbd> girar</span>
           <span><kbd>V</kbd> cámara</span>
+          <span><kbd>Espacio</kbd> saltar</span>
           <span><kbd>Enter</kbd> usar</span>
           <span>Arrastra con el mouse para mirar</span>
           <button onClick={() => { setAyudaTeclas(false); try { localStorage.setItem('asp_ayuda_teclas', '0') } catch { /* sin almacenamiento */ } }} aria-label="Ocultar ayuda">✕</button>
@@ -984,6 +1062,11 @@ export default function Plaza() {
       {hablar && red === 'vivo' && <div className="plaza-frases pop"><BarraFrases onEnviar={decir} /></div>}
 
       <nav className={`plaza-acciones ${tactil ? 'con-palanca' : ''}`}>
+        {tactil && !culto && !carpa && (
+          <button className="btn-saltar" onPointerDown={e => { e.preventDefault(); saltar() }} aria-label="Saltar">
+            <svg viewBox="0 0 24 24" aria-hidden><path d="M12 19V6M6 11l6-6 6 6" /></svg><span>Saltar</span>
+          </button>
+        )}
         {red === 'vivo' && <button className={`btn-hablar ${hablar ? 'on' : ''}`} onClick={() => setHablar(h => !h)} aria-expanded={hablar} aria-label="Decir algo">💬<span>Decir</span></button>}
         {cerca
           ? <Boton onClick={() => usar(cerca)}>{ACCION[cerca.tipo]}</Boton>
@@ -1012,14 +1095,15 @@ export default function Plaza() {
         const club = miParcela !== undefined ? clubDeParcela.get(miParcela) : undefined
         const companeros: Companero[] = mia ? [...asignacion.carpas.entries()]
           .filter(([id, c]) => id !== perfil.id && c.parcela === mia.parcela && c.sexo === mia.sexo && c.slot === mia.slot)
-          .map(([id]) => perfiles.current.get(id)).filter((j): j is PerfilPublico => !!j)
-          .map(j => ({ id: j.id, apodo: j.apodo, avatar: j.avatar, rango: j.rango, durmiendo: !!tiempos.current.get(j.id)?.dur })) : []
+          .map(([id]) => perfiles.current.get(id) ?? companerosCarpa[id]).filter((j): j is PerfilPublico => !!j)
+          .map(j => ({ id: j.id, apodo: j.apodo, avatar: j.avatar, rango: j.rango, durmiendo: !!tiempos.current.get(j.id)?.dur || dormidos.has(j.id) })) : []
         return <Carpa yo={{ id: perfil.id, apodo: perfil.apodo, avatar: perfil.avatar, rango: perfil.rango }} color={club?.color ?? '#1E9A4B'} club={club ? `Campamento de ${club.nombre}` : 'Gran Campamento'}
           items={bolsa?.items ?? []} aprobados={Object.values(puntajes).filter(p => p >= 400).length} campeon={[]} racha={rachaVigente(rachaObj)}
           companeros={companeros} inicio={carpa.inicio} horasDormidas={carpa.horas} oscuridad={luz.oscuridad} hora={hora}
           onDormir={dormir} onDespertar={despertar} onSalir={() => setCarpa(null)} />
       })()}
 
+      {buenasNoches && <div className="buenas-noches" role="status"><b>🌙 Buenas noches</b><span>Te quedas dormido en tu carpa. Al volver, despiertas aquí.</span></div>}
       {zarpar && <Travesia texto="Zarpando del" destino="Gran Campamento" color="#F2B90F"
         onFin={() => { marcarTransicion({ tipo: 'alejar', desde: CAMPAMENTO_CENTRAL.id }); ir('campamentos') }} />}
     </div>

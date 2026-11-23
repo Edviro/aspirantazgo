@@ -72,7 +72,7 @@ function limpiarClubCamp(v: unknown): ClubCampamento | null {
   const ids = (x: unknown) => (Array.isArray(x) ? x.filter(esId).slice(0, 20) as string[] : [])
   const bandera = typeof o.bandera === 'string' && BANDERA.test(o.bandera) ? o.bandera : null
   return { id: o.id as string, nombre: texto(o.nombre, 60) || 'Club', pais: typeof o.pais === 'string' && /^[A-Z]{2}$/.test(o.pais) ? o.pais : null,
-    bandera, ciudad: txtONull(o.ciudad, 60), parcela: o.parcela as number, m: ids(o.m), f: ids(o.f) }
+    bandera, ciudad: txtONull(o.ciudad, 60), parcela: o.parcela as number, m: ids(o.m), f: ids(o.f), z: Array.isArray(o.z) ? o.z.filter(esId).slice(0, 200) as string[] : [] }
 }
 function limpiarCampamento(v: unknown): Campamento | null {
   if (!v || typeof v !== 'object') return null
@@ -327,6 +327,8 @@ export class SalasSupabase implements PuertoSalas {
     return c
   }
 
+  async dormir(si: boolean) { await this.rpc('dormir', { p_token: this.token(), p_si: si }) }
+
   async mapaCampamentos(): Promise<MapaCampamentos> {
     const r = await this.rpc<unknown>('mapa_campamentos', { p_token: this.token() })
     const o = (r && typeof r === 'object' ? r : {}) as Record<string, unknown>
@@ -380,6 +382,9 @@ export class SalasSupabase implements PuertoSalas {
         if (!elegido || !p || !esId(p.id) || !presentes.has(p.id)) return
         const desde = punto(p.x, p.y), hasta = punto(p.dx, p.dy)
         if (desde && hasta) ev.onIr?.({ id: p.id, desde, hasta })
+      })
+      canal.on('broadcast', { event: 'salto' }, ({ payload: p }) => {
+        if (elegido && p && esId(p.id) && presentes.has(p.id)) ev.onSalto?.(p.id)
       })
       canal.on('broadcast', { event: 'gesto' }, ({ payload: p }) => {
         if (!elegido || !p || !esId(p.de) || !presentes.has(p.de) || !Number.isInteger(p.frase) || p.frase < 0 || p.frase >= FRASES.length) return
@@ -436,7 +441,7 @@ export class SalasSupabase implements PuertoSalas {
         const { desde, hasta } = pendiente; pendiente = null; ultimo = Date.now()
         canal.send({ type: 'broadcast', event: 'ir', payload: { id: yo.id, x: r2(desde.x), y: r2(desde.y), dx: r2(hasta.x), dy: r2(hasta.y) } }).catch(() => undefined)
       }
-      let tHola = 0
+      let tHola = 0, ultimoSalto = 0
       saludar = () => {
         if (tHola) return
         tHola = window.setTimeout(() => {
@@ -478,6 +483,11 @@ export class SalasSupabase implements PuertoSalas {
           if (Math.hypot(p.x - meta.x, p.y - meta.y) < 0.75) return
           meta.x = r2(p.x); meta.y = r2(p.y)
           pedirPosicion()
+        },
+        saltar: () => {
+          if (cerrado || Date.now() - ultimoSalto < 500) return
+          ultimoSalto = Date.now()
+          canal.send({ type: 'broadcast', event: 'salto', payload: { id: yo.id } }).catch(() => undefined)
         },
         gesto: async frase => { if (!cerrado) await canal.send({ type: 'broadcast', event: 'gesto', payload: { de: yo.id, frase } }) },
         formar: si => { if (meta.cer === si) return; meta.cer = si; pedirEstado() },

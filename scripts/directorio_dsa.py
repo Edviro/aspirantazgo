@@ -18,7 +18,7 @@ import urllib.request
 import zlib
 
 BASE = 'https://clubes.adventistas.org'
-PAUSA = 3.0          # segundos entre peticiones
+PAUSA = 5.0          # segundos entre peticiones (como una persona navegando; nunca en paralelo)
 UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36'
 PAIS = {**{u: 'BR' for u in ('ucb', 'ucob', 'ulb', 'uneb', 'unob', 'unb', 'useb', 'usb')},
         'ua': 'AR', 'ub': 'BO', 'uch': 'CL', 'ue': 'EC', 'up': 'PY', 'upn': 'PE', 'ups': 'PE', 'uu': 'UY'}

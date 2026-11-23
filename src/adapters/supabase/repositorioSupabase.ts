@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
   Bolsa, ItemTienda, MiembroConAvatar, ClubRetable, ProgramaAdmin, ProgramaVivo, PuertoCulto, RetoClub, Torneo, TorneoAdmin,
-  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
+  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, SolicitudCargo, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
   RegistroAdulto, RepositorioJuego, ResultadoServidor, Vidas, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
 import type { Dificultad, Rango } from '../../domain/tipos'
@@ -75,6 +75,10 @@ export class RepositorioSupabase implements RepositorioJuego {
         return () => data.subscription.unsubscribe()
       },
       catalogo: () => rpc<CatalogoOrg>('catalogo_org'),
+      async esGoogle() {
+        const { data } = await sb.auth.getUser()
+        return !!data.user?.identities?.some(i => i.provider === 'google')
+      },
       clubesOficiales: async campo => {
         const l = await rpc<unknown>('clubes_oficiales', { p_campo: campo })
         return (Array.isArray(l) ? l : []).map(limpiarClubOficial).filter((c): c is ClubOficial => !!c)
@@ -95,6 +99,11 @@ export class RepositorioSupabase implements RepositorioJuego {
 
     this.admin = {
       resumen: () => rpc<ResumenAdmin>('admin_resumen'),
+      solicitudesCargo: async () => {
+        const l = await rpc<unknown>('admin_solicitudes')
+        return (Array.isArray(l) ? l : []).filter(x => x && typeof x === 'object' && typeof (x as { id?: unknown }).id === 'string') as SolicitudCargo[]
+      },
+      async resolverSolicitudCargo(id, aprobar) { await rpc('admin_resolver_solicitud', { p_id: id, p_aprobar: aprobar }) },
       jugadores: buscar => rpc<JugadorAdmin[]>('admin_jugadores', { p_buscar: buscar || null, p_limite: 300 }),
       async bloquear(id, bloqueado) { await rpc('admin_bloquear', { p_id: id, p_bloqueado: bloqueado }) },
       async darVidas(id, cantidad) { return (await rpc<{ vidas: number }>('admin_dar_vidas', { p_id: id, p_cantidad: cantidad })).vidas },
@@ -182,6 +191,7 @@ export class RepositorioSupabase implements RepositorioJuego {
   }
 
   async guardarAvatar(a: AvatarConfig) { await this.rpc('guardar_avatar', { p_token: this.token, p_avatar: a }) }
+  async solicitarCargo(tipo: 'director' | 'departamental') { return this.rpc<string>('solicitar_cargo', { p_token: this.token, p_tipo: tipo }) }
   async cambiarRango(r: Rango) { await this.rpc('cambiar_rango', { p_token: this.token, p_rango: r }) }
 
   iniciarReto(reto: string, dificultad: Dificultad, sala?: string | null, diario = false) {

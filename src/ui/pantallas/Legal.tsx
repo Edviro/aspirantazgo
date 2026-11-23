@@ -11,7 +11,7 @@ function Privacidad() {
         <h2>En pocas palabras</h2>
         <ul>
           <li>A los niños <b>no les pedimos</b> nombre real, correo, teléfono, foto, ubicación ni voz.</li>
-          <li>Solo guardamos un <b>apodo</b>, un <b>PIN cifrado</b>, el código del club, el personaje elegido y los puntajes.</li>
+          <li>Solo guardamos un <b>nombre de jugador</b> (sin apellido), un <b>PIN cifrado</b>, el código del club, el personaje elegido y los puntajes.</li>
           <li><b>No hay chat</b>, ni mensajes entre jugadores, ni publicidad, ni compras, ni rastreadores de terceros.</li>
           <li>Los niños entran <b>solo a través de su club</b>, cuyo director obtiene antes la autorización de los padres.</li>
           <li>Cualquier padre o madre puede pedir que se <b>borren los datos</b> de su hijo cuando quiera.</li>
@@ -25,7 +25,7 @@ function Privacidad() {
       <h3>Conquistadores (menores de 16 años)</h3>
       <ul>
         <li>Código del club al que pertenecen.</li>
-        <li>Apodo de jugador (pedimos expresamente que no sea su nombre real).</li>
+        <li>Nombre de jugador: solo el nombre o como le dicen en el club, nunca el apellido.</li>
         <li>PIN de 4 dígitos, guardado como <i>hash</i> irreversible (nadie puede leerlo, ni siquiera nosotros).</li>
         <li>Apariencia del personaje (tono de piel, peinado y color de pelo de un dibujo, no de una foto).</li>
         <li>Puntajes, tiempos de juego y fechas de los intentos (para el ranking y para evitar trampas).</li>
@@ -33,7 +33,7 @@ function Privacidad() {
       <h3>Líderes y mayores de 16 años</h3>
       <ul>
         <li>Correo electrónico (solo para iniciar sesión con un enlace, sin contraseña).</li>
-        <li>Apodo, rango (líder, Guía Mayor, Máster…) y puntajes.</li>
+        <li>Nombre de jugador, rango (líder, Guía Mayor, Máster…) y puntajes.</li>
         <li>Si registran un club: nombre del club, ciudad, Campo, Unión y país.</li>
       </ul>
       <h3>Datos técnicos</h3>
@@ -42,7 +42,7 @@ function Privacidad() {
       <h2>3. Para qué los usamos</h2>
       <ul>
         <li>Hacer funcionar el juego y guardar tu progreso.</li>
-        <li>Mostrar rankings: solo se ven el <b>apodo</b>, el nombre del club, la ciudad, el Campo y el país. Nunca datos de contacto.</li>
+        <li>Mostrar rankings: solo se ven el <b>nombre de jugador</b>, el nombre del club, la ciudad, el Campo y el país. Nunca datos de contacto.</li>
         <li>Proteger el juego: limitar intentos, bloquear accesos sospechosos y validar puntajes.</li>
       </ul>
       <p>No vendemos ni alquilamos datos. No los usamos para publicidad ni para crear perfiles comerciales. No tomamos decisiones automatizadas que afecten a nadie más allá del puntaje de un juego.</p>
@@ -86,9 +86,9 @@ function Terminos() {
       </ul>
       <h2>4. Reglas de juego limpio</h2>
       <ul>
-        <li>Usa un apodo respetuoso que no incluya tu nombre real, teléfonos, correos ni enlaces.</li>
+        <li>Usa solo tu nombre (sin apellido), respetuoso y sin teléfonos, correos ni enlaces.</li>
         <li>No intentes alterar puntajes, automatizar partidas ni entrar en cuentas ajenas.</li>
-        <li>El director del club y el responsable del juego pueden eliminar apodos o cuentas que incumplan estas reglas.</li>
+        <li>El director del club y el responsable del juego pueden eliminar nombres o cuentas que incumplan estas reglas.</li>
       </ul>
       <h2>5. Directores de club</h2>
       <p>Quien registra un club declara ser líder del mismo, se compromete a recoger y conservar la autorización firmada de los padres antes de entregar el código a cada menor, y a eliminar a un miembro cuando sus padres lo pidan.</p>
@@ -106,11 +106,11 @@ function Padres() {
   return (
     <article>
       <h1>Para padres y tutores</h1>
-      <p>Aspirantazgo ayuda a los Conquistadores a aprender el uniforme, las clases y las especialidades jugando. Lo diseñamos para que tu hijo o hija pueda jugar <b>sin entregar datos personales</b>: solo un apodo y un PIN.</p>
+      <p>Aspirantazgo ayuda a los Conquistadores a aprender el uniforme, las clases y las especialidades jugando. Lo diseñamos para que tu hijo o hija pueda jugar <b>sin entregar datos personales</b>: solo su nombre (sin apellido) y un PIN.</p>
       <ul>
         <li>No hay chat ni forma de que otros jugadores le escriban.</li>
         <li>No hay publicidad, compras ni enlaces a otras webs.</li>
-        <li>En los rankings solo aparece su apodo y su club.</li>
+        <li>En los rankings solo aparece su nombre (sin apellido) y su club.</li>
         <li>Puedes pedir al director del club que borre su cuenta en cualquier momento, o escribir a {R.correo}.</li>
       </ul>
       <h2>Modelo de autorización</h2>

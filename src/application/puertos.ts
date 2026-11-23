@@ -124,6 +124,8 @@ export interface PuertoCuentas {
   /** Avisa cuando el usuario vuelve desde el enlace de "olvidé mi contraseña". */
   alRecuperar(cb: () => void): () => void
   catalogo(): Promise<CatalogoOrg>
+  /** ¿La cuenta entró con Google? (ser director lo exige por ahora) */
+  esGoogle(): Promise<boolean>
   clubesOficiales(campo: number): Promise<ClubOficial[]>
   registrarAdulto(d: RegistroAdulto): Promise<Perfil>
 }
@@ -152,8 +154,15 @@ export interface JugadorAdmin {
 export interface ClubAdmin { id: string; nombre: string; codigo: string; ciudad: string; campo: string; union_nombre: string | null; pais: string; director: string | null; miembros: number; ninos: number; creado: string }
 export interface SalaAdmin { codigo: string; tipo: 'sala' | 'duelo'; anfitrion: string | null; rival: string | null; club: string | null; entradas: number; cupo: number; creada: string; abierta: boolean; sesion: string | null }
 export interface SesionAdmin extends SesionProgramada { club: string; campo: string; solicitante: string; email: string | null; creado: string }
+/** Pedido de cargo que requiere aprobación (director del club o uniforme de Departamental). */
+export interface SolicitudCargo {
+  id: string; tipo: 'director' | 'departamental'; estado: string; nota: string | null; creada: string
+  apodo: string; rango: string; club: string; campo: string | null; correo: string | null; google: boolean; club_con_director: boolean
+}
 export interface PuertoAdmin {
   resumen(): Promise<ResumenAdmin>
+  solicitudesCargo?(): Promise<SolicitudCargo[]>
+  resolverSolicitudCargo?(id: string, aprobar: boolean): Promise<void>
   jugadores(buscar: string): Promise<JugadorAdmin[]>
   bloquear(id: string, bloqueado: boolean): Promise<void>
   borrarJugador(id: string): Promise<void>
@@ -190,6 +199,8 @@ export interface RepositorioJuego {
   entrarInvitado?(codigo: string, nombre: string, club: string, clubId?: string | null): Promise<{ perfil: Perfil; codigo: string }>
   entrarNino(codigo: string, apodo: string, pin: string): Promise<Perfil>
   guardarAvatar(a: AvatarConfig): Promise<void>
+  /** Pide un cargo que requiere aprobación del superadmin (devuelve el estado). */
+  solicitarCargo?(tipo: 'director' | 'departamental'): Promise<string>
   /** Solo adultos: actualizar el rango cuando reciben una investidura. */
   cambiarRango(r: Rango): Promise<void>
   /** Si se juega dentro de una sala o duelo, el intento queda ligado a ella (el servidor valida el resultado). */
@@ -282,6 +293,8 @@ export interface PuertoSalas {
   campamento?(lugar?: string): Promise<Campamento>
   /** Campamentos con clubes jugando, para viajar por el mapa (país → unión → asociación → región). */
   mapaCampamentos?(): Promise<MapaCampamentos>
+  /** Acostarse (o levantarse) en tu carpa: los demás lo ven aunque salgas del juego. */
+  dormir?(si: boolean): Promise<void>
 }
 
 // ---------- Campamentos por región ----------
@@ -291,6 +304,8 @@ export interface ClubCampamento {
   parcela: number
   /** Ids de los miembros en orden de registro (varones / damas): definen su carpa fija. */
   m: string[]; f: string[]
+  /** Quiénes están durmiendo en su carpa (aunque no estén conectados). */
+  z: string[]
 }
 export interface Campamento {
   /** Clave del campamento (canal en vivo), p. ej. 'r1632-0'. */
@@ -330,6 +345,8 @@ export interface EventosPlaza {
   /** Alguien empezó a caminar de `desde` hacia `hasta`. */
   onIr?: (m: { id: string; desde: PuntoPlaza; hasta: PuntoPlaza }) => void
   onGesto?: (g: { de: string; frase: number }) => void
+  /** Alguien saltó. */
+  onSalto?: (id: string) => void
   /** El canal se cerró solo (corte de red o límite del servidor): hay que volver a entrar. */
   onCaida?: () => void
 }
@@ -348,6 +365,8 @@ export interface ConexionPlaza {
   /** Avisa que miras el culto desde tu asiento o que duermes en tu carpa. */
   marcar(e: { cul?: boolean; dur?: boolean }): void
   salir(): Promise<void>
+  /** Saltar (se avisa a los demás por broadcast; como mucho 2 por segundo). */
+  saltar(): void
 }
 
 // ---------- Presencia y duelos ----------

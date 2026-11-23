@@ -92,6 +92,10 @@ export default function Editor({ miembro, onListo }: { miembro?: MiembroConAvata
       if (rango !== perfil.rango && puedeRango) await repo.cambiarRango(rango)
       await repo.guardarAvatar(final)
     } catch (e) {
+      // Departamental: se envía la solicitud de aprobación (el servidor no deja usar ese uniforme sin ella)
+      if (e instanceof Error && e.message.includes('REQUIERE_APROBACION') && !miembro && repo.solicitarCargo) {
+        await repo.solicitarCargo('departamental').catch(() => undefined)
+      }
       // Antes este error se ignoraba y el personaje quedaba vacío en el servidor: ahora se avisa y no se sale
       setAviso(`No se pudo guardar tu personaje: ${mensajeError(e)}`)
       setGuardando(false)
@@ -163,7 +167,7 @@ export default function Editor({ miembro, onListo }: { miembro?: MiembroConAvata
                 <label>En la tira<input value={a.nombreTira ?? ''} placeholder={perfil.apodo.toUpperCase()} maxLength={14} onChange={e => setA({ ...a, nombreTira: limpiar(e.target.value) })} /></label>
                 <label>Mi unidad<input value={a.unidad ?? ''} placeholder="HALCONES" maxLength={14} onChange={e => setA({ ...a, unidad: limpiar(e.target.value) })} /></label>
               </div>
-              {!adulto && <small className="nota">Usa tu apodo o tu primer nombre. Nunca tu apellido, teléfono ni dirección.</small>}
+              {!adulto && <small className="nota">Usa tu primer nombre. Nunca tu apellido, teléfono ni dirección.</small>}
             </div>
             <div className="opcion">
               <span>Clases regulares {gm && <em>(un Guía Mayor ya las tiene todas)</em>}</span>
@@ -182,6 +186,7 @@ export default function Editor({ miembro, onListo }: { miembro?: MiembroConAvata
                 {!adulto && <button className={!u.cargo ? 'on' : ''} onClick={() => setU({ cargo: undefined })}>Ninguna</button>}
                 {(adulto ? CARGOS_ADULTO : FUNCIONES).map(c => <button key={c} className={(u.cargo ?? (adulto ? (rango === 'lider' ? 'CONSEJERO' : 'DIRECTOR') : '')) === c ? 'on' : ''} onClick={() => setU({ cargo: c })}>{c.charAt(0) + c.slice(1).toLowerCase()}</button>)}
               </div>
+              {adulto && !practica && u.cargo === 'DEPARTAMENTAL' && <small className="nota">El uniforme de Departamental necesita aprobación del administrador: al guardar se envía tu solicitud.</small>}
               {adulto && galonDeCargo(u.cargo ?? (rango === 'lider' ? 'CONSEJERO' : 'DIRECTOR')) !== 'ninguno' && (
                 <small className="nota">Con este cargo llevas galón en el hombro (se coloca solo, según el manual).</small>
               )}

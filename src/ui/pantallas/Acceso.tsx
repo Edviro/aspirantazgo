@@ -85,6 +85,8 @@ export default function Acceso() {
     return cuentas?.alRecuperar(() => { setTab('adulto'); setModoCuenta('nueva') })
   }, [ir, setSesion, cuentas])
 
+  const [conGoogle, setConGoogle] = useState<boolean | null>(null)
+  useEffect(() => { if (adultoEmail) cuentas?.esGoogle().then(setConGoogle).catch(() => setConGoogle(false)) }, [adultoEmail, cuentas])
   const yaTieneDirector = !!(clubAd?.juego && clubAd.conDirector)
   const puedeDirigir = !!clubAd && !yaTieneDirector
 
@@ -153,6 +155,7 @@ export default function Acceso() {
       nombreClub: clubAd.nuevo?.nombre, ciudad: clubAd.nuevo?.ciudad,
       soyDirector: !!(soyDirector && puedeDirigir), apodo, rango, cargo: cargo.replace(/\./g, ''), acepta, autoriza,
     })
+    if (soyDirector && puedeDirigir) setAviso('Listo. Tu solicitud de director quedó pendiente: el administrador la revisará pronto.')
     await setSesion('en_linea', p)
     ir('editor')
   })
@@ -203,8 +206,8 @@ export default function Acceso() {
             )}
             {!nuevo && <p className="ayuda">Entras con tu misma cuenta: tu personaje, tus puntos y tus parches siguen ahí. No se crea otro personaje.</p>}
             <label>Código de tu club<input value={codigo} onChange={e => setCodigo(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} maxLength={6} placeholder="Ej. K7P2QA" autoCapitalize="characters" autoComplete="off" required /></label>
-            <label>Tu apodo de jugador<input value={apodo} onChange={e => setApodo(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü_ ]/g, ''))} maxLength={16} placeholder="Ej. HalconVeloz" autoComplete="nickname" required /></label>
-            <p className="ayuda">No uses tu nombre real ni tu apellido. Tu apodo es lo único que verán los demás.</p>
+            <label>Tu nombre<input value={apodo} onChange={e => setApodo(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü_ ]/g, ''))} maxLength={16} placeholder="Ej. Mateo" autoComplete="given-name" required /></label>
+            <p className="ayuda">Solo tu nombre (o como te dicen en el club), <b>sin apellido</b>. Es lo que verán los demás.</p>
             <label>PIN secreto (4 números)<input value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" type="password" placeholder="••••" autoComplete={nuevo ? 'new-password' : 'current-password'} required /></label>
             {error && <p className="error" role="alert">{error}</p>}
             <Boton type="submit" disabled={cargando || !repoEnLinea}>{nuevo ? 'Unirme a mi club' : 'Entrar'}</Boton>
@@ -255,13 +258,14 @@ export default function Acceso() {
           <form className="form" onSubmit={e => { e.preventDefault(); registrar() }}>
             <p className="ayuda">Conectado como <b>{adultoEmail}</b>. Ahora elige tu club.</p>
             <SelectorClub cuentas={cuentas} permitirNuevo onCambio={c => { setClubAd(c); setSoyDirector(false) }} />
-            {puedeDirigir && (
+            {puedeDirigir && conGoogle && (
               <label className="check"><input type="checkbox" checked={soyDirector} onChange={e => setSoyDirector(e.target.checked)} />
-                <span>Soy el director de este club (recibo el código para mis Conquistadores).</span></label>
+                <span>Soy el director de este club. El administrador verifica y aprueba tu solicitud; luego recibes el código para tus Conquistadores.</span></label>
             )}
+            {puedeDirigir && conGoogle === false && <p className="ayuda">¿Eres el director? Por ahora el registro de directores es solo con Google: toca «Usar otra cuenta» y entra con Google.</p>}
             {yaTieneDirector && <p className="ayuda">Este club ya tiene director. Entrarás como miembro de su directiva.</p>}
             <div className="dos">
-              <label>Tu apodo<input value={apodo} onChange={e => setApodo(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü_ ]/g, ''))} maxLength={16} required /></label>
+              <label>Tu nombre<input value={apodo} onChange={e => setApodo(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü_ ]/g, ''))} maxLength={16} required /></label>
               <label>Tu rango<select value={rango} onChange={e => setRango(e.target.value as Rango)}>{RANGOS_ADULTO.map(([v, n]) => <option key={v} value={v}>{n}</option>)}</select></label>
             </div>
             <label>Tu cargo<select value={cargo} onChange={e => setCargo(e.target.value)}>{CARGOS_ADULTO.map(c => <option key={c} value={c}>{c.charAt(0) + c.slice(1).toLowerCase()}</option>)}</select></label>

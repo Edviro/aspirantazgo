@@ -17,7 +17,7 @@ const MENSAJES: Record<string, string> = {
   IMAGEN_INVALIDA: 'Usa una imagen PNG, JPG, WEBP o GIF.',
   JUGADOR_NO_EXISTE: 'Ese jugador ya no existe o es un invitado de sala.',
   CLUB_NO_EXISTE: 'Ese código de club no existe. Pídele el código a tu líder.',
-  APODO_OCUPADO: 'Ese apodo ya está en uso en tu club. Prueba con otro.',
+  APODO_OCUPADO: 'Ese nombre ya está en uso en tu club. Agrégale una inicial o un número (ej. Mateo R).',
   PIN_INVALIDO: 'El PIN debe tener 4 números.',
   DATOS_INCORRECTOS: 'Código, apodo o PIN incorrectos.',
   BLOQUEADO: 'Demasiados intentos. Espera 15 minutos e inténtalo de nuevo.',
@@ -43,14 +43,17 @@ const MENSAJES: Record<string, string> = {
   CLUB_YA_EXISTE: 'Ese club ya está registrado en tu asociación o misión. Búscalo en la lista.',
   CAMPO_INVALIDO: 'Elige tu asociación o misión.',
   ELIGE_CLUB: 'Elige tu club de la lista o regístralo.',
+  DIRECTOR_SOLO_GOOGLE: 'Por ahora, para ser director hay que entrar con tu cuenta de Google. Toca «Usar otra cuenta» y entra con Google.',
+  REQUIERE_APROBACION: 'El uniforme de Departamental necesita aprobación. Ya enviamos tu solicitud: cuando la aprueben podrás usarlo. Mientras tanto guarda con otro cargo.',
+  CLUB_CON_DIRECTOR: 'Ese club ya tiene director.',
   CLUB_EN_LISTA: 'Ese club ya figura en el directorio oficial de la DSA: elígelo de la lista (puedes usar el buscador).',
   YA_REGISTRADO: 'Esta cuenta ya pertenece a un club.',
   TEXTO_INVALIDO: 'Usa solo letras, números y espacios.',
   FECHA_INVALIDA: 'Elige una fecha futura (máximo 6 meses).',
   DEMASIADAS_SOLICITUDES: 'Ya tienes 5 solicitudes pendientes. Espera la respuesta.',
-  APODO_YA_ES_TUYO: 'Ese apodo ya existe en tu club. Si es tuyo, toca «Ya tengo cuenta» y entra con tu PIN (no se crea otro personaje).',
-  APODO_CORTO: 'El apodo debe tener de 3 a 16 letras o números.',
-  APODO_CON_DATOS: 'El apodo no puede tener teléfonos, correos ni enlaces.',
+  APODO_YA_ES_TUYO: 'Ese nombre ya existe en tu club. Si es tuyo, toca «Ya tengo cuenta» y entra con tu PIN (no se crea otro personaje).',
+  APODO_CORTO: 'Tu nombre debe tener de 3 a 16 letras o números.',
+  APODO_CON_DATOS: 'Tu nombre no puede tener teléfonos, correos ni enlaces.',
   CORREO_INVALIDO: 'Escribe un correo válido.',
   CLAVE_DEBIL: 'La contraseña necesita al menos 8 caracteres, con letras y números.',
   SIN_CONEXION: 'Sin conexión. Revisa tu internet.',
@@ -74,7 +77,7 @@ const MENSAJES: Record<string, string> = {
 export function mensajeError(e: unknown): string {
   const raw = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)
   for (const k of Object.keys(MENSAJES)) if (raw.includes(k)) return MENSAJES[k]
-  if (/apodo|players_apodo_check/.test(raw)) return 'El apodo debe tener de 3 a 16 letras o números.'
+  if (/apodo|players_apodo_check/.test(raw)) return 'Tu nombre debe tener de 3 a 16 letras o números.'
   if (/fetch|network|Failed/i.test(raw)) return 'Sin conexión. Revisa tu internet.'
   return 'Algo salió mal. Inténtalo otra vez.'
 }

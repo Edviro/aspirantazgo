@@ -160,7 +160,16 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
   miX: 0.3,
   mundo: (() => { try { return localStorage.getItem('asp_mundo') || 'uniformes' } catch { return 'uniformes' } })(),
   setMundo: m => { try { localStorage.setItem('asp_mundo', m) } catch { /* */ } set({ mundo: m }) },
-  ir: p => set(p === 'plaza' || p === 'mapa' ? { pantalla: p, hub: p } : { pantalla: p }),
+  ir: p => {
+    // Si un jugador vuelve al campamento o al mapa, deja la sala o el duelo: así nada lo "jala" de vuelta a Salas
+    // más tarde (una ronda nueva o un reto que se aceptó cuando ya se había ido). El líder anfitrión mantiene su sala.
+    const s = get().sala
+    if (s && (p === 'plaza' || p === 'mapa' || p === 'campamentos') && (s.rol === 'jugador' || s.tipo === 'duelo')) {
+      set({ retoEnviado: null })
+      void get().dejarSala()
+    }
+    set(p === 'plaza' || p === 'mapa' ? { pantalla: p, hub: p } : { pantalla: p })
+  },
   verLegal: t => set({ legalTab: t, pantalla: 'legal' }),
   setSesion: async (modo, perfil) => {
     guardarModo(modo)

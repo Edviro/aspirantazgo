@@ -15,7 +15,7 @@ import { dibujarAvatar, dibujarAvatarEspalda, opcionesDe, PX_H, PX_W } from '../
 import { dibujarSuelo, pintarBanderaConquis } from '../pixel/plazaPixel'
 
 export type Vista = 'tv' | 'cerca' | 'aerea' | 'primera'
-export interface Ente3D { id: string; x: number; y: number; avatar?: AvatarConfig; rango: Rango; camina: boolean; saluda: boolean; visible?: boolean; mira?: { x: number; y: number } }
+export interface Ente3D { id: string; x: number; y: number; avatar?: AvatarConfig; rango: Rango; camina: boolean; saluda: boolean; visible?: boolean; mira?: { x: number; y: number }; alto?: number }
 export interface ClubParcela { nombre: string; color: string; pais?: string | null; bandera?: string | null }
 export interface Pantalla3D { arriba?: string; texto: string; abajo?: string; encendida: boolean }
 export type Eleccion = { tipo: 'ente'; id: string } | { tipo: 'punto'; x: number; y: number } | null
@@ -596,9 +596,10 @@ export class Mundo3D {
       p.x = e.x; p.z = e.y
       const visible = e.visible !== false && !(this.vistaV === 'primera' && e.id === yo && !this.vuelo)
       p.sprite.visible = visible; p.sombra.visible = visible
-      const bote = e.camina ? Math.abs(Math.sin(this.reloj * 11 + p.t)) * 0.07 : 0
+      const bote = (e.camina ? Math.abs(Math.sin(this.reloj * 11 + p.t)) * 0.07 : 0) + (e.alto ?? 0)
       p.sprite.position.set(e.x, bote, e.y)
       p.sombra.position.set(e.x, 0.015, e.y)
+      p.sombra.scale.setScalar(1 - Math.min(0.5, (e.alto ?? 0) * 0.5))
       // ¿la cámara lo ve de frente o de espaldas?
       const vx = this.cam.position.x - e.x, vz = this.cam.position.z - e.y
       const deFrente = vx * p.dirX + vz * p.dirZ >= -0.15 * Math.hypot(vx, vz)

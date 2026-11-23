@@ -27,8 +27,9 @@ export function AvisosDuelo() {
     const t = setInterval(() => setEspera(s => {
       if (s > 1) return s - 1
       clearInterval(t)
+      // Ya no arranca solo ni te lleva a Salas: si alguien entró, tú decides si empezar
       const dentro = useJuego.getState().sala?.jugadores.some(j => j.id !== perfil?.id)
-      if (dentro) empezarReto(); else cancelarReto()
+      if (!dentro) cancelarReto()
       return 0
     }), 1000)
     return () => clearInterval(t)
@@ -85,10 +86,12 @@ export function AvisosDuelo() {
                   )
                 })}
               </div>
-              <p>{grupo ? `Empieza cuando entren todos. En ${espera} s se juega con los que estén listos.` : `Le enviamos tu reto. Si no responde en ${espera} s, se cancela solo.`}</p>
+              <p>{espera > 0
+                ? (grupo ? `Empieza cuando entren todos. Esperamos ${espera} s más.` : `Le enviamos tu reto. Si no responde en ${espera} s, se cancela solo.`)
+                : 'Se acabó el tiempo de espera. ¿Empiezas con los que entraron?'}</p>
               <div className="fila-botones">
                 <Boton tipo="fantasma" onClick={cancelarReto}>Cancelar reto</Boton>
-                {grupo && listos > 0 && <Boton tipo="rojo" onClick={empezarReto}>¡Empezar ya! ({listos + 1})</Boton>}
+                {listos > 0 && (grupo || espera === 0) && <Boton tipo="rojo" onClick={empezarReto}>¡Empezar ya! ({listos + 1})</Boton>}
               </div>
             </>
           ) : (

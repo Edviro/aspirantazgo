@@ -91,7 +91,7 @@ export function AdminCultos({ admin, hacer }: { admin: PuertoAdmin; hacer: (fn: 
           {b.equipo.length === 0 && <li className="vacio">Agrega al menos un conductor.</li>}
         </ul>
         <div className="admin-buscar">
-          <input value={buscar} onChange={e => setBuscar(e.target.value.slice(0, 60))} placeholder="Buscar por apodo o club" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); buscarGente() } }} />
+          <input value={buscar} onChange={e => setBuscar(e.target.value.slice(0, 60))} placeholder="Buscar por nombre o club" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); buscarGente() } }} />
           <Boton type="button" tipo="azul" onClick={buscarGente}>Buscar</Boton>
         </div>
         {!!hallados.length && <div className="chips hallados">{hallados.map(j => <button type="button" key={j.id} onClick={() => sumar(j)} disabled={b.equipo.some(e => e.id === j.id)}>+ {j.apodo} <small>{j.club}</small></button>)}</div>}

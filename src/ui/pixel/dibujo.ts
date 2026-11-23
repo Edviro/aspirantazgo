@@ -20,6 +20,7 @@ export const PX_H = 64
 type Opts = {
   genero?: 'm' | 'f'; piel?: number; pelo?: number; peinado?: number; adulto?: boolean; gm?: boolean
   torzal?: boolean; galon?: 'plata' | 'oro' | null; panoleta?: boolean; blazer?: boolean; clases?: number; brazoArriba?: boolean
+  avanzadas?: number; excelencia?: boolean; bautismo?: boolean
 }
 const COLOR_CLASE = ['#1F4FBF', '#D7242F', '#1E7A3C', '#8A8F98', '#7A2E3B', '#F2C230']
 
@@ -34,6 +35,8 @@ export function opcionesDe(a: AvatarConfig, rango: Rango): Opts {
     adulto, gm, torzal: adulto, galon, // La pañoleta es el primer paso: quien ya tiene una clase (o es líder) la lleva siempre
     panoleta: rango !== 'conquistador' || clases > 0 || a.panoleta !== false,
     blazer: adulto && cargo === 'DEPARTAMENTAL', clases,
+    avanzadas: gm ? 0 : a.uniforme?.avanzadas?.length ?? 0, excelencia: !!a.uniforme?.excelencia,
+    bautismo: adulto || a.uniforme?.bautismo !== false,
   }
 }
 
@@ -73,8 +76,15 @@ export function dibujarAvatar(ctx: CanvasRenderingContext2D, o: Opts) {
   px(26, 33, 7, 6, telaS); px(27, 35, 5, 3, tela); px(26, 33, 7, 1, o.blazer ? '#16605C' : camisaS)
   // tira del nombre (sobre el bolsillo derecho de quien lo usa = izquierda en pantalla)
   px(16, 31, 7, 1, o.adulto ? '#FFFFFF' : '#EBDDB5')
-  // botones de clases regulares (sobre el bolsillo izquierdo de quien lo usa)
-  for (let i = 0; i < Math.min(6, o.clases ?? 0); i++) px(26 + i, 34, 1, 1, COLOR_CLASE[i])
+  // Insignias de clases regulares sobre el bolsillo izquierdo de quien lo usa (2 filas de 3); las avanzadas llevan borde dorado
+  for (let i = 0; i < Math.min(6, o.clases ?? 0); i++) {
+    const x = 24 + (i % 3) * 2, y = 29 + Math.floor(i / 3) * 2
+    if (o.avanzadas && o.avanzadas > i) px(x, y + 1, 2, 1, C.oro)
+    px(x, y, 2, 1, COLOR_CLASE[i])
+  }
+  // Barra de excelencia (sobre la tira del nombre) y botón de bautismo (en el bolsillo)
+  if (o.excelencia) { px(16, 29, 7, 1, C.oro); px(18, 29, 3, 1, C.rojo) }
+  if (o.bautismo) { px(19, 36, 2, 2, '#2F6FD6'); px(19, 36, 1, 1, '#FFFFFF') }
   // correa con hebilla
   px(14, 41, 20, 2, C.verdeS); px(22, 41, 4, 2, C.oro)
 
@@ -116,11 +126,37 @@ export function dibujarAvatar(ctx: CanvasRenderingContext2D, o: Opts) {
   px(21, 18, 1, 1, '#fff'); px(25, 18, 1, 1, '#fff')
   px(23, 23, 2, 1, C.rojo)
 
-  // Pelo
+  // Pelo (cada peinado se distingue de frente)
+  const sombra = C.out
   px(17, 10, 14, 5, pelo); px(16, 12, 2, 6, pelo); px(30, 12, 2, 6, pelo)
-  if (chica || estilo >= 3) { px(15, 14, 2, 14, pelo); px(31, 14, 2, 14, pelo); px(15, 26, 4, 6, pelo); px(29, 26, 4, 6, pelo) }
-  if (estilo === 1) { px(17, 9, 14, 2, pelo); px(19, 8, 3, 2, pelo); px(26, 8, 3, 2, pelo) }
+  const peinadoChica = chica ? (estilo >= 3 && estilo <= 6 ? estilo : 5) : estilo
+  if (peinadoChica === 3) {
+    // Trenzas: dos trenzas por delante de los hombros, con ligas de color
+    for (const x of [15, 31]) {
+      px(x, 14, 2, 4, pelo)
+      for (let y = 18; y < 34; y += 3) { px(x, y, 2, 2, pelo); px(x + (y % 2 ? 1 : 0), y + 2, 1, 1, sombra) }
+      px(x, 33, 2, 1, C.rojo); px(x, 34, 2, 2, pelo)
+    }
+  } else if (peinadoChica === 4) {
+    // Cola: pelo recogido (sin mechones a los lados) y la cola asomando por un costado
+    px(16, 12, 1, 4, pelo); px(31, 12, 1, 4, pelo)
+    px(31, 13, 2, 2, C.rojo) // liga
+    px(32, 15, 3, 3, pelo); px(33, 18, 3, 4, pelo); px(34, 22, 2, 4, pelo); px(35, 26, 1, 2, pelo)
+  } else if (peinadoChica === 5) {
+    // Suelto: largo y liso hasta el pecho
+    px(15, 14, 2, 14, pelo); px(31, 14, 2, 14, pelo); px(15, 26, 4, 6, pelo); px(29, 26, 4, 6, pelo)
+  } else if (peinadoChica === 6) {
+    // Moño: recogido arriba, con el moño redondo sobre la cabeza
+    px(16, 12, 1, 3, pelo); px(31, 12, 1, 3, pelo)
+    px(20, 5, 8, 5, pelo); px(19, 6, 10, 3, pelo); px(21, 4, 6, 1, pelo)
+    px(21, 9, 6, 1, C.rojo) // cinta
+  } else if (!chica && estilo >= 3) {
+    px(15, 14, 2, 14, pelo); px(31, 14, 2, 14, pelo)
+  }
+  if (!chica && estilo === 1) { px(17, 9, 14, 2, pelo); px(19, 8, 3, 2, pelo); px(26, 8, 3, 2, pelo) }
+  if (!chica && estilo === 2) { px(17, 10, 14, 2, piel); px(18, 10, 12, 1, pelo) } // rapado: se ve la piel
   px(18, 14, 12, 2, pelo); px(22, 15, 4, 1, piel)
+  if (chica && peinadoChica !== 5) px(18, 14, 4, 2, pelo) // flequillo de lado
 }
 
 /** El mismo personaje visto de espaldas (para la cámara 3D): pelo atrás, espalda lisa y el triángulo de la pañoleta. */
@@ -143,7 +179,12 @@ export function dibujarAvatarEspalda(ctx: CanvasRenderingContext2D, o: Opts) {
   px(15, 17, 1, 3, piel); px(32, 17, 1, 3, piel)
   px(19, 11, 4, 1, 'rgba(255,255,255,.22)')
   const chica = o.genero === 'f', estilo = o.peinado ?? 0
-  if (chica || estilo >= 3) { px(16, 22, 16, 8, pelo); if (estilo === 4) px(22, 28, 4, 8, pelo) }
+  if (chica) {
+    if (estilo === 4) { px(22, 22, 4, 2, C.rojo); px(22, 24, 4, 10, pelo) } // cola
+    else if (estilo === 6) { px(20, 6, 8, 5, pelo); px(21, 9, 6, 1, C.rojo) } // moño
+    else if (estilo === 3) { px(18, 22, 3, 12, pelo); px(27, 22, 3, 12, pelo); px(18, 33, 3, 1, C.rojo); px(27, 33, 3, 1, C.rojo) } // trenzas
+    else px(16, 22, 16, 8, pelo) // suelto
+  } else if (estilo >= 3) px(16, 22, 16, 8, pelo)
 }
 
 /** Versión pequeña (14×20) para el mapa: mismo tamaño de pixel que la isla. */

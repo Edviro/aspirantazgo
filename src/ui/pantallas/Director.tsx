@@ -90,7 +90,7 @@ export default function Director() {
             <small>Código del club</small>
             <div className="codigo">{codigo}</div>
             <Boton tipo="azul" onClick={copiar}>{copiado ? '¡Copiado!' : 'Copiar código'}</Boton>
-            <p className="ayuda">Entrega este código solo a los Conquistadores cuyos padres firmaron la <a onClick={() => verLegal('padres')}>autorización</a>. Ellos entran con el código, un apodo y un PIN; no se pide correo ni nombre real.</p>
+            <p className="ayuda">Entrega este código solo a los Conquistadores cuyos padres firmaron la <a onClick={() => verLegal('padres')}>autorización</a>. Ellos entran con el código, su nombre (sin apellido) y un PIN; no se pide correo.</p>
           </section>
         )}
 
