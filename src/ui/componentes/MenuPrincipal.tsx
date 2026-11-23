@@ -47,6 +47,7 @@ export function MenuPrincipal({ abierto, onCerrar, onCampamentos, textoCampament
           <button onClick={() => ir('logros')}>Mis parches</button>
           <button onClick={() => ir('ranking')}>Ranking</button>
           <button onClick={() => ir('editor')}>Mi personaje</button>
+          {puedeSalas && <button onClick={() => ir('unidad')}>Mi unidad</button>}
           {puedeSalas && <button onClick={() => ir('club')}>Campamento del club en vivo</button>}
           {puedeSalas && <button onClick={() => setUnirse(true)}>Unirme a una sala</button>}
           {puedeSalas && esAdulto && <button onClick={() => ir('director')}>{perfil.club.soy_director ? 'Panel del club' : 'Panel del líder'}</button>}

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
   Bolsa, ItemTienda, MiembroConAvatar, ClubRetable, ProgramaAdmin, ProgramaVivo, PuertoCulto, RetoClub, Torneo, TorneoAdmin,
-  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, SolicitudCargo, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
+  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, SolicitudCargo, PuertoUnidades, Unidad, RolUnidad, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
   RegistroAdulto, RepositorioJuego, ResultadoServidor, Vidas, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
 import type { Dificultad, Rango } from '../../domain/tipos'
@@ -16,6 +16,23 @@ const guardarToken = (t: string | null) => {
 }
 
 /** Adaptador de salida: toda la comunicación con Supabase pasa por funciones RPC validadas en el servidor. */
+const esUuid = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v)
+const txt = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '')
+const ROLES: RolUnidad[] = ['consejero', 'capitan', 'secretario', 'tesorero', 'capellan', 'miembro']
+const RANGOS_OK = ['conquistador', 'lider', 'guia_mayor', 'gm_master', 'gm_master_avanzado']
+/** Valida una unidad que llega del servidor. */
+function limpiarUnidad(v: unknown): Unidad | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  if (!esUuid(o.id)) return null
+  const miembros = (Array.isArray(o.miembros) ? o.miembros : []).slice(0, 20).map(x => x as Record<string, unknown>)
+    .filter(x => esUuid(x.id) && ROLES.includes(x.rol as RolUnidad))
+    .map(x => ({ id: x.id as string, apodo: txt(x.apodo, 20), rango: (RANGOS_OK.includes(x.rango as string) ? x.rango : 'conquistador') as Unidad['miembros'][number]['rango'],
+      avatar: x.avatar && typeof x.avatar === 'object' ? x.avatar as Unidad['miembros'][number]['avatar'] : null, rol: x.rol as RolUnidad }))
+  return { id: o.id, nombre: txt(o.nombre, 30), sexo: o.sexo === 'f' ? 'f' : 'm', grito: txt(o.grito, 240) || null, historia: txt(o.historia, 4000) || null,
+    creada: txt(o.creada, 40), miembros }
+}
+
 /** Valida cada club que llega del directorio (nunca se confía en la forma de la respuesta). */
 function limpiarClubOficial(v: unknown): ClubOficial | null {
   if (!v || typeof v !== 'object') return null
@@ -38,6 +55,7 @@ export class RepositorioSupabase implements RepositorioJuego {
   readonly lider: PuertoLider
   readonly admin: PuertoAdmin
   readonly culto: PuertoCulto
+  readonly unidades: PuertoUnidades
   private sb: SupabaseClient
 
   constructor(url: string, clave: string) {
@@ -123,6 +141,27 @@ export class RepositorioSupabase implements RepositorioJuego {
       programas: () => rpc<ProgramaAdmin[]>('admin_programas'),
       guardarPrograma: p => rpc<string>('admin_programa_guardar', { p }),
       async estadoPrograma(id, estado) { await rpc('admin_programa_estado', { p_id: id, p_estado: estado }) },
+    }
+
+    const unidad = (v: unknown) => { const u = limpiarUnidad(v); if (!u) throw new Error('DATOS_INVALIDOS'); return u }
+    this.unidades = {
+      async estado() {
+        const r = await rpc<unknown>('mi_unidad', { p_token: token() })
+        const o = (r && typeof r === 'object' ? r : {}) as Record<string, unknown>
+        const sexo = (x: unknown): 'm' | 'f' => (x === 'f' ? 'f' : 'm')
+        return {
+          mia: o.mia ? limpiarUnidad(o.mia) : null, puedo_admin: o.puedo_admin === true, adulto: o.adulto === true, director: o.director === true, sexo: sexo(o.sexo),
+          unidades: (Array.isArray(o.unidades) ? o.unidades : []).slice(0, 100).map(x => x as Record<string, unknown>).filter(x => esUuid(x.id))
+            .map(x => ({ id: x.id as string, nombre: txt(x.nombre, 30), sexo: sexo(x.sexo), conquis: Number(x.conquis) || 0, consejeros: Number(x.consejeros) || 0 })),
+          libres: (Array.isArray(o.libres) ? o.libres : []).slice(0, 500).map(x => x as Record<string, unknown>).filter(x => esUuid(x.id))
+            .map(x => ({ id: x.id as string, apodo: txt(x.apodo, 20), sexo: sexo(x.sexo) })),
+        }
+      },
+      crear: async (n, g, h) => unidad(await rpc('unidad_crear', { p_token: token(), p_nombre: n, p_grito: g, p_historia: h })),
+      editar: async (id, n, g, h) => unidad(await rpc('unidad_editar', { p_token: token(), p_unidad: id, p_nombre: n, p_grito: g, p_historia: h })),
+      serConsejero: async id => unidad(await rpc('unidad_ser_consejero', { p_token: token(), p_unidad: id })),
+      asignar: async (u, j, r) => unidad(await rpc('unidad_asignar', { p_token: token(), p_unidad: u, p_player: j, p_rol: r })),
+      async salir() { await rpc('unidad_salir', { p_token: token() }) },
     }
 
     const AVISO = 'v'

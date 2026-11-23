@@ -239,6 +239,8 @@ export interface RepositorioJuego {
   readonly cuentas: PuertoCuentas | null
   readonly lider: PuertoLider | null
   readonly admin: PuertoAdmin | null
+  /** Unidades del club (solo en línea). */
+  readonly unidades?: PuertoUnidades
 }
 
 // ---------- Salas en tiempo real ----------
@@ -306,6 +308,27 @@ export interface ClubCampamento {
   m: string[]; f: string[]
   /** Quiénes están durmiendo en su carpa (aunque no estén conectados). */
   z: string[]
+  /** Carpas en orden (por unidad: 4 conquistadores y su consejero); si falta, se usan m/f de a 4. */
+  carpas?: { s: 'm' | 'f'; u?: string; n?: string; ids: string[] }[]
+}
+
+// ---------- Unidades (4 a 8 conquistadores del mismo sexo, con su consejero) ----------
+export type RolUnidad = 'consejero' | 'capitan' | 'secretario' | 'tesorero' | 'capellan' | 'miembro'
+export interface MiembroUnidad { id: string; apodo: string; rango: Rango; avatar: AvatarConfig | null; rol: RolUnidad }
+export interface Unidad { id: string; nombre: string; sexo: 'm' | 'f'; grito: string | null; historia: string | null; creada: string; miembros: MiembroUnidad[] }
+export interface EstadoUnidad {
+  mia: Unidad | null; puedo_admin: boolean; adulto: boolean; director: boolean; sexo: 'm' | 'f'
+  unidades: { id: string; nombre: string; sexo: 'm' | 'f'; conquis: number; consejeros: number }[]
+  libres: { id: string; apodo: string; sexo: 'm' | 'f' }[]
+}
+export interface PuertoUnidades {
+  estado(): Promise<EstadoUnidad>
+  crear(nombre: string, grito: string, historia: string): Promise<Unidad>
+  editar(id: string, nombre: string, grito: string, historia: string): Promise<Unidad>
+  serConsejero(id: string): Promise<Unidad>
+  /** Agregar, cambiar de cargo (rotar) o quitar (rol null) a un conquistador. */
+  asignar(unidad: string, jugador: string, rol: Exclude<RolUnidad, 'consejero'> | null): Promise<Unidad>
+  salir(): Promise<void>
 }
 export interface Campamento {
   /** Clave del campamento (canal en vivo), p. ej. 'r1632-0'. */

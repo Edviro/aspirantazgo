@@ -308,7 +308,15 @@ export default function Plaza() {
       const parcelas = new Map<string, number>(), carpas: Asignacion['carpas'] = new Map()
       for (const c of camp.clubes) {
         parcelas.set(c.id, c.parcela)
-        for (const sexo of ['m', 'f'] as const) c[sexo].forEach((id, k) => {
+        if (c.carpas) {
+          // Por unidad: cada unidad en sus carpas (4 conquistadores y su consejero)
+          const n = { m: 0, f: 0 }
+          for (const k of c.carpas) {
+            if (n[k.s] >= CARPAS_POR_LADO) continue
+            for (const id of k.ids) carpas.set(id, { parcela: c.parcela, sexo: k.s, slot: n[k.s] })
+            n[k.s]++
+          }
+        } else for (const sexo of ['m', 'f'] as const) c[sexo].forEach((id, k) => {
           const slot = Math.floor(k / POR_CARPA)
           if (slot < CARPAS_POR_LADO) carpas.set(id, { parcela: c.parcela, sexo, slot })
         })
@@ -340,6 +348,15 @@ export default function Plaza() {
     return m
   }, [camp, asignacion, miClub, perfil])
   const miParcela = asignacion.parcelas.get(miClub)
+  /** Nombre de la unidad que acampa en cada carpa ("parcela-sexo-slot"). */
+  const unidadDeCarpa = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const c of camp?.clubes ?? []) {
+      const n = { m: 0, f: 0 }
+      for (const k of c.carpas ?? []) { if (k.n) m.set(`${c.parcela}-${k.s}-${n[k.s]}`, k.n); n[k.s]++ }
+    }
+    return m
+  }, [camp])
 
   // Al entrar (sin barco) apareces en tu campamento, frente a tu carpa
   useEffect(() => {
@@ -1055,7 +1072,7 @@ export default function Plaza() {
 
       {elegido && <FichaJugador j={elegido} zona={zonaDeOtro(elegido.id)} onCerrar={() => setElegido(null)}
         onRetar={presencia && !sabado ? () => { setRivales([elegido]); setElegido(null) } : undefined} />}
-      {carpaVista && <FichaCarpa titulo={`Carpa ${carpaVista.sexo === 'f' ? 'de damas' : 'de varones'} ${(carpaVista.slot ?? 0) + 1}${clubDeParcela.get(carpaVista.parcela!) ? ` · ${clubDeParcela.get(carpaVista.parcela!)!.nombre}` : ''}`}
+      {carpaVista && <FichaCarpa titulo={`${unidadDeCarpa.get(`${carpaVista.parcela}-${carpaVista.sexo}-${carpaVista.slot}`) ? `Unidad ${unidadDeCarpa.get(`${carpaVista.parcela}-${carpaVista.sexo}-${carpaVista.slot}`)}` : `Carpa ${carpaVista.sexo === 'f' ? 'de damas' : 'de varones'} ${(carpaVista.slot ?? 0) + 1}`}${clubDeParcela.get(carpaVista.parcela!) ? ` · ${clubDeParcela.get(carpaVista.parcela!)!.nombre}` : ''}`}
         ocupantes={ocupantesDe(carpaVista)} onCerrar={() => setCarpaVista(null)} />}
       {tienda && <Tienda bolsa={bolsa} onBolsa={setBolsa} onCerrar={() => setTienda(false)} />}
 

@@ -72,7 +72,9 @@ function limpiarClubCamp(v: unknown): ClubCampamento | null {
   const ids = (x: unknown) => (Array.isArray(x) ? x.filter(esId).slice(0, 20) as string[] : [])
   const bandera = typeof o.bandera === 'string' && BANDERA.test(o.bandera) ? o.bandera : null
   return { id: o.id as string, nombre: texto(o.nombre, 60) || 'Club', pais: typeof o.pais === 'string' && /^[A-Z]{2}$/.test(o.pais) ? o.pais : null,
-    bandera, ciudad: txtONull(o.ciudad, 60), parcela: o.parcela as number, m: ids(o.m), f: ids(o.f), z: Array.isArray(o.z) ? o.z.filter(esId).slice(0, 200) as string[] : [] }
+    bandera, ciudad: txtONull(o.ciudad, 60), parcela: o.parcela as number, m: ids(o.m), f: ids(o.f), z: Array.isArray(o.z) ? o.z.filter(esId).slice(0, 200) as string[] : [],
+    carpas: Array.isArray(o.carpas) ? o.carpas.slice(0, 10).map(x => x as Record<string, unknown>).filter(x => x && (x.s === 'm' || x.s === 'f') && Array.isArray(x.ids))
+      .map(x => ({ s: x.s as 'm' | 'f', u: esId(x.u) ? x.u as string : undefined, n: typeof x.n === 'string' ? x.n.slice(0, 30) : undefined, ids: (x.ids as unknown[]).filter(esId).slice(0, 8) as string[] })) : undefined }
 }
 function limpiarCampamento(v: unknown): Campamento | null {
   if (!v || typeof v !== 'object') return null

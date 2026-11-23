@@ -5,7 +5,7 @@ import { TODOS_LOS_NIVELES, type Nivel } from '../domain/niveles'
 import type { Dificultad } from '../domain/tipos'
 import { esSabado } from '../domain/plaza'
 
-export type Pantalla = 'intro' | 'acceso' | 'editor' | 'mapa' | 'juego' | 'ranking' | 'legal' | 'director' | 'sala' | 'club' | 'admin' | 'logros' | 'campamentos' | 'plaza'
+export type Pantalla = 'intro' | 'acceso' | 'editor' | 'mapa' | 'juego' | 'ranking' | 'legal' | 'director' | 'sala' | 'club' | 'admin' | 'logros' | 'campamentos' | 'plaza' | 'unidad'
 
 export interface EstadoSala {
   conexion: ConexionSala
