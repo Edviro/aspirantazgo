@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { PerfilClub, PiezaMuseo, PuertoClubPerfil, RedesClub, TipoPieza } from '../../application/puertos'
+import type { ColorTrofeo, IconoTrofeo, PerfilClub, PiezaMuseo, PuertoClubPerfil, RedesClub, TipoPieza, Trofeo, TrofeosClub } from '../../application/puertos'
 
 type Rpc = <T>(fn: string, args?: Record<string, unknown>) => Promise<T>
 const esUuid = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v)
@@ -40,9 +40,36 @@ async function prepararFoto(archivo: File): Promise<{ blob: Blob; ext: 'webp' | 
   throw new Error('FOTO_GRANDE')
 }
 
+const ICONOS: IconoTrofeo[] = ['copa', 'medalla', 'estrella', 'escudo', 'corona', 'llama']
+const COLORES: ColorTrofeo[] = ['oro', 'plata', 'bronce', 'rojo', 'azul', 'verde']
+function limpiarTrofeo(v: unknown): (Trofeo & Record<string, unknown>) | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  if (!esUuid(o.id) || !ICONOS.includes(o.icono as IconoTrofeo) || !COLORES.includes(o.color as ColorTrofeo)) return null
+  return { ...o, id: o.id, nombre: txt(o.nombre, 40), descripcion: txt(o.descripcion, 200) || null, icono: o.icono as IconoTrofeo, color: o.color as ColorTrofeo }
+}
+
 export function crearClubPerfil(sb: SupabaseClient, rpc: Rpc, token: () => string | null): PuertoClubPerfil {
   const urls = new Map<string, { url: string; vence: number }>()
   return {
+    async trofeos(): Promise<TrofeosClub> {
+      const r = await rpc<unknown>('trofeos_club', { p_token: token() })
+      const o = (r && typeof r === 'object' ? r : {}) as Record<string, unknown>
+      const trofeos = (Array.isArray(o.trofeos) ? o.trofeos : []).slice(0, 100).map(limpiarTrofeo).filter((t): t is NonNullable<typeof t> => !!t).map(t => ({
+        id: t.id, nombre: t.nombre, descripcion: t.descripcion, icono: t.icono, color: t.color,
+        entregas: (Array.isArray(t.entregas) ? t.entregas : []).slice(0, 300).map(x => x as Record<string, unknown>).filter(x => esUuid(x.id))
+          .map(x => ({ id: x.id as string, a: txt(x.a, 40), motivo: txt(x.motivo, 120) || null, fecha: txt(x.fecha, 40) })),
+      }))
+      const mios = (Array.isArray(o.mios) ? o.mios : []).slice(0, 200).map(limpiarTrofeo).filter((t): t is NonNullable<typeof t> => !!t)
+        .map(t => ({ id: t.id, nombre: t.nombre, descripcion: t.descripcion, icono: t.icono, color: t.color, motivo: txt(t.motivo, 120) || null, fecha: txt(t.fecha, 40), unidad: t.unidad === true }))
+      return { soy_director: o.soy_director === true, trofeos, mios }
+    },
+    async crearTrofeo(t) { await rpc('trofeo_crear', { p_nombre: t.nombre, p_descripcion: t.descripcion, p_icono: t.icono, p_color: t.color }) },
+    async entregarTrofeo(trofeo, a, motivo) {
+      if (!esUuid(trofeo) || (a.jugador && !esUuid(a.jugador)) || (a.unidad && !esUuid(a.unidad))) throw new Error('DATOS_INVALIDOS')
+      await rpc('trofeo_entregar', { p_trofeo: trofeo, p_player: a.jugador ?? null, p_unidad: a.unidad ?? null, p_motivo: motivo })
+    },
+    async borrarTrofeo(trofeo, entrega) { await rpc('trofeo_borrar', { p_trofeo: trofeo, p_entrega: entrega ?? null }) },
     async perfil(club) {
       const r = await rpc<unknown>('club_perfil', { p_token: token(), p_club: club ?? null })
       if (!r || typeof r !== 'object') throw new Error('DATOS_INVALIDOS')

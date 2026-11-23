@@ -3,6 +3,7 @@ import type { PerfilClub, PiezaMuseo, RedesClub, TipoPieza } from '../../applica
 import { mensajeError } from '../../application/errores'
 import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
+import { TrofeosClub } from '../componentes/TrofeosClub'
 
 const TIPO_TXT: Record<TipoPieza, string> = { polo: 'Polos', trofeo: 'Trofeos', parche: 'Parches', pin: 'Pines', foto: 'Fotos', otro: 'Recuerdos' }
 const TIPO_ICONO: Record<TipoPieza, string> = { polo: '👕', trofeo: '🏆', parche: '🧵', pin: '📍', foto: '📷', otro: '🎒' }
@@ -109,6 +110,7 @@ export default function MiClub() {
           </form>
         )}
 
+        {c && <TrofeosClub />}
         {c && (
           <section className="tarjeta museo">
             <h3>Museo del club</h3>

@@ -2078,3 +2078,18 @@ button.club-pj:hover:not(.ocupado) .club-nombre { background: var(--rojo); color
 .cambio-lista em { font-style: normal; font-weight: 900; font-size: .78rem; justify-self: start; padding: 1px 8px; border-radius: 99px; background: #e8e2cf; }
 .cambio-lista li.aceptado em { background: #b9f0c4; }
 .cambio-lista li.pendiente em { background: #ffe9a8; }
+
+/* Trofeos del club */
+.trofeos h4 { margin: 10px 0 6px; }
+.trofeos-grilla { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.trofeos-grilla li { display: grid; justify-items: center; text-align: center; gap: 2px; padding: 8px; border: 2.5px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); }
+.trofeos-grilla small { opacity: .7; font-weight: 800; font-size: .72rem; }
+.trofeos-grilla p { margin: 0; font-size: .78rem; overflow-wrap: anywhere; }
+.trofeos-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.trofeos-lista li { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; padding: 8px 40px 8px 8px; border: 2px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); }
+.trofeos-lista li > div { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.trofeos-lista small { opacity: .75; font-weight: 700; font-size: .78rem; }
+.trofeos-director { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; padding-top: 10px; border-top: 2px dashed rgba(30,20,12,.25); }
+.trofeos-director form { display: grid; gap: 8px; align-content: start; }
+.trofeo-vista { display: grid; place-items: center; padding: 6px; border-radius: 12px; background: rgba(255,255,255,.75); }
+@media (max-width: 640px) { .trofeos-director { grid-template-columns: 1fr; } }

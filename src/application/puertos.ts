@@ -280,7 +280,20 @@ export interface PerfilClub {
   id: string; nombre: string; ciudad: string | null; campo: string | null; union: string | null; pais: string | null; bandera: string | null
   fundacion: number | null; historia: string | null; redes: RedesClub; soy_director: boolean; miembros: number; unidades: number; piezas: PiezaMuseo[]
 }
+export type IconoTrofeo = 'copa' | 'medalla' | 'estrella' | 'escudo' | 'corona' | 'llama'
+export type ColorTrofeo = 'oro' | 'plata' | 'bronce' | 'rojo' | 'azul' | 'verde'
+export interface Trofeo { id: string; nombre: string; descripcion: string | null; icono: IconoTrofeo; color: ColorTrofeo }
+export interface TrofeosClub {
+  soy_director: boolean
+  trofeos: (Trofeo & { entregas: { id: string; a: string; motivo: string | null; fecha: string }[] })[]
+  mios: (Trofeo & { motivo: string | null; fecha: string; unidad: boolean })[]
+}
 export interface PuertoClubPerfil {
+  trofeos(): Promise<TrofeosClub>
+  crearTrofeo(t: { nombre: string; descripcion: string; icono: IconoTrofeo; color: ColorTrofeo }): Promise<void>
+  /** Entregar a un miembro (jugador) o a una unidad. */
+  entregarTrofeo(trofeo: string, a: { jugador?: string; unidad?: string }, motivo: string): Promise<void>
+  borrarTrofeo(trofeo: string, entrega?: string): Promise<void>
   perfil(club?: string): Promise<PerfilClub>
   editar(fundacion: number | null, historia: string, redes: RedesClub): Promise<void>
   /** Achica la foto en el equipo (sin datos de ubicación) y la sube al almacén privado del club. Devuelve su ruta. */
