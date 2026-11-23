@@ -66,3 +66,16 @@ grant execute on function public.clubes_oficiales(int) to anon, authenticated;
 --   * p_oficial: club del directorio (debe ser de la asociación p_campo); si aún no juega, se crea con su nombre oficial.
 --   * nombre a mano: solo clubes nuevos que aún no figuran; si el nombre coincide con uno oficial → CLUB_EN_LISTA.
 --   (texto completo de las funciones _dir_*: select pg_get_functiondef(...) en la base)
+
+-- =====================================================================================
+-- 2026-11-23 (tarde): aprobaciones, dormir y unidades (migraciones aplicadas en Supabase)
+--   solicitudes_director_departamental: tabla solicitudes_cargo; solicitar_cargo, mis_solicitudes,
+--     admin_solicitudes, admin_resolver_solicitud; guardar_avatar / director_guardar_avatar rechazan
+--     DEPARTAMENTAL sin aprobación (REQUIERE_APROBACION); registrar_adulto: director solo con Google
+--     (DIRECTOR_SOLO_GOOGLE) y queda como solicitud pendiente.
+--   dormir_en_carpa: players.durmiendo + dormir(p_token, p_si); campamento() devuelve 'z' (quiénes duermen).
+--   unidades: tablas unidades y unidad_miembros (no mixtas, 8 máx., un cargo de cada tipo);
+--     mi_unidad, unidad_crear, unidad_editar, unidad_ser_consejero, unidad_asignar (rotar), unidad_salir;
+--     _uniforme_unidad lleva la unidad y el cargo al avatar del conquistador.
+--   carpas_por_unidad: _carpas_club(): 4 conquistadores por carpa + su consejero; campamento() devuelve 'carpas'.
+-- =====================================================================================
