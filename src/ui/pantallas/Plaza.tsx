@@ -1,14 +1,15 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { FRASES, type Bolsa, type ConexionPlaza, type PerfilPublico, type PresenteEnPlaza, type ProgramaVivo, type PuntoPlaza } from '../../application/puertos'
+import { FRASES, type Bolsa, type Campamento, type ConexionPlaza, type PerfilPublico, type PresenteEnPlaza, type ProgramaVivo, type PuntoPlaza } from '../../application/puertos'
 import { CAMPAMENTO_CENTRAL, CAMPAMENTOS, centralAbierto, progresoCampamento } from '../../domain/campamentos'
 import { rachaVigente, retoDelDia } from '../../domain/diario'
 import type { Ente3D, Mundo3D, Vista } from '../tres/mundo3d'
 import { guardarVista, prefiere3D, soporta3D } from '../tres/soporte'
 import { Carpa, type Companero } from '../componentes/plaza/Carpa'
 import { Joystick } from '../componentes/plaza/Joystick'
+import { MapaViaje, nombreLugar } from '../componentes/plaza/MapaViaje'
 import {
-  ALTO, ANCHO, OBJETOS, PARCELAS, MUELLE, SALIDA, alturaBanderas, asignar, ceremoniaAhora, esSabado, formacion, horaLima, luzDelDia,
-  objetoEn, ruta, transitable, usableCerca, zonaDe, type Campista, type Objeto, type Zona,
+  ALTO, ANCHO, CARPAS_POR_LADO, OBJETOS, PARCELAS, POR_CARPA, MUELLE, SALIDA, alturaBanderas, asignar, ceremoniaAhora, esSabado, formacion, horaLima, luzDelDia,
+  objetoEn, ruta, transitable, usableCerca, zonaDe, type Asignacion, type Campista, type Objeto, type Zona,
 } from '../../domain/plaza'
 import { Boton } from '../componentes/Comunes'
 import { MenuPrincipal } from '../componentes/MenuPrincipal'
@@ -225,12 +226,43 @@ export default function Plaza() {
     if (de !== perfil?.id) sfx.burbuja()
   }, [perfil?.id])
 
+  // ---------- Campamento de tu región (o el que visitas con el mapa) ----------
+  const enLinea = !!perfil && !!repo.salas && modo === 'en_linea' && !perfil.invitado
+  const [destino, setDestino] = useState<string | undefined>(undefined)
+  const [camp, setCamp] = useState<Campamento | null>(null)
+  const [campListo, setCampListo] = useState(false)
+  const [mapa, setMapa] = useState(false)
+  useEffect(() => {
+    if (!enLinea || !repo.salas?.campamento) { setCampListo(true); return }
+    let vivo = true
+    const cargar = (primera: boolean) => repo.salas!.campamento!(destino)
+      .then(c => { if (vivo) { setCamp(c); setCampListo(true) } })
+      .catch(() => { if (vivo && primera) { setCamp(null); setCampListo(true) } })
+    void cargar(true)
+    // Los clubes y miembros nuevos aparecen solos (sus carpas quedan armadas)
+    const t = setInterval(() => void cargar(false), 120000)
+    return () => { vivo = false; clearInterval(t) }
+  }, [enLinea, destino]) // eslint-disable-line react-hooks/exhaustive-deps
+  const lugar = camp?.lugar
+  /** Viajar a otro campamento (o volver al tuyo con `undefined`). */
+  const viajar = (l: string | undefined) => {
+    setMapa(false)
+    if (l === lugar || (l === undefined && camp?.mio)) return
+    sfx.zas(); romperFilas(); setCarpa(null); setCulto(false)
+    otros.current.clear(); tiempos.current.clear(); anunciado.current.clear(); setIds([])
+    Object.assign(yo.current, { ...SALIDA, ruta: [] }); Object.assign(cam.current, { x: SALIDA.x, y: SALIDA.y })
+    colocado.current = false
+    setCampListo(false); setDestino(l)
+  }
+
   // ---------- Conexión al canal ----------
   // Si el canal se cae (corte de red, celular en segundo plano), se vuelve a entrar solo
   const [intento, setIntento] = useState(0)
   useEffect(() => {
     if (intento === 0) limpiarTransicion()
-    if (!perfil || !repo.salas || modo !== 'en_linea' || perfil.invitado) { setRed('solo'); return }
+    if (!enLinea) { setRed('solo'); return }
+    if (!campListo) return
+    setRed('conectando')
     let vivo = true, con: ConexionPlaza | null = null, tReintento = 0
     const reintentar = (ms: number) => { if (vivo && !tReintento) tReintento = window.setTimeout(() => { tReintento = 0; if (vivo) setIntento(i => i + 1) }, ms) }
     repo.salas.plaza({ id: perfil.id, clubId: perfil.club.id ?? '', llegada: llegadaRef.current }, { x: yo.current.x, y: yo.current.y }, {
@@ -238,7 +270,7 @@ export default function Plaza() {
       onIr: m => caminar(m.id, m.desde, m.hasta),
       onGesto: g => recibirGesto(g.de, g.frase),
       onCaida: () => { if (!vivo) return; conexion.current = null; setRed('solo'); reintentar(8000) },
-    }).then(c => {
+    }, lugar).then(c => {
       if (!vivo) { void c.salir(); return }
       con = c; conexion.current = c; setCanal(c.canal); llegadaRef.current = c.llegada; setMiLlegada(c.llegada); setRed('vivo')
       // Lo que ya tenías puesto (culto, carpa, formación) se vuelve a anunciar
@@ -246,10 +278,23 @@ export default function Plaza() {
       c.marcar({ cul: miAsiento.current !== null, dur: durmiendoRef.current })
     }).catch(() => { if (vivo) { setRed('solo'); reintentar(12000) } })
     return () => { vivo = false; clearTimeout(tReintento); conexion.current = null; void con?.salir() }
-  }, [intento]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [intento, campListo, lugar]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------- Campamentos de los clubes: parcelas por orden de llegada y carpas por sexo ----------
-  const asignacion = useMemo(() => {
+  // ---------- Campamentos de los clubes ----------
+  // En línea: cada club de la región tiene parcela FIJA y cada miembro su carpa fija (aunque no esté conectado).
+  // Sin conexión (práctica): parcelas por orden de llegada, como antes.
+  const asignacion = useMemo((): Asignacion => {
+    if (camp) {
+      const parcelas = new Map<string, number>(), carpas: Asignacion['carpas'] = new Map()
+      for (const c of camp.clubes) {
+        parcelas.set(c.id, c.parcela)
+        for (const sexo of ['m', 'f'] as const) c[sexo].forEach((id, k) => {
+          const slot = Math.floor(k / POR_CARPA)
+          if (slot < CARPAS_POR_LADO) carpas.set(id, { parcela: c.parcela, sexo, slot })
+        })
+      }
+      return { parcelas, carpas }
+    }
     if (!perfil) return asignar([])
     const campistas: Campista[] = [{ id: perfil.id, clubId: miClub, t: miLlegada, genero: perfil.avatar.genero === 'f' ? 'f' : 'm' }]
     for (const id of ids) {
@@ -258,9 +303,13 @@ export default function Plaza() {
       campistas.push({ id, clubId: j.clubId, t: tiempos.current.get(id)?.t ?? Date.now(), genero: j.avatar?.genero === 'f' ? 'f' : 'm' })
     }
     return asignar(campistas)
-  }, [ids, ver, miLlegada, perfil, miClub])
+  }, [camp, ids, ver, miLlegada, perfil, miClub])
   const clubDeParcela = useMemo(() => {
     const m = new Map<number, { id: string; nombre: string; pais?: string | null; bandera?: string | null; color: string }>()
+    if (camp) {
+      for (const c of camp.clubes) m.set(c.parcela, { id: c.id, nombre: c.nombre, pais: c.pais, bandera: c.bandera, color: colorDeClub(c.id) })
+      return m
+    }
     for (const [clubId, i] of asignacion.parcelas) {
       const mio = clubId === miClub
       const alguien = mio ? null : [...perfiles.current.values()].find(j => j.clubId === clubId)
@@ -269,12 +318,12 @@ export default function Plaza() {
         : { id: clubId, nombre: alguien?.club ?? 'Club', pais: alguien?.pais, bandera: alguien?.bandera, color: colorDeClub(clubId) })
     }
     return m
-  }, [asignacion, miClub, perfil])
+  }, [camp, asignacion, miClub, perfil])
   const miParcela = asignacion.parcelas.get(miClub)
 
   // Al entrar (sin barco) apareces en tu campamento, frente a tu carpa
   useEffect(() => {
-    if (colocado.current || red === 'conectando' || !perfil) return
+    if (colocado.current || red === 'conectando' || !perfil || !campListo) return
     colocado.current = true
     const c = asignacion.carpas.get(perfil.id)
     const carpa = c && OBJETOS.find(o => o.tipo === 'carpa-p' && o.parcela === c.parcela && o.sexo === c.sexo && o.slot === c.slot)
@@ -292,7 +341,7 @@ export default function Plaza() {
       if (deNoche) { setCarpa({ inicio: 'durmiendo' }); conexion.current?.marcar({ dur: true }) }
       else { try { localStorage.removeItem(claveSueno(perfil.id)) } catch { /* sin almacenamiento */ } setCarpa({ inicio: 'amaneciendo', horas: (Date.now() - desde) / 3600000 }) }
     }
-  }, [red, asignacion, miParcela, perfil])
+  }, [red, asignacion, miParcela, perfil, campListo])
 
   // ---------- Sprites (se reutilizan si no cambian) ----------
   const cacheSprites = useRef(new Map<string, Sprite>())
@@ -899,6 +948,7 @@ export default function Plaza() {
 
       <div className="plaza-titulo">
         <h1>{nombreZona(zona)}</h1>
+        {camp && <p className="plaza-lugar">{nombreLugar(camp)}{camp.asociacion ? ` · ${camp.asociacion}` : ''}{!camp.mio ? ' · de visita' : ''}</p>}
         <p>{red === 'vivo' ? <><i className="en-vivo-punto" aria-hidden />Canal {canal} · {lista.length + 1} {lista.length === 0 ? 'conquistador' : 'conquistadores'}</>
           : red === 'conectando' ? 'Conectando con los demás clubes…' : modo === 'practica' ? 'Modo práctica: recorres el campamento tú solo' : 'Sin conexión: recorres el campamento tú solo'}
           {luz.fase === 'noche' ? ' · 🌙' : luz.fase === 'atardecer' ? ' · 🌇' : luz.fase === 'amanecer' ? ' · 🌅' : ''}</p>
@@ -938,6 +988,12 @@ export default function Plaza() {
         {cerca
           ? <Boton onClick={() => usar(cerca)}>{ACCION[cerca.tipo]}</Boton>
           : <span className="plaza-pista">Toca el suelo para caminar</span>}
+        {enLinea && repo.salas?.mapaCampamentos && (
+          <button className="btn-brujula btn-mapa" onClick={() => { sfx.click(); setMapa(true) }} aria-label="Mapa: viajar a otros campamentos por país, unión, asociación y región">
+            <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden><path d="M4 8l8-3 8 3 8-3v19l-8 3-8-3-8 3z" fill="#FFF7DF" stroke="#1E140C" strokeWidth="2.3" strokeLinejoin="round" /><path d="M12 5v19M20 8v19" stroke="#1E140C" strokeWidth="2" /><circle cx="16" cy="14" r="2.6" fill="#D7242F" /></svg>
+            <span>Mapa</span>
+          </button>
+        )}
         <button className="btn-brujula" onClick={() => { sfx.zas(); setZarpar(true) }} aria-label="Ir a los campamentos de desafíos en barco">
           <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden><circle cx="16" cy="16" r="13" fill="#FFF7DF" stroke="#1E140C" strokeWidth="2.5" /><path d="M16 5l4 11h-8z" fill="#D7242F" /><path d="M16 27l-4-11h8z" fill="#1F5FD1" /><circle cx="16" cy="16" r="2" fill="#1E140C" /></svg>
           <span>Desafíos</span>
@@ -946,6 +1002,7 @@ export default function Plaza() {
 
       {rivales.length > 0 && <DialogoReto rivales={rivales} setRivales={setRivales} libres={lista} onCerrar={() => setRivales([])} />}
 
+      {mapa && repo.salas && <MapaViaje salas={repo.salas} camp={camp} onIr={viajar} onCerrar={() => setMapa(false)} />}
       {tablero && <TableroRetos onCerrar={() => setTablero(false)} onRanking={() => ir('ranking')} sabado={sabado} />}
       {culto && <Culto publico={[{ id: perfil.id, apodo: perfil.apodo, avatar: perfil.avatar, rango: perfil.rango }, ...lista.map(j => ({ id: j.id, apodo: j.apodo, avatar: j.avatar, rango: j.rango }))]}
         gestos={gestos} onGesto={decir} puedeReaccionar={red === 'vivo'} sabado={sabado} luz={luz} onCerrar={salirCulto}

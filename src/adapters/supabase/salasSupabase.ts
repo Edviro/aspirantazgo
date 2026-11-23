@@ -1,7 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type {
   ConexionPlaza, ConexionPresencia, ConexionSala, EventosPlaza, EventosPresencia, EventosSala, InicioRonda, InvitacionDuelo, JugadorEnLinea, JugadorSala,
-  FilaSala, FilaTotalSala, PerfilPublico, ProgresoSala, PresenteEnPlaza, PuertoSalas, PuntoPlaza, RespuestaDuelo, ResultadoDuelo,
+  Campamento, ClubCampamento, FilaSala, FilaTotalSala, LugarMapa, MapaCampamentos, PerfilPublico, ProgresoSala, PresenteEnPlaza, PuertoSalas, PuntoPlaza, RespuestaDuelo, ResultadoDuelo,
 } from '../../application/puertos'
 import { FRASES } from '../../application/puertos'
 import { TODOS_LOS_NIVELES } from '../../domain/niveles'
@@ -63,6 +63,35 @@ function punto(x: unknown, y: unknown): PuntoPlaza | null {
   return { x: Math.min(ANCHO_PLAZA, Math.max(0, x)), y: Math.min(ALTO_PLAZA, Math.max(0, y)) }
 }
 const r2 = (v: number) => Math.round(v * 100) / 100
+const LUGAR = /^(rn?[0-9]{1,10}|c[0-9]{1,9}|x)-[0-9]{1,3}$/, BASE = /^(rn?[0-9]{1,10}|c[0-9]{1,9}|x)$/
+const txtONull = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.slice(0, max) : null)
+function limpiarClubCamp(v: unknown): ClubCampamento | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  if (!esId(o.id) || !Number.isInteger(o.parcela) || (o.parcela as number) < 0 || (o.parcela as number) > 10) return null
+  const ids = (x: unknown) => (Array.isArray(x) ? x.filter(esId).slice(0, 20) as string[] : [])
+  const bandera = typeof o.bandera === 'string' && BANDERA.test(o.bandera) ? o.bandera : null
+  return { id: o.id as string, nombre: texto(o.nombre, 60) || 'Club', pais: typeof o.pais === 'string' && /^[A-Z]{2}$/.test(o.pais) ? o.pais : null,
+    bandera, ciudad: txtONull(o.ciudad, 60), parcela: o.parcela as number, m: ids(o.m), f: ids(o.f) }
+}
+function limpiarCampamento(v: unknown): Campamento | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  if (typeof o.lugar !== 'string' || !LUGAR.test(o.lugar) || typeof o.base !== 'string' || !BASE.test(o.base)) return null
+  const clubes = (Array.isArray(o.clubes) ? o.clubes : []).slice(0, 11).map(limpiarClubCamp).filter((c): c is ClubCampamento => !!c)
+  const sector = Number.isInteger(o.sector) ? Math.max(0, o.sector as number) : 0
+  return { lugar: o.lugar, base: o.base, sector, sectores: Number.isInteger(o.sectores) ? Math.max(1, Math.min(999, o.sectores as number)) : 1,
+    titulo: texto(o.titulo, 80) || 'Campamento', asociacion: txtONull(o.asociacion, 90), union: txtONull(o.union, 80),
+    pais: typeof o.pais === 'string' && /^[A-Z]{2}$/.test(o.pais) ? o.pais : null, mio: o.mio === true, clubes }
+}
+function limpiarLugar(v: unknown): LugarMapa | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  if (typeof o.base !== 'string' || !BASE.test(o.base)) return null
+  const n = (x: unknown) => (Number.isInteger(x) ? Math.max(0, x as number) : 0)
+  return { base: o.base, titulo: texto(o.titulo, 80) || 'Campamento', asociacion: txtONull(o.asociacion, 90), union: txtONull(o.union, 80),
+    pais: typeof o.pais === 'string' && /^[A-Z]{2}$/.test(o.pais) ? o.pais : null, clubes: n(o.clubes), sectores: Math.max(1, n(o.sectores)) }
+}
 /** Cuántos caben en un canal de la plaza y cuántos canales hay como máximo. */
 export const CUPO_PLAZA = 40, CANALES_PLAZA = 30
 /** Supabase permite 5 track()/untrack() por cliente cada 30 s; dejamos margen (el untrack al salir también cuenta). */
@@ -290,12 +319,30 @@ export class SalasSupabase implements PuertoSalas {
       .then(r => (Array.isArray(r) ? r : []).map(limpiarPublico).filter((j): j is PerfilPublico => !!j))
   }
 
+  async campamento(lugar?: string): Promise<Campamento> {
+    if (lugar !== undefined && !LUGAR.test(lugar)) throw new Error('LUGAR_INVALIDO')
+    const r = await this.rpc<unknown>('campamento', { p_token: this.token(), p_lugar: lugar ?? null })
+    const c = limpiarCampamento(r)
+    if (!c) throw new Error('LUGAR_INVALIDO')
+    return c
+  }
+
+  async mapaCampamentos(): Promise<MapaCampamentos> {
+    const r = await this.rpc<unknown>('mapa_campamentos', { p_token: this.token() })
+    const o = (r && typeof r === 'object' ? r : {}) as Record<string, unknown>
+    const lugares = (Array.isArray(o.lugares) ? o.lugares : []).slice(0, 5000).map(limpiarLugar).filter((l): l is LugarMapa => !!l)
+    return { mio: typeof o.mio === 'string' && BASE.test(o.mio) ? o.mio : '', lugares }
+  }
+
   /**
    * Plaza Central: canales `plaza-N` de hasta CUPO_PLAZA jugadores. Se entra al primero con espacio.
    * Por el canal solo viajan ids y posiciones (el destino de cada caminata, no cada paso): muy pocos mensajes.
    */
-  async plaza(yo: { id: string; clubId: string; llegada?: number }, pos: PuntoPlaza, ev: EventosPlaza): Promise<ConexionPlaza> {
+  async plaza(yo: { id: string; clubId: string; llegada?: number }, pos: PuntoPlaza, ev: EventosPlaza, lugar?: string): Promise<ConexionPlaza> {
     if (!esId(yo.id)) throw new Error('SALA_SIN_CONEXION')
+    if (lugar !== undefined && !LUGAR.test(lugar)) throw new Error('LUGAR_INVALIDO')
+    // Cada campamento (región y sector) tiene sus propios canales; sin lugar, la plaza general de siempre
+    const prefijo = lugar ? `camp-${lugar}-` : 'plaza-'
     /** `luego` recibe los cambios de estado posteriores (reconexión, cierre por el servidor). */
     const suscribir = (c: RealtimeChannel, luego?: (estado: string) => void) => new Promise<void>((ok, mal) => {
       let listo = false
@@ -307,7 +354,7 @@ export class SalasSupabase implements PuertoSalas {
       })
     })
     for (let n = 1; n <= CANALES_PLAZA; n++) {
-      const canal = this.sb.channel('plaza-' + n, { config: { presence: { key: yo.id }, broadcast: { self: false } } })
+      const canal = this.sb.channel(prefijo + n, { config: { presence: { key: yo.id }, broadcast: { self: false } } })
       let elegido = false, primerSync: () => void = () => undefined
       const sincronizado = new Promise<void>(r => { primerSync = r })
       const presentes = new Set<string>()

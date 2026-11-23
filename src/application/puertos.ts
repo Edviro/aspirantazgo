@@ -276,9 +276,32 @@ export interface PuertoSalas {
    * Plaza Central (mundo abierto): te pone en un canal con espacio (Plaza 1, 2, 3…). El canal solo lleva ids y
    * posiciones; los nombres y avatares se piden con `perfilesPublicos` (vienen de la base de datos).
    */
-  plaza(yo: { id: string; clubId: string; llegada?: number }, pos: PuntoPlaza, eventos: EventosPlaza): Promise<ConexionPlaza>
+  plaza(yo: { id: string; clubId: string; llegada?: number }, pos: PuntoPlaza, eventos: EventosPlaza, lugar?: string): Promise<ConexionPlaza>
   perfilesPublicos(ids: string[]): Promise<PerfilPublico[]>
+  /** Campamento de una región (el tuyo si no se indica `lugar`): cada club con su parcela fija y sus carpas. */
+  campamento?(lugar?: string): Promise<Campamento>
+  /** Campamentos con clubes jugando, para viajar por el mapa (país → unión → asociación → región). */
+  mapaCampamentos?(): Promise<MapaCampamentos>
 }
+
+// ---------- Campamentos por región ----------
+export interface ClubCampamento {
+  id: string; nombre: string; pais: string | null; bandera: string | null; ciudad: string | null
+  /** Parcela fija dentro del campamento (0-10). */
+  parcela: number
+  /** Ids de los miembros en orden de registro (varones / damas): definen su carpa fija. */
+  m: string[]; f: string[]
+}
+export interface Campamento {
+  /** Clave del campamento (canal en vivo), p. ej. 'r1632-0'. */
+  lugar: string; base: string; sector: number; sectores: number
+  titulo: string; asociacion: string | null; union: string | null; pais: string | null
+  /** ¿Es el campamento de tu club? */
+  mio: boolean
+  clubes: ClubCampamento[]
+}
+export interface LugarMapa { base: string; titulo: string; asociacion: string | null; union: string | null; pais: string | null; clubes: number; sectores: number }
+export interface MapaCampamentos { mio: string; lugares: LugarMapa[] }
 
 // ---------- Tienda (ConquisCoins) ----------
 export interface Bolsa { saldo: number; ganadas_hoy: number; tope: number; items: string[] }
