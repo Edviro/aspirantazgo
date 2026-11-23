@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
 import { mensajeError } from '../../application/errores'
-import type { MiembroConAvatar, SesionProgramada } from '../../application/puertos'
+import type { MiembroConAvatar, SesionProgramada, PendienteClub } from '../../application/puertos'
 import { Bandera } from '../componentes/plaza/Iconos'
 import { pixelarImagen } from '../pixel/banderas'
 import Editor from './Editor'
@@ -30,7 +30,9 @@ export default function Director() {
   const [bandera, setBandera] = useState<string | null>(null)
   const [msgBandera, setMsgBandera] = useState<{ t: string; ok: boolean } | null>(null)
 
+  const [pendientes, setPendientes] = useState<PendienteClub[]>([])
   const cargar = () => {
+    if (director) repo.lider?.pendientes?.().then(setPendientes).catch(() => setPendientes([]))
     if (director) repo.miembrosClub().then(setMiembros).catch(() => setMiembros([]))
     if (director) repo.directorMiembros?.().then(l => setPersonajes(Object.fromEntries(l.map(m => [m.apodo, m])))).catch(() => setPersonajes({}))
     repo.lider?.misSesiones().then(setSesiones).catch(() => setSesiones([]))
@@ -85,6 +87,23 @@ export default function Director() {
         <span />
       </header>
       <div className="director-cuerpo">
+        {director && pendientes.length > 0 && (
+          <section className="tarjeta pendientes-club">
+            <h3>Quieren unirse a tu club ({pendientes.length})</h3>
+            <p className="ayuda">Aprueba solo a quienes conoces y cuyos padres firmaron la autorización. Si rechazas, su cuenta se borra.</p>
+            <ul>
+              {pendientes.map(p => (
+                <li key={p.id}>
+                  <span><b>{p.apodo}</b><small>{p.grupo_edad === 'menor' ? 'Conquistador' : `Líder${p.cargo ? ` · ${p.cargo.charAt(0) + p.cargo.slice(1).toLowerCase()}` : ''}`} · {new Date(p.creado).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small></span>
+                  <span className="fila-botones">
+                    <Boton tipo="fantasma" disabled={ocupado} onClick={() => hacer(async () => { await repo.lider!.aprobarIngreso!(p.id, false); cargar() }, `Se rechazó a ${p.apodo}.`)}>Rechazar</Boton>
+                    <Boton disabled={ocupado} onClick={() => hacer(async () => { await repo.lider!.aprobarIngreso!(p.id, true); cargar() }, `¡${p.apodo} ya es parte del club!`)}>Aprobar</Boton>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {codigo && (
           <section className="tarjeta codigo-club">
             <small>Código del club</small>

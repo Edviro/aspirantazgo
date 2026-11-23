@@ -80,7 +80,7 @@ export default function Acceso() {
 
   useEffect(() => {
     if (!repoEnLinea) return
-    repoEnLinea.adultoSinClub().then(e => { if (e) { setAdultoEmail(e); setTab('adulto') } }).catch(() => undefined)
+    repoEnLinea.adultoSinClub().then(e => { if (e) { setAdultoEmail(e); setTab('adulto') } }).catch(e => { setTab('adulto'); setError(mensajeError(e)) })
     repoEnLinea.sesionActual().then(async p => { if (p) { await setSesion('en_linea', p); ir('plaza') } }).catch(() => undefined)
     return cuentas?.alRecuperar(() => { setTab('adulto'); setModoCuenta('nueva') })
   }, [ir, setSesion, cuentas])
@@ -117,7 +117,15 @@ export default function Acceso() {
     validarApodo()
     let p
     try { p = nuevo ? await repoEnLinea.unirseNino(codigo, apodo, pin) : await repoEnLinea.entrarNino(codigo, apodo, pin) }
-    catch (e) { if (nuevo && e instanceof Error && e.message.includes('APODO_OCUPADO')) throw new Error('APODO_YA_ES_TUYO'); throw e }
+    catch (e) {
+      if (nuevo && e instanceof Error && e.message.includes('APODO_OCUPADO')) throw new Error('APODO_YA_ES_TUYO')
+      if (e instanceof Error && e.message.includes('INGRESO_PENDIENTE')) {
+        // Queda recordada en este equipo para entrar cuando el director apruebe
+        setRecordadas(recordar({ codigo: codigo.toUpperCase(), apodo: apodo.trim(), club: 'Pendiente de aprobación' }))
+        setNuevo(false); setPin(''); setAviso(mensajeError(e)); return
+      }
+      throw e
+    }
     setRecordadas(recordar({ codigo: codigo.toUpperCase(), apodo: apodo.trim(), club: p.club.nombre }))
     await setSesion('en_linea', p)
     ir(nuevo || !p.avatar?.genero ? 'editor' : 'plaza')
@@ -155,7 +163,7 @@ export default function Acceso() {
       nombreClub: clubAd.nuevo?.nombre, ciudad: clubAd.nuevo?.ciudad,
       soyDirector: !!(soyDirector && puedeDirigir), apodo, rango, cargo: cargo.replace(/\./g, ''), acepta, autoriza,
     })
-    if (soyDirector && puedeDirigir) setAviso('Listo. Tu solicitud de director quedó pendiente: el administrador la revisará pronto.')
+    if (p.pendiente) { setAdultoEmail(null); setAviso('¡Listo! El director de tu club recibió tu pedido. Cuando lo apruebe, entra con tu cuenta.'); return }
     await setSesion('en_linea', p)
     ir('editor')
   })
@@ -209,6 +217,7 @@ export default function Acceso() {
             <label>Tu nombre<input value={apodo} onChange={e => setApodo(e.target.value.replace(/[^A-Za-z0-9ÁÉÍÓÚÑÜáéíóúñü_ ]/g, ''))} maxLength={16} placeholder="Ej. Mateo" autoComplete="given-name" required /></label>
             <p className="ayuda">Solo tu nombre (o como te dicen en el club), <b>sin apellido</b>. Es lo que verán los demás.</p>
             <label>PIN secreto (4 números)<input value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" type="password" placeholder="••••" autoComplete={nuevo ? 'new-password' : 'current-password'} required /></label>
+            {aviso && <div className="aviso-ok" role="status">{aviso}</div>}
             {error && <p className="error" role="alert">{error}</p>}
             <Boton type="submit" disabled={cargando || !repoEnLinea}>{nuevo ? 'Unirme a mi club' : 'Entrar'}</Boton>
             <p className="ayuda">¿No tienes código? Pídeselo a tu líder. Él registra al club y se encarga de la autorización de tus padres.</p>

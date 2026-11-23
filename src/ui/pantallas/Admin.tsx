@@ -3,12 +3,13 @@ import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
 import { mensajeError } from '../../application/errores'
 import { AdminCargos } from '../componentes/admin/AdminCargos'
+import { AdminMuseo } from '../componentes/admin/AdminMuseo'
 import { AdminCultos } from '../componentes/admin/AdminCultos'
 import { AdminTorneos } from '../componentes/admin/AdminTorneos'
 import type { ClubAdmin, JugadorAdmin, ResumenAdmin, SalaAdmin, SesionAdmin } from '../../application/puertos'
 
-type Pestana = 'resumen' | 'cargos' | 'solicitudes' | 'cultos' | 'torneos' | 'usuarios' | 'clubes' | 'salas' | 'importar'
-const PESTANAS: [Pestana, string][] = [['resumen', 'Resumen'], ['cargos', 'Directores'], ['solicitudes', 'Solicitudes'], ['cultos', 'Cultos'], ['torneos', 'Torneos'], ['usuarios', 'Usuarios'], ['clubes', 'Clubes'], ['salas', 'Salas'], ['importar', 'Importar']]
+type Pestana = 'resumen' | 'cargos' | 'museo' | 'solicitudes' | 'cultos' | 'torneos' | 'usuarios' | 'clubes' | 'salas' | 'importar'
+const PESTANAS: [Pestana, string][] = [['resumen', 'Resumen'], ['cargos', 'Directores'], ['museo', 'Fotos'], ['solicitudes', 'Solicitudes'], ['cultos', 'Cultos'], ['torneos', 'Torneos'], ['usuarios', 'Usuarios'], ['clubes', 'Clubes'], ['salas', 'Salas'], ['importar', 'Importar']]
 const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—')
 const RANGO: Record<string, string> = { conquistador: 'Conquistador', lider: 'Líder', guia_mayor: 'Guía Mayor', gm_master: 'GM Máster', gm_master_avanzado: 'GM Máster Av.' }
 
@@ -129,6 +130,7 @@ export default function Admin() {
         )}
 
         {tab === 'cargos' && <AdminCargos admin={admin} hacer={hacer} />}
+        {tab === 'museo' && <AdminMuseo admin={admin} hacer={hacer} />}
         {tab === 'cultos' && <AdminCultos admin={admin} hacer={hacer} />}
         {tab === 'torneos' && <AdminTorneos admin={admin} hacer={hacer} />}
 

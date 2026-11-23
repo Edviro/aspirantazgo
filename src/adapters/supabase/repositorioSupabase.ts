@@ -1,12 +1,13 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type {
   Bolsa, ItemTienda, MiembroConAvatar, ClubRetable, ProgramaAdmin, ProgramaVivo, PuertoCulto, RetoClub, Torneo, TorneoAdmin,
-  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, SolicitudCargo, PuertoUnidades, Unidad, RolUnidad, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
+  Alcance, AvatarConfig, CatalogoOrg, Estadisticas, ClubAdmin, ClubOficial, FilaRanking, SolicitudCargo, PuertoUnidades, Unidad, RolUnidad, PuertoClubPerfil, PiezaMuseo, JugadorAdmin, Perfil, PuertoAdmin, PuertoCuentas, PuertoLider,
   RegistroAdulto, RepositorioJuego, ResultadoServidor, Vidas, ResumenAdmin, SalaAdmin, SesionAdmin, SesionProgramada,
 } from '../../application/puertos'
 import type { Dificultad, Rango } from '../../domain/tipos'
 import { SalasSupabase } from './salasSupabase'
 import { VozSupabase } from './vozSupabase'
+import { crearClubPerfil, limpiarPieza } from './clubPerfilSupabase'
 
 const CLAVE_TOKEN = 'asp_token'
 
@@ -56,6 +57,7 @@ export class RepositorioSupabase implements RepositorioJuego {
   readonly admin: PuertoAdmin
   readonly culto: PuertoCulto
   readonly unidades: PuertoUnidades
+  readonly clubPerfil: PuertoClubPerfil
   private sb: SupabaseClient
 
   constructor(url: string, clave: string) {
@@ -101,13 +103,20 @@ export class RepositorioSupabase implements RepositorioJuego {
         const l = await rpc<unknown>('clubes_oficiales', { p_campo: campo })
         return (Array.isArray(l) ? l : []).map(limpiarClubOficial).filter((c): c is ClubOficial => !!c)
       },
-      registrarAdulto: (d: RegistroAdulto) => rpc<Perfil>('registrar_adulto', {
+      registrarAdulto: (d: RegistroAdulto) => rpc<Perfil & { pendiente?: boolean }>('registrar_adulto', {
         p_club: d.club, p_campo: d.campo, p_oficial: d.oficial ?? null, p_nombre_club: d.nombreClub ?? null, p_ciudad: d.ciudad ?? null, p_soy_director: d.soyDirector,
         p_apodo: d.apodo, p_rango: d.rango, p_cargo: d.cargo ?? null, p_acepta: d.acepta, p_autoriza: d.autoriza,
       }),
     }
 
     this.lider = {
+      async pendientes() {
+        const l = await rpc<unknown>('director_pendientes')
+        return (Array.isArray(l) ? l : []).map(x => x as Record<string, unknown>).filter(x => esUuid(x.id)).slice(0, 200)
+          .map(x => ({ id: x.id as string, apodo: txt(x.apodo, 20), grupo_edad: x.grupo_edad === 'adulto' ? 'adulto' as const : 'menor' as const,
+            rango: txt(x.rango, 30), cargo: txt(x.cargo, 20) || null, creado: txt(x.creado, 40) }))
+      },
+      async aprobarIngreso(id, aprobar) { await rpc('director_aprobar', { p_id: id, p_aprobar: aprobar }) },
       async solicitarSesion(d) {
         await rpc('solicitar_sesion', { p_token: token(), p_titulo: d.titulo, p_inicia: d.inicia, p_minutos: d.minutos, p_ninos: d.ninos, p_lideres: d.lideres, p_nota: d.nota })
       },
@@ -122,6 +131,15 @@ export class RepositorioSupabase implements RepositorioJuego {
         return (Array.isArray(l) ? l : []).filter(x => x && typeof x === 'object' && typeof (x as { id?: unknown }).id === 'string') as SolicitudCargo[]
       },
       async resolverSolicitudCargo(id, aprobar) { await rpc('admin_resolver_solicitud', { p_id: id, p_aprobar: aprobar }) },
+      museoPendientes: async () => {
+        const l = await rpc<unknown>('admin_museo_pendientes')
+        return (Array.isArray(l) ? l : []).map(x => {
+          const p = limpiarPieza(x)
+          const o = x as Record<string, unknown>
+          return p ? { ...p, club: txt(o.club, 80), campo: txt(o.campo, 90) || null, creada: txt(o.creada, 40) } : null
+        }).filter((p): p is PiezaMuseo & { club: string; campo: string | null; creada: string } => !!p)
+      },
+      async resolverMuseo(id, aprobar) { await rpc('admin_museo_resolver', { p_id: id, p_aprobar: aprobar }) },
       jugadores: buscar => rpc<JugadorAdmin[]>('admin_jugadores', { p_buscar: buscar || null, p_limite: 300 }),
       async bloquear(id, bloqueado) { await rpc('admin_bloquear', { p_id: id, p_bloqueado: bloqueado }) },
       async darVidas(id, cantidad) { return (await rpc<{ vidas: number }>('admin_dar_vidas', { p_id: id, p_cantidad: cantidad })).vidas },
@@ -143,6 +161,7 @@ export class RepositorioSupabase implements RepositorioJuego {
       async estadoPrograma(id, estado) { await rpc('admin_programa_estado', { p_id: id, p_estado: estado }) },
     }
 
+    this.clubPerfil = crearClubPerfil(this.sb, rpc, token)
     const unidad = (v: unknown) => { const u = limpiarUnidad(v); if (!u) throw new Error('DATOS_INVALIDOS'); return u }
     this.unidades = {
       async estado() {
@@ -208,11 +227,15 @@ export class RepositorioSupabase implements RepositorioJuego {
   async adultoSinClub(): Promise<string | null> {
     const { data } = await this.sb.auth.getSession()
     if (!data.session) return null
-    try { await this.rpc('mi_perfil', { p_token: null }); return null } catch { return data.session.user.email ?? 'adulto' }
+    try { await this.rpc('mi_perfil', { p_token: null }); return null } catch (e) {
+      if (e instanceof Error && e.message.includes('ESPERANDO_APROBACION')) throw e // ya pidió entrar: su director debe aprobarlo
+      return data.session.user.email ?? 'adulto'
+    }
   }
 
   async unirseNino(codigo: string, apodo: string, pin: string) {
-    const r = await this.rpc<{ token: string; perfil: Perfil }>('unirse_nino', { p_codigo: codigo, p_apodo: apodo, p_pin: pin })
+    const r = await this.rpc<{ token: string; perfil: Perfil; pendiente?: boolean }>('unirse_nino', { p_codigo: codigo, p_apodo: apodo, p_pin: pin })
+    if (r.pendiente) throw new Error('INGRESO_PENDIENTE')
     guardarToken(r.token)
     return r.perfil
   }

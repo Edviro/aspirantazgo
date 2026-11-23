@@ -127,7 +127,8 @@ export interface PuertoCuentas {
   /** ¿La cuenta entró con Google? (ser director lo exige por ahora) */
   esGoogle(): Promise<boolean>
   clubesOficiales(campo: number): Promise<ClubOficial[]>
-  registrarAdulto(d: RegistroAdulto): Promise<Perfil>
+  /** `pendiente`: el club ya tiene director y él debe aprobar tu ingreso. */
+  registrarAdulto(d: RegistroAdulto): Promise<Perfil & { pendiente?: boolean }>
 }
 
 // ---------- Sesiones programadas (el líder solicita, el administrador aprueba) ----------
@@ -139,7 +140,11 @@ export interface PuertoLider {
   solicitarSesion(d: { titulo: string; inicia: string; minutos: number; ninos: number; lideres: number; nota: string }): Promise<void>
   misSesiones(): Promise<SesionProgramada[]>
   cancelarSesion(id: string): Promise<void>
+  /** Director: quiénes pidieron entrar al club y esperan su aprobación. */
+  pendientes?(): Promise<PendienteClub[]>
+  aprobarIngreso?(id: string, aprobar: boolean): Promise<void>
 }
+export interface PendienteClub { id: string; apodo: string; grupo_edad: 'menor' | 'adulto'; rango: string; cargo: string | null; creado: string }
 
 // ---------- Administración (solo superadmin; el servidor lo verifica en cada llamada) ----------
 export interface ResumenAdmin {
@@ -162,6 +167,8 @@ export interface SolicitudCargo {
 export interface PuertoAdmin {
   resumen(): Promise<ResumenAdmin>
   solicitudesCargo?(): Promise<SolicitudCargo[]>
+  museoPendientes?(): Promise<(PiezaMuseo & { club: string; campo: string | null; creada: string })[]>
+  resolverMuseo?(id: string, aprobar: boolean): Promise<void>
   resolverSolicitudCargo?(id: string, aprobar: boolean): Promise<void>
   jugadores(buscar: string): Promise<JugadorAdmin[]>
   bloquear(id: string, bloqueado: boolean): Promise<void>
@@ -241,6 +248,27 @@ export interface RepositorioJuego {
   readonly admin: PuertoAdmin | null
   /** Unidades del club (solo en línea). */
   readonly unidades?: PuertoUnidades
+  /** Perfil y museo del club (solo en línea). */
+  readonly clubPerfil?: PuertoClubPerfil
+}
+
+// ---------- Perfil y museo del club ----------
+export type TipoPieza = 'polo' | 'trofeo' | 'parche' | 'pin' | 'foto' | 'otro'
+export interface PiezaMuseo { id: string; tipo: TipoPieza; titulo: string; anio: number | null; campamento: string | null; descripcion: string | null; ruta: string | null; estado: 'pendiente' | 'aprobada' | 'rechazada' }
+export type RedesClub = Partial<Record<'facebook' | 'instagram' | 'tiktok' | 'youtube', string>>
+export interface PerfilClub {
+  id: string; nombre: string; ciudad: string | null; campo: string | null; union: string | null; pais: string | null; bandera: string | null
+  fundacion: number | null; historia: string | null; redes: RedesClub; soy_director: boolean; miembros: number; unidades: number; piezas: PiezaMuseo[]
+}
+export interface PuertoClubPerfil {
+  perfil(club?: string): Promise<PerfilClub>
+  editar(fundacion: number | null, historia: string, redes: RedesClub): Promise<void>
+  /** Achica la foto en el equipo (sin datos de ubicación) y la sube al almacén privado del club. Devuelve su ruta. */
+  subirFoto(clubId: string, archivo: File): Promise<string>
+  agregar(p: { tipo: TipoPieza; titulo: string; anio: number | null; campamento: string; descripcion: string; ruta: string | null }): Promise<void>
+  borrar(id: string): Promise<void>
+  /** URL temporal para ver una foto (solo si está aprobada, o si eres su director o el superadmin). */
+  urlFoto(ruta: string): Promise<string | null>
 }
 
 // ---------- Salas en tiempo real ----------

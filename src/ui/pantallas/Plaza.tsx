@@ -184,6 +184,18 @@ export default function Plaza() {
   const miClub = perfil?.club.id ?? 'mi-club'
 
   useEffect(() => { repo.bolsa?.().then(setBolsa).catch(() => undefined) }, [repo])
+  // Director: aviso cuando alguien pide entrar a su club (se revisa cada 2 minutos)
+  useEffect(() => {
+    if (!perfil?.club.soy_director || !repo.lider?.pendientes) return
+    let antes = 0
+    const ver = () => repo.lider!.pendientes!().then(l => {
+      if (l.length > antes) setAviso(`🔔 ${l.length === 1 ? `${l[0].apodo} quiere` : `${l.length} personas quieren`} unirse a tu club. Apruébalos en el Panel del club (menú).`)
+      antes = l.length
+    }).catch(() => undefined)
+    void ver()
+    const t = setInterval(ver, 120000)
+    return () => clearInterval(t)
+  }, [repo, perfil?.club.soy_director])
   // ¿Hay un programa en vivo en el escenario? (se revisa cada minuto)
   useEffect(() => {
     if (!repo.culto) return
@@ -251,6 +263,10 @@ export default function Plaza() {
   const [camp, setCamp] = useState<Campamento | null>(null)
   const [campListo, setCampListo] = useState(false)
   const [mapa, setMapa] = useState(false)
+  // En el muelle: zarpar a las islas de desafíos o navegar a descubrir otros campamentos
+  const [muelle, setMuelle] = useState(false)
+  const [porBarco, setPorBarco] = useState(false)
+  const [navegando, setNavegando] = useState<{ lugar: string | undefined; titulo: string } | null>(null)
   useEffect(() => {
     if (!enLinea || !repo.salas?.campamento) { setCampListo(true); return }
     let vivo = true
@@ -264,12 +280,13 @@ export default function Plaza() {
   }, [enLinea, destino]) // eslint-disable-line react-hooks/exhaustive-deps
   const lugar = camp?.lugar
   /** Viajar a otro campamento (o volver al tuyo con `undefined`). */
-  const viajar = (l: string | undefined) => {
+  const viajar = (l: string | undefined, enBarco = false) => {
     setMapa(false)
     if (l === lugar || (l === undefined && camp?.mio)) return
     sfx.zas(); romperFilas(); setCarpa(null); setCulto(false)
     otros.current.clear(); tiempos.current.clear(); anunciado.current.clear(); setIds([])
-    Object.assign(yo.current, { ...SALIDA, ruta: [] }); Object.assign(cam.current, { x: SALIDA.x, y: SALIDA.y })
+    const llegada = enBarco ? MUELLE : SALIDA // en barco llegas al muelle
+    Object.assign(yo.current, { ...llegada, ruta: [] }); Object.assign(cam.current, { x: llegada.x, y: llegada.y })
     colocado.current = false
     setCampListo(false); setDestino(l)
   }
@@ -457,7 +474,7 @@ export default function Plaza() {
   const usar = useCallback((ob: Objeto) => {
     sfx.click()
     switch (ob.tipo) {
-      case 'barco': sfx.zas(); setZarpar(true); break
+      case 'barco': sfx.zas(); if (enLinea && repo.salas?.mapaCampamentos) setMuelle(true); else setZarpar(true); break
       case 'tablero': setTablero(true); break
       case 'reto':
         if (sabado) setAviso('Feliz sábado: los desafíos descansan hasta el sábado a las 6 p. m. ¡Te esperamos en el culto!')
@@ -1102,7 +1119,27 @@ export default function Plaza() {
 
       {rivales.length > 0 && <DialogoReto rivales={rivales} setRivales={setRivales} libres={lista} onCerrar={() => setRivales([])} />}
 
-      {mapa && repo.salas && <MapaViaje salas={repo.salas} camp={camp} onIr={viajar} onCerrar={() => setMapa(false)} />}
+      {mapa && repo.salas && <MapaViaje salas={repo.salas} camp={camp} onIr={(l, t) => { if (porBarco) { setMapa(false); setPorBarco(false); setNavegando({ lugar: l, titulo: t ?? 'otro campamento' }) } else viajar(l) }} onCerrar={() => { setMapa(false); setPorBarco(false) }} />}
+      {muelle && (
+        <div className="velo" onClick={() => setMuelle(false)}>
+          <div className="resultado pop muelle-opciones" role="dialog" aria-modal="true" aria-label="Zarpar" onClick={e => e.stopPropagation()}>
+            <h2>⛵ ¿A dónde zarpamos?</h2>
+            <button className="muelle-op" onClick={() => { setMuelle(false); setZarpar(true) }}>
+              <b>🏝️ Islas de desafíos</b><small>Uniformes, clases y especialidades: gana parches y ConquisCoins.</small>
+            </button>
+            <button className="muelle-op" onClick={() => { setMuelle(false); setMapa(true); setPorBarco(true) }}>
+              <b>🧭 Descubrir otros campamentos</b><small>Navega a otras regiones, asociaciones, uniones y países donde acampan más clubes.</small>
+            </button>
+            {camp && !camp.mio && (
+              <button className="muelle-op" onClick={() => { setMuelle(false); setNavegando({ lugar: undefined, titulo: 'tu campamento' }) }}>
+                <b>🏕️ Volver a mi campamento</b><small>Regresa a la isla de tu región.</small>
+              </button>
+            )}
+            <Boton tipo="fantasma" onClick={() => setMuelle(false)}>Quedarme aquí</Boton>
+          </div>
+        </div>
+      )}
+      {navegando && <Travesia texto="Navegando a" destino={navegando.titulo} color="#1F5FD1" onFin={() => { const l = navegando.lugar; setNavegando(null); viajar(l, true) }} />}
       {tablero && <TableroRetos onCerrar={() => setTablero(false)} onRanking={() => ir('ranking')} sabado={sabado} />}
       {culto && <Culto publico={[{ id: perfil.id, apodo: perfil.apodo, avatar: perfil.avatar, rango: perfil.rango }, ...lista.map(j => ({ id: j.id, apodo: j.apodo, avatar: j.avatar, rango: j.rango }))]}
         gestos={gestos} onGesto={decir} puedeReaccionar={red === 'vivo'} sabado={sabado} luz={luz} onCerrar={salirCulto}

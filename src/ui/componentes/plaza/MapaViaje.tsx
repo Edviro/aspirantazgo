@@ -17,7 +17,8 @@ export const nombreLugar = (c: Campamento) => `${titulo(c.titulo)}${c.sectores >
 export function MapaViaje({ salas, camp, onIr, onCerrar }: {
   salas: PuertoSalas
   camp: Campamento | null
-  onIr: (lugar: string | undefined) => void
+  /** `titulo`: nombre del destino (para la animación del viaje). */
+  onIr: (lugar: string | undefined, titulo?: string) => void
   onCerrar: () => void
 }) {
   const [datos, setDatos] = useState<MapaCampamentos | null>(null)
@@ -76,7 +77,7 @@ export function MapaViaje({ salas, camp, onIr, onCerrar }: {
                   {Array.from({ length: Math.min(r.sectores, 26) }, (_, k) => {
                     const l = `${r.base}-${k}`
                     return (
-                      <button key={l} type="button" className={l === camp?.lugar ? 'on' : ''} disabled={l === camp?.lugar} onClick={() => onIr(l)}>
+                      <button key={l} type="button" className={l === camp?.lugar ? 'on' : ''} disabled={l === camp?.lugar} onClick={() => onIr(l, titulo(r.titulo))}>
                         {l === camp?.lugar ? 'Aquí' : r.sectores > 1 ? `Ir ${SECTOR[k]}` : 'Ir'}
                       </button>
                     )
