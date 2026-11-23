@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
+import { EnlaceGuiaSala } from '../componentes/GuiaSala'
 import { mensajeError } from '../../application/errores'
 import { AdminCargos } from '../componentes/admin/AdminCargos'
 import { AdminMuseo } from '../componentes/admin/AdminMuseo'
@@ -125,6 +126,7 @@ export default function Admin() {
                   onBlur={e => { const v = Math.max(2, Math.min(300, Number(e.target.value) || 60)); hacer(() => admin.config('max_jugadores_sala', v), 'Guardado.') }} />
               </label>
               <Boton tipo="azul" onClick={() => hacer(() => abrirSala(null))}>Abrir una sala yo mismo</Boton>
+              <EnlaceGuiaSala />
             </section>
           </>
         )}

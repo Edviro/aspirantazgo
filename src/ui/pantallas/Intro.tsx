@@ -5,6 +5,8 @@ import { asset, Boton, Cielo } from '../componentes/Comunes'
 import { modoGuardado, repoPara } from '../../adapters/contenedor'
 import { sfx } from '../sonido'
 import { musica } from '../musica'
+import { leerSalaPendiente } from '../componentes/CodigoQR'
+import { entrarSalaPendiente } from '../salaPendiente'
 
 const PRECARGA = ['logo-alas', 'emblema-c1', 'npc-trompeta', 'npc-lectora', 'npc-nudo', 'bandera', 'esp-orientacion']
 
@@ -12,6 +14,10 @@ export default function Intro() {
   const { ir, setSesion } = useJuego()
   const [avance, setAvance] = useState(0)
   const [listo, setListo] = useState(false)
+  // Llegó con el QR o el enlace de una sala: el botón dice a qué sala entra
+  const [salaPend, setSalaPend] = useState(leerSalaPendiente)
+  const [errorSala, setErrorSala] = useState('')
+  const [entrando, setEntrando] = useState(false)
 
   useEffect(() => {
     let hechos = 0
@@ -26,11 +32,24 @@ export default function Intro() {
   const entrar = async () => {
     sfx.trompeta()
     musica('mapa')
+    setEntrando(true)
     const modo = modoGuardado()
     if (modo) {
       try {
-        const p = await repoPara(modo).sesionActual()
-        if (p) { await setSesion(modo, p); ir('plaza'); return }
+        const repo = repoPara(modo)
+        const p = await repo.sesionActual()
+        if (p) {
+          await setSesion(modo, p)
+          if (salaPend && modo === 'en_linea') {
+            const r = await entrarSalaPendiente()
+            if (r === 'ok') return
+            // Invitado de otra sala: su acceso viejo no sirve; entra de nuevo como invitado
+            if (r === 'otra') { await useJuego.getState().salir(); ir('acceso'); return }
+            // La sala ya no existe o está llena: se avisa aquí y el botón lleva al juego normal
+            if (r !== 'sin') { setErrorSala(r); setSalaPend(null); setEntrando(false); return }
+          }
+          ir('plaza'); return
+        }
       } catch { /* sin sesión */ }
     }
     ir('acceso')
@@ -47,7 +66,8 @@ export default function Intro() {
         <div className="intro-carga">
           {listo ? (
             <>
-              <Boton className="intro-boton" onClick={entrar}>¡Comenzar aventura!</Boton>
+              <Boton className="intro-boton" onClick={entrar} disabled={entrando}>{salaPend ? (entrando ? 'Entrando…' : `¡Entrar a la sala ${salaPend}!`) : '¡Comenzar aventura!'}</Boton>
+              {errorSala && <p className="error intro-error" role="alert">{errorSala}</p>}
               <BotonInstalar />
             </>
           ) : (

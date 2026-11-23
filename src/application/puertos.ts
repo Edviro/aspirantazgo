@@ -306,7 +306,8 @@ export interface PuertoClubPerfil {
 
 // ---------- Salas en tiempo real ----------
 export interface JugadorSala { id: string; apodo: string; club: string; avatar?: AvatarConfig; anfitrion?: boolean; rango?: Rango }
-export interface InicioRonda { ronda: number; nivelId: string; dificultad: Dificultad; semilla: number; cuentaAtras: number }
+/** `practica`: ronda de práctica (no se guarda en el servidor ni suma al puntaje de la sala). */
+export interface InicioRonda { ronda: number; nivelId: string; dificultad: Dificultad; semilla: number; cuentaAtras: number; practica?: boolean }
 export interface ProgresoSala { id: string; apodo: string; avance: number; puntaje?: number; segundos?: number; ronda: number }
 
 export interface EventosSala {

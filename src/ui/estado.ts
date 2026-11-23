@@ -77,7 +77,7 @@ interface Estado {
   enviarGesto: (frase: number) => void
   moverme: (x: number) => void
   dejarSala: () => Promise<void>
-  iniciarRonda: (nivelId: string, dificultad: Dificultad) => Promise<void>
+  iniciarRonda: (nivelId: string, dificultad: Dificultad, practica?: boolean) => Promise<void>
   reportarProgreso: (avance: number, puntaje?: number, segundos?: number) => void
 }
 
@@ -113,7 +113,8 @@ function crearConectarSala(set: Set, get: () => Estado) {
         set(s => s.sala ? { sala: { ...s.sala, ronda: r, rondaRecibida: Date.now(), progresos: {} }, pantalla: 'sala' } : {})
         if (get().sala?.rol !== 'jugador') return
         const nivel = TODOS_LOS_NIVELES.find(n => n.id === r.nivelId)
-        if (nivel) setTimeout(() => { if (get().sala) get().jugar(nivel, true, r.dificultad, r.semilla) }, r.cuentaAtras * 1000)
+        // Ronda de práctica: se juega sin abrir intento en el servidor (no cuenta), pero el líder ve el avance
+        if (nivel) setTimeout(() => { if (get().sala) get().jugar(nivel, !r.practica, r.dificultad, r.semilla) }, r.cuentaAtras * 1000)
       },
     }, rol === 'anfitrion' || tipo === 'duelo')
     set({ sala: { conexion, rol, tipo, duelo, jugadores: ultimos, progresos: {}, ronda: null, rondaRecibida: 0, cerrada: false }, ...(irASala ? { pantalla: 'sala' as const } : {}) })
@@ -285,11 +286,11 @@ export const useJuego = create<Estado>((set, get) => (conectarSala = crearConect
     set({ sala: null })
     try { if (s.rol === 'anfitrion') await s.conexion.cerrar(); else await s.conexion.salir() } catch { /* */ }
   },
-  iniciarRonda: async (nivelId, dificultad) => {
+  iniciarRonda: async (nivelId, dificultad, practica = false) => {
     const s = get().sala
     if (!s) return
     const ronda = (s.ronda?.ronda ?? 0) + 1
-    await s.conexion.iniciarRonda({ ronda, nivelId, dificultad, semilla: Math.floor(Math.random() * 1e9), cuentaAtras: 3 })
+    await s.conexion.iniciarRonda({ ronda, nivelId, dificultad, semilla: Math.floor(Math.random() * 1e9), cuentaAtras: 3, ...(practica ? { practica: true } : {}) })
   },
   reportarProgreso: (avance, puntaje, segundos) => {
     const { sala, perfil } = get()

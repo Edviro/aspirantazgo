@@ -109,6 +109,18 @@ export class SalasSupabase implements PuertoSalas {
   private token: () => string | null
   constructor(sb: SupabaseClient, rpc: Rpc, token: () => string | null) { this.sb = sb; this.rpc = rpc; this.token = token }
 
+  /** El servidor no tiene el endpoint nuevo de httpSend: se envía siempre por el de lotes. */
+  private soloLote = false
+  /** Broadcast por HTTP con el endpoint de siempre de Realtime (POST /realtime/v1/api/broadcast). */
+  private async enviarPorLote(topic: string, event: string, payload: unknown) {
+    const rt = this.sb.realtime as unknown as { httpEndpoint: string; apiKey: string | null; accessTokenValue: string | null }
+    const h: Record<string, string> = { 'Content-Type': 'application/json', apikey: rt.apiKey ?? '' }
+    const tok = rt.accessTokenValue ?? rt.apiKey
+    if (tok) h.Authorization = `Bearer ${tok}`
+    const r = await fetch(rt.httpEndpoint, { method: 'POST', headers: h, body: JSON.stringify({ messages: [{ topic, event, payload, private: false }] }) })
+    if (!r.ok) throw new Error('SALA_SIN_CONEXION')
+  }
+
   abrir(sesionId?: string | null) { return this.rpc<{ codigo: string; cupo: number }>('abrir_sala', { p_token: this.token(), p_sesion: sesionId ?? null }) }
   entrar(codigo: string) { return this.rpc<{ codigo: string; tipo: 'sala' | 'duelo'; anfitrion: boolean }>('entrar_sala', { p_token: this.token(), p_codigo: codigo }) }
   async cerrar(codigo: string) { await this.rpc('cerrar_sala', { p_token: this.token(), p_codigo: codigo }) }
@@ -154,7 +166,7 @@ export class SalasSupabase implements PuertoSalas {
     canal.on('broadcast', { event: 'inicio' }, ({ payload: p }) => {
       if (!p || !NIVELES.has(p.nivelId) || !DIFS.has(p.dificultad)) return
       rondaActual = num(p.ronda, 1, 999); progresos.clear()
-      ev.onInicio?.({ ronda: rondaActual, nivelId: p.nivelId, dificultad: p.dificultad, semilla: num(p.semilla, 1, 2e9), cuentaAtras: num(p.cuentaAtras, 0, 5) })
+      ev.onInicio?.({ ronda: rondaActual, nivelId: p.nivelId, dificultad: p.dificultad, semilla: num(p.semilla, 1, 2e9), cuentaAtras: num(p.cuentaAtras, 0, 5), practica: p.practica === true })
     })
     // Resumen del anfitrión: [id, avance 0-100, puntaje o -1, segundos o -1] por jugador
     canal.on('broadcast', { event: 'tabla' }, ({ payload: p }) => {
@@ -197,8 +209,12 @@ export class SalasSupabase implements PuertoSalas {
         iniciarRonda: async (r: InicioRonda) => { await canal.send({ type: 'broadcast', event: 'inicio', payload: r }) },
         // Con el canal de avance abierto se envía por ahí; si no, por HTTP sin escucharlo (no recibes el avance de todos)
         enviarProgreso: async (p: ProgresoSala) => {
-          if (avanceEnVivo) await avance.send({ type: 'broadcast', event: 'progreso', payload: p })
-          else await avance.httpSend('progreso', p)
+          if (avanceEnVivo) { await avance.send({ type: 'broadcast', event: 'progreso', payload: p }); return }
+          // httpSend usa un endpoint nuevo de Realtime; si el servidor no lo tiene (404), se usa el de siempre
+          if (!this.soloLote) {
+            try { await avance.httpSend('progreso', p); return } catch { this.soloLote = true }
+          }
+          await this.enviarPorLote('avance-' + codigo, 'progreso', p)
         },
         cerrar: async () => {
           await canal.send({ type: 'broadcast', event: 'cerrada', payload: {} })

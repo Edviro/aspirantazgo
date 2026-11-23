@@ -52,5 +52,12 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/s/:codigo([A-Za-z]{5})",
+      "destination": "/?sala=:codigo",
+      "permanent": false
+    }
   ]
 }

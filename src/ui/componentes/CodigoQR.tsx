@@ -20,17 +20,27 @@ export function CodigoQR({ texto, size = 200 }: { texto: string; size?: number }
   )
 }
 
-/** Enlace que abre el juego directo en una sala. */
-export const enlaceSala = (codigo: string) => `${window.location.origin}${window.location.pathname}?sala=${codigo}`
+/**
+ * Enlace corto que abre el juego directo en una sala: https://aspirantazgo.vercel.app/s/ABCDE
+ * (corto = QR con cuadros más grandes, que la cámara reconoce como enlace aunque se proyecte lejos).
+ */
+export const enlaceSala = (codigo: string) => `${window.location.origin}/s/${codigo}`
+/** El mismo enlace sin "https://", para escribirlo a mano. */
+export const enlaceSalaCorto = (codigo: string) => `${window.location.host}/s/${codigo}`
 
-/** Lee (una sola vez) el código de sala que vino en el enlace o en el QR. */
+const CLAVE = 'asp_sala_pendiente'
+/** Lee el código de sala que vino en el enlace (/s/ABCDE o ?sala=ABCDE) o en el QR y lo guarda hasta usarlo. */
 export function salaDelEnlace(): string | null {
   try {
     const u = new URL(window.location.href)
-    const c = (u.searchParams.get('sala') ?? '').toUpperCase()
-    if (u.searchParams.has('sala')) { u.searchParams.delete('sala'); window.history.replaceState(null, '', u.pathname + u.search + u.hash) }
-    if (/^[A-Z]{5}$/.test(c)) { sessionStorage.setItem('asp_sala_pendiente', c); return c }
-    return sessionStorage.getItem('asp_sala_pendiente')
+    const m = u.pathname.match(/^\/s\/([A-Za-z]{5})\/?$/)
+    const c = (m ? m[1] : u.searchParams.get('sala') ?? '').toUpperCase()
+    if (m || u.searchParams.has('sala')) { u.searchParams.delete('sala'); window.history.replaceState(null, '', (m ? '/' : u.pathname) + u.search + u.hash) }
+    if (/^[A-Z]{5}$/.test(c)) { sessionStorage.setItem(CLAVE, c); return c }
+    return leerSalaPendiente()
   } catch { return null }
 }
-export const olvidarSalaPendiente = () => { try { sessionStorage.removeItem('asp_sala_pendiente') } catch { /* */ } }
+export function leerSalaPendiente(): string | null {
+  try { const c = sessionStorage.getItem(CLAVE); return c && /^[A-Z]{5}$/.test(c) ? c : null } catch { return null }
+}
+export const olvidarSalaPendiente = () => { try { sessionStorage.removeItem(CLAVE) } catch { /* */ } }

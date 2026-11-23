@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useJuego } from '../estado'
 import { musica } from '../musica'
 import { Boton, Cielo, Confeti } from '../componentes/Comunes'
-import { CodigoQR, enlaceSala } from '../componentes/CodigoQR'
+import { CodigoQR, enlaceSala, enlaceSalaCorto } from '../componentes/CodigoQR'
+import { GuiaSala } from '../componentes/GuiaSala'
 import { MUNDO_UNIFORMES, TODOS_LOS_NIVELES } from '../../domain/niveles'
 import { CAMPAMENTOS, campamentoDeNivel, nivelesDe } from '../../domain/campamentos'
 import { DIFICULTADES } from '../../domain/dificultad'
@@ -42,7 +43,15 @@ export default function Sala() {
   const [dif, setDif] = useState<Dificultad>('medio')
   const [cuenta, setCuenta] = useState<number | null>(null)
   const [copiado, setCopiado] = useState(false)
+  const [proyectar, setProyectar] = useState(false)
+  // La primera vez que un líder abre una sala ve la guía (después, con el botón «Guía»)
+  const [guia, setGuia] = useState(() => {
+    if (useJuego.getState().sala?.rol !== 'anfitrion' || useJuego.getState().sala?.tipo === 'duelo') return false
+    try { return !localStorage.getItem('asp_guia_sala') } catch { return false }
+  })
+  const cerrarGuia = () => { setGuia(false); try { localStorage.setItem('asp_guia_sala', '1') } catch { /* */ } }
   const ronda = sala?.ronda
+  const practica = !!ronda?.practica
 
   useEffect(() => {
     if (!ronda) return
@@ -63,7 +72,7 @@ export default function Sala() {
   // Sala: al empezar otra ronda se borra el podio anterior
   useEffect(() => { setPodio(null) }, [sala?.ronda?.ronda])
   // Cuando todos terminan, el podio oficial se pide al servidor (una vez por ronda)
-  const finTodos = !!sala?.ronda && sala.tipo !== 'duelo' && jugadores.length > 0 && tabla.every(t => t.prog?.puntaje !== undefined)
+  const finTodos = !!sala?.ronda && !sala.ronda.practica && sala.tipo !== 'duelo' && jugadores.length > 0 && tabla.every(t => t.prog?.puntaje !== undefined)
   useEffect(() => {
     if (!finTodos) return
     const t = setTimeout(pedirPodio, 1500)
@@ -99,6 +108,7 @@ export default function Sala() {
         </button>
         <div className="juego-titulo"><strong>{duelo ? (duelo.rivales.length > 1 || jugadores.length > 2 ? `Reto de ${Math.max(jugadores.length, duelo.rivales.length + 1)} jugadores` : `Duelo contra ${duelo.rivales[0]?.apodo ?? ''}`) : anfitrion ? 'Tu sala en vivo' : 'Sala en vivo'}</strong>
           {!duelo && campSala && <small className="sala-camp" style={{ ['--c' as string]: campSala.color }}><i aria-hidden />{campSala.nombre}</small>}</div>
+        {!duelo && anfitrion && <button className="boton-guia" onClick={() => setGuia(true)} aria-label="Guía de la sala">?</button>}
         {!duelo && <button className="codigo-sala" onClick={copiar} aria-label="Copiar código de la sala">{copiado ? '¡Copiado!' : sala.conexion.codigo}</button>}
       </header>
 
@@ -107,12 +117,18 @@ export default function Sala() {
 
         {anfitrion && !ronda && (
           <section className="parche sala-codigo">
-            <p>Conquistadores y líderes de <b>cualquier club</b> pueden entrar: escanean el QR con la cámara o tocan <b>Unirme a una sala</b> en el menú y escriben:</p>
+            <p>Conquistadores y líderes de <b>cualquier club</b> pueden entrar: escanean el QR con la cámara del celular y se abre el juego en esta sala. Con cuenta entran directo; sin cuenta, como invitados (nombre y club).</p>
             <div className="sala-entrada">
-              <CodigoQR texto={enlaceSala(sala.conexion.codigo)} size={190} />
-              <div className="codigo grande">{sala.conexion.codigo}</div>
+              <CodigoQR texto={enlaceSala(sala.conexion.codigo)} size={240} />
+              <div className="sala-entrada-txt">
+                <div className="codigo grande">{sala.conexion.codigo}</div>
+                <small>o abren <b>{enlaceSalaCorto(sala.conexion.codigo)}</b></small>
+              </div>
             </div>
-            <button className="enlace" onClick={() => navigator.clipboard?.writeText(enlaceSala(sala.conexion.codigo)).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 1400) }).catch(() => undefined)}>{copiado ? '¡Enlace copiado!' : 'Copiar enlace para WhatsApp'}</button>
+            <div className="fila-botones">
+              <Boton onClick={() => setProyectar(true)}>Proyectar QR</Boton>
+              <Boton tipo="azul" onClick={() => navigator.clipboard?.writeText(enlaceSala(sala.conexion.codigo)).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 1400) }).catch(() => undefined)}>{copiado ? '¡Enlace copiado!' : 'Copiar enlace para WhatsApp'}</Boton>
+            </div>
           </section>
         )}
 
@@ -121,13 +137,16 @@ export default function Sala() {
         {!anfitrion && !ronda && !duelo && (
           <section className="parche sala-espera">
             <div className="latido-sala" aria-hidden />
-            <p>Estás dentro. Espera a que el líder empiece la ronda.</p>
+            <div>
+              <p>Estás dentro. Espera a que el líder empiece la ronda.</p>
+              <p className="ayuda">Cuando empiece verás 3, 2, 1 y el juego se abre solo. Hazlo rápido y sin errores: al terminar vuelves aquí y ves el podio.</p>
+            </div>
           </section>
         )}
 
         {ronda && nivelRonda && !duelo && (
           <section className="parche ronda-info">
-            <span>Ronda {ronda.ronda} · {campamentoDeNivel(ronda.nivelId).corto}</span>
+            <span>{practica ? 'Ronda de práctica (no suma)' : `Ronda ${ronda.ronda}`} · {campamentoDeNivel(ronda.nivelId).corto}</span>
             <strong>{nivelRonda.titulo}</strong>
             <small>Dificultad {DIFICULTADES[ronda.dificultad].nombre}. Terminaron {terminaron} de {jugadores.length}.</small>
           </section>
@@ -221,7 +240,8 @@ export default function Sala() {
                 <button key={d} className={dif === d ? 'on' : ''} onClick={() => setDif(d)}>{DIFICULTADES[d].nombre}</button>
               ))}
             </div>
-            {ronda && !podio && terminaron > 0 && <Boton tipo="azul" onClick={pedirPodio}>Ver podio ahora ({terminaron} de {jugadores.length} terminaron)</Boton>}
+            <Boton tipo="fantasma" onClick={() => iniciarRonda(nivelId, dif, true)} disabled={jugadores.length === 0}>Ronda de práctica con este nivel (no suma)</Boton>
+            {ronda && !practica && !podio && terminaron > 0 && <Boton tipo="azul" onClick={pedirPodio}>Ver podio ahora ({terminaron} de {jugadores.length} terminaron)</Boton>}
             {plan.length > 0 ? (
               paso < plan.length
                 ? <Boton onClick={() => { iniciarRonda(plan[paso], dif); setPaso(p => p + 1) }} disabled={jugadores.length === 0}>
@@ -241,6 +261,16 @@ export default function Sala() {
         )}
       </div>
 
+      {proyectar && (
+        <div className="proyectar-qr" role="dialog" aria-modal="true" aria-label="QR de la sala en pantalla completa" onClick={() => setProyectar(false)}>
+          <h2>Escanea para entrar</h2>
+          <CodigoQR texto={enlaceSala(sala.conexion.codigo)} size={560} />
+          <p className="proyectar-txt"><b>{enlaceSalaCorto(sala.conexion.codigo)}</b> · código <b>{sala.conexion.codigo}</b></p>
+          <p className="proyectar-n">Ya entraron: <b>{jugadores.length}</b></p>
+          <small>Toca para volver</small>
+        </div>
+      )}
+      {guia && <GuiaSala onCerrar={cerrarGuia} />}
       {cuenta !== null && !anfitrion && (
         <div className="velo cuenta"><span key={cuenta}>{cuenta}</span></div>
       )}

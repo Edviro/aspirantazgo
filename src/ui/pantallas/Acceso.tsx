@@ -7,6 +7,7 @@ import { repoEnLinea } from '../../adapters/contenedor'
 import { mensajeError } from '../../application/errores'
 import { CARGOS_ADULTO } from '../../application/uniformeJugador'
 import { olvidarSalaPendiente, salaDelEnlace } from '../componentes/CodigoQR'
+import { entrarSalaPendiente } from '../salaPendiente'
 import type { Rango } from '../../domain/tipos'
 
 const RANGOS_ADULTO: [Rango, string][] = [
@@ -43,9 +44,10 @@ function recordar(c: Recordada) {
 export default function Acceso() {
   const { setSesion, ir, verLegal } = useJuego()
   const cuentas = repoEnLinea?.cuentas ?? null
-  const [tab, setTab] = useState<'nino' | 'adulto' | 'invitado'>('nino')
-  // Invitado de sala: entra con el código (o el QR) + su nombre + su club, sin crear cuenta
+  // Invitado de sala: entra con el código (o el QR) + su nombre + su club, sin crear cuenta (como Quizizz).
+  // Si llegó con el QR de una sala, empieza en "Invitado"; quien tiene cuenta toca "Ya tengo cuenta".
   const [salaPend] = useState(() => salaDelEnlace())
+  const [tab, setTab] = useState<'nino' | 'adulto' | 'invitado'>(() => (salaPend ? 'invitado' : 'nino'))
   const [codSala, setCodSala] = useState(salaPend ?? '')
   const [nombreInv, setNombreInv] = useState('')
   const [clubInv, setClubInv] = useState<ClubElegido | null>(null)
@@ -81,7 +83,12 @@ export default function Acceso() {
   useEffect(() => {
     if (!repoEnLinea) return
     repoEnLinea.adultoSinClub().then(e => { if (e) { setAdultoEmail(e); setTab('adulto') } }).catch(e => { setTab('adulto'); setError(mensajeError(e)) })
-    repoEnLinea.sesionActual().then(async p => { if (p) { await setSesion('en_linea', p); ir('plaza') } }).catch(() => undefined)
+    repoEnLinea.sesionActual().then(async p => {
+      if (!p) return
+      await setSesion('en_linea', p)
+      if (await irASalaPendiente()) return
+      ir('plaza')
+    }).catch(() => undefined)
     return cuentas?.alRecuperar(() => { setTab('adulto'); setModoCuenta('nueva') })
   }, [ir, setSesion, cuentas])
 
@@ -89,6 +96,15 @@ export default function Acceso() {
   useEffect(() => { if (adultoEmail) cuentas?.esGoogle().then(setConGoogle).catch(() => setConGoogle(false)) }, [adultoEmail, cuentas])
   const yaTieneDirector = !!(clubAd?.juego && clubAd.conDirector)
   const puedeDirigir = !!clubAd && !yaTieneDirector
+
+  /** Con cuenta y con el QR de una sala: directo a la sala. Devuelve true si ya entró (o si hay que mostrar un error). */
+  const irASalaPendiente = async () => {
+    const r = await entrarSalaPendiente()
+    if (r === 'ok') return true
+    if (r === 'otra') { await useJuego.getState().salir(); setTab('invitado'); return true }
+    if (r !== 'sin') { setError(r); return false }
+    return false
+  }
 
   const accion = async (fn: () => Promise<void>) => {
     setError(''); setAviso(''); setCargando(true)
@@ -128,6 +144,7 @@ export default function Acceso() {
     }
     setRecordadas(recordar({ codigo: codigo.toUpperCase(), apodo: apodo.trim(), club: p.club.nombre }))
     await setSesion('en_linea', p)
+    if (!nuevo && p.avatar?.genero && await irASalaPendiente()) return
     ir(nuevo || !p.avatar?.genero ? 'editor' : 'plaza')
   })
 
@@ -149,7 +166,7 @@ export default function Acceso() {
   /** Ya entró con su cuenta: si tiene perfil va al mapa, si no, completa el registro de su club. */
   const continuar = async () => {
     const p = await repoEnLinea!.sesionActual()
-    if (p) { await setSesion('en_linea', p); ir('plaza'); return }
+    if (p) { await setSesion('en_linea', p); if (await irASalaPendiente()) return; ir('plaza'); return }
     setAdultoEmail((await repoEnLinea!.adultoSinClub()) ?? email)
   }
 
@@ -180,13 +197,14 @@ export default function Acceso() {
         </div>
         {salaPend && tab !== 'invitado' && (
           <button type="button" className="aviso-sala-invitado" onClick={() => setTab('invitado')}>
-            Te invitaron a la sala <b>{salaPend}</b>. ¿No tienes cuenta? <u>Entra como invitado</u>
+            Entra con tu cuenta y te llevamos directo a la sala <b>{salaPend}</b>. ¿No tienes cuenta? <u>Entra como invitado</u>
           </button>
         )}
 
         {tab === 'invitado' && (
           <form className="form" onSubmit={e => { e.preventDefault(); entrarInvitado() }}>
             <p className="ayuda">Para jugar <b>solo en una sala</b> (con el QR o el código que te dio el líder), sin crear cuenta.</p>
+            {salaPend && <button type="button" className="enlace tengo-cuenta" onClick={() => { setTab('nino'); setError('') }}>¿Ya tienes cuenta en el juego? <u>Entra con tu cuenta</u> y sumas a tu personaje.</button>}
             <label>Código de la sala<input value={codSala} onChange={e => setCodSala(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5))} maxLength={5} placeholder="Ej. KQZTP" autoCapitalize="characters" autoComplete="off" required /></label>
             <label>Tu nombre<input value={nombreInv} onChange={e => setNombreInv(e.target.value.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü ]/g, '').slice(0, 12))} maxLength={12} placeholder="Ej. Sofía" autoComplete="given-name" required /></label>
             <SelectorClub cuentas={cuentas} onCambio={setClubInv} />

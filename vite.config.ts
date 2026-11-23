@@ -36,7 +36,8 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         // Nada de Supabase se guarda en caché: puntajes, salas y cuentas siempre van al servidor.
-        navigateFallbackDenylist: [/^\/auth/],
+        // /s/ABCDE (enlace corto del QR de una sala) lo redirige el servidor a /?sala=ABCDE
+        navigateFallbackDenylist: [/^\/auth/, /^\/s\//],
         runtimeCaching: [],
       },
     }),

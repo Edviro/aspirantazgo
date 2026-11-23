@@ -149,12 +149,12 @@ export default function Juego() {
           <p>{nivel.intro}</p>
           <div className="como-juega">
             <b><span aria-hidden>{como.icono}</span> Cómo se juega</b>
-            <ol>{como.pasos.map(p => <li key={p}>{p}</li>)}</ol>
+            <ol>{como.pasos.map((p, i) => <li key={i}>{p}</li>)}</ol>
           </div>
           {partida?.caso && (
             <div className="caso">
               <b>Caso de hoy</b>
-              <ul>{describirCaso(partida.caso).map(l => <li key={l}>{l}</li>)}</ul>
+              <ul>{describirCaso(partida.caso).map((l, i) => <li key={i}>{l}</li>)}</ul>
             </div>
           )}
           {nivel.tipo === 'taller' && <p className="nota">{desafio ? 'Desafío: sin medidas ni pistas de qué va dónde. Cuentan los aciertos, el tiempo y los errores.' : 'Práctica: cada cuadrito te muestra qué pieza va y verás las medidas del manual.'}</p>}

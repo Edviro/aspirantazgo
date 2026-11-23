@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useJuego } from '../estado'
 import { Boton, Cielo } from '../componentes/Comunes'
+import { EnlaceGuiaSala } from '../componentes/GuiaSala'
 import { mensajeError } from '../../application/errores'
 import type { MiembroConAvatar, SesionProgramada, PendienteClub } from '../../application/puertos'
 import { Bandera } from '../componentes/plaza/Iconos'
@@ -152,6 +153,7 @@ export default function Director() {
           </ul>
           <Boton tipo="azul" onClick={() => hacer(() => abrirSala(null))} disabled={ocupado}>Abrir sala rápida ahora</Boton>
           <p className="ayuda">La sala rápida funciona si el administrador permite salas sin aprobación.</p>
+          <EnlaceGuiaSala />
         </section>
 
         {director && repo.guardarBanderaClub && (
