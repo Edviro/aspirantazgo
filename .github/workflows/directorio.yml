@@ -1,11 +1,13 @@
 name: Directorio de clubes DSA
 
-# Descarga la lista oficial de clubes de Conquistadores (clubes.adventistas.org) y la publica
-# en la rama `datos-directorio` como JSON. Supabase la importa sola desde ahí (sin claves).
+# Descarga, DESPACIO y por partes, la lista oficial de clubes de Conquistadores (clubes.adventistas.org)
+# y la publica en la rama `datos-directorio` como JSON. Supabase la importa sola desde ahí (sin claves).
+# Cada corrida trabaja ~4 h 30 min y guarda su avance; la siguiente sigue desde ahí. Cuando el directorio
+# está completo, las corridas terminan en segundos (no piden nada al sitio) hasta el mes siguiente.
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 9 2 * *'   # día 2 de cada mes
+    - cron: '23 */6 * * *'
 
 permissions:
   contents: write
@@ -17,7 +19,7 @@ concurrency:
 jobs:
   descargar:
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 320
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,26 +27,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Descargar el directorio (despacio)
-        run: python3 scripts/directorio_dsa.py directorio_dsa.json
-      - name: Revisar que esté completo
+      - name: Traer el avance anterior
         run: |
-          python3 - <<'EOF'
-          import json
-          d = json.load(open('directorio_dsa.json', encoding='utf-8'))
-          n = len(d['clubes'])
-          print('clubes:', n, 'asociaciones:', len(d['asociaciones']), 'regiones:', len(d['regiones']))
-          assert len(d['uniones']) >= 10 and len(d['asociaciones']) >= 60 and n >= 3000, 'Directorio incompleto: no se publica'
-          EOF
+          mkdir -p datos
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/datos-directorio/estado_directorio.json" -o datos/estado_directorio.json \
+            || { rm -f datos/estado_directorio.json; echo "Sin avance anterior: empieza de cero"; }
+          ls -la datos
+      - name: Descargar (despacio, hasta 4 h 30 min)
+        env:
+          LIMITE_MIN: '270'
+        run: python3 scripts/directorio_dsa.py datos
       - name: Publicar en la rama datos-directorio
+        if: hashFiles('datos/sin_cambios') == ''
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          mkdir publicar && mv directorio_dsa.json publicar/ && cd publicar
+          python3 -c "import json; d=json.load(open('datos/directorio_dsa.json', encoding='utf-8')); print('clubes:', len(d['clubes']), 'completo:', d['completo'])"
+          cd datos
           echo '{"git":{"deploymentEnabled":false}}' > vercel.json
+          rm -rf .git
           git init -q -b datos-directorio
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A && git commit -q -m "Directorio DSA $(date -u +%Y-%m-%d)"
+          git add directorio_dsa.json estado_directorio.json vercel.json
+          git commit -q -m "Directorio DSA $(date -u +%Y-%m-%dT%H:%MZ)"
           git push -q -f "https://x-access-token:${TOKEN}@github.com/${REPO}.git" datos-directorio
