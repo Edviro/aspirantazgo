@@ -100,25 +100,31 @@ export function SelectorClub({ cuentas, onCambio, permitirNuevo = false }: {
         {campos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
       </select></label>
 
-      {campoId !== '' && clubes === null && <p className="ayuda">Cargando clubes…</p>}
-      {campoId !== '' && clubes !== null && (
+      <div className="dos">
+        <label>Región<select value={region} onChange={e => { setRegion(e.target.value); setBuscar(''); setClave('') }} disabled={!regiones.length}>
+          <option value="">{campoId === '' ? '—' : clubes === null ? 'Cargando…' : 'Todas'}</option>
+          {regiones.map(r => <option key={r} value={r}>{titulo(r)}</option>)}
+        </select></label>
+        <label>Buscar club
+          <span className="buscar-club">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" /></svg>
+            <input type="search" value={buscar} onChange={e => { setBuscar(limpiar(e.target.value).slice(0, 30)); setClave('') }}
+              placeholder="Nombre o ciudad" maxLength={30} autoComplete="off" disabled={!clubes} aria-label="Buscar club por nombre o ciudad" />
+          </span>
+        </label>
+      </div>
+      <label>Club<select value={clave} onChange={e => setClave(e.target.value)} required disabled={!clubes}>
+        <option value="">{campoId === '' ? 'Primero elige tu asociación o misión' : clubes === null ? 'Cargando clubes…'
+          : visibles.length ? `Elige tu club (${visibles.length})…` : buscar ? 'Ningún club coincide' : 'Aún no hay clubes cargados'}</option>
+        {visibles.map(c => (
+          <option key={claveDe(c)} value={claveDe(c)}>
+            {c.nombre}{c.ciudad ? ` · ${titulo(c.ciudad)}` : ''}{c.juego ? ' ✓' : ''}
+          </option>
+        ))}
+        {permitirNuevo && clubes && <option value={NUEVO}>Mi club es nuevo y aún no aparece</option>}
+      </select></label>
+      {clubes && (
         <>
-          <div className="dos">
-            <label>Región<select value={region} onChange={e => { setRegion(e.target.value); setBuscar(''); setClave('') }} disabled={!regiones.length}>
-              <option value="">Todas</option>
-              {regiones.map(r => <option key={r} value={r}>{titulo(r)}</option>)}
-            </select></label>
-            <label>Buscar<input value={buscar} onChange={e => { setBuscar(limpiar(e.target.value).slice(0, 30)); setClave('') }} placeholder="Nombre del club" maxLength={30} autoComplete="off" /></label>
-          </div>
-          <label>Club<select value={clave} onChange={e => setClave(e.target.value)} required>
-            <option value="">{visibles.length ? `Elige tu club (${visibles.length})…` : 'Ningún club coincide'}</option>
-            {visibles.map(c => (
-              <option key={claveDe(c)} value={claveDe(c)}>
-                {c.nombre}{c.ciudad ? ` · ${titulo(c.ciudad)}` : ''}{c.juego ? ' ✓' : ''}
-              </option>
-            ))}
-            {permitirNuevo && <option value={NUEVO}>Mi club es nuevo y aún no aparece</option>}
-          </select></label>
           {clubes.some(c => c.juego) && <p className="ayuda">✓ = ese club ya juega en Aspirantazgo.</p>}
           {clave === NUEVO && (
             <>
