@@ -2,12 +2,13 @@ name: Directorio de clubes DSA
 
 # Descarga, DESPACIO y por partes, la lista oficial de clubes de Conquistadores (clubes.adventistas.org)
 # y la publica en la rama `datos-directorio` como JSON. Supabase la importa sola desde ahí (sin claves).
-# Cada corrida trabaja ~4 h 30 min y guarda su avance; la siguiente sigue desde ahí. Cuando el directorio
+# Cada corrida trabaja hasta ~4 h 30 min (o hasta que el sitio pida calma) y guarda su avance; la siguiente
+# (cada 2 h) sigue desde ahí. El sitio deja leer ~10 páginas por vez, así que se avanza de a poco. Cuando el directorio
 # está completo, las corridas terminan en segundos (no piden nada al sitio) hasta el mes siguiente.
 on:
   workflow_dispatch:
   schedule:
-    - cron: '23 */6 * * *'
+    - cron: '23 */2 * * *'
 
 permissions:
   contents: write
