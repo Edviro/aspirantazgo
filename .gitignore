@@ -25,3 +25,4 @@ dist-ssr
 .env
 dist-demo
 .env.demo
+__pycache__/
