@@ -24,7 +24,8 @@ import urllib.request
 import zlib
 
 BASE = 'https://clubes.adventistas.org'
-PAUSA = 5.0                      # segundos entre peticiones (como una persona navegando)
+PAUSA = 8.0                      # segundos entre peticiones (como una persona navegando)
+MAX_429_SEGUIDOS = 2             # si el sitio pide calma más veces seguidas, se guarda y se sigue en la próxima corrida
 LIMITE = float(os.environ.get('LIMITE_MIN', '270')) * 60   # tiempo de trabajo por corrida
 REFRESCO_DIAS = 25               # un directorio completo se vuelve a bajar pasado este tiempo
 UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36'
@@ -38,7 +39,7 @@ esperas_429 = 0
 
 
 class SinTiempo(Exception):
-    pass
+    """Se acabó el tiempo de la corrida o el sitio pide calma: se guarda el avance y se sigue en la próxima."""
 
 
 def txt(t):
@@ -55,6 +56,7 @@ def pedir(ruta, datos=None):
     global ultima, peticiones, esperas_429
     url = ruta if ruta.startswith('http') else BASE + ruta
     assert url.startswith(BASE + '/'), url
+    seguidos = 0
     for intento in range(8):
         if not queda(60):
             raise SinTiempo()
@@ -78,7 +80,11 @@ def pedir(ruta, datos=None):
         except urllib.error.HTTPError as e:
             if e.code == 429:
                 esperas_429 += 1
+                seguidos += 1
                 seg = int(e.headers.get('Retry-After') or 600) + 30
+                if seguidos > MAX_429_SEGUIDOS:
+                    print(f'  429 en {url} {seguidos} veces seguidas: el sitio pide calma, se sigue en la próxima corrida', flush=True)
+                    raise SinTiempo()
                 print(f'  429 en {url}: espero {seg}s (van {esperas_429})', flush=True)
                 if not queda(seg + 60):
                     raise SinTiempo()
@@ -92,7 +98,8 @@ def pedir(ruta, datos=None):
         except Exception as e:  # red, tiempo de espera, página de error
             print(f'  {e} en {url} (intento {intento + 1})', flush=True)
         time.sleep(20 * (intento + 1))
-    raise RuntimeError(f'No se pudo leer {url}')
+    print(f'  No se pudo leer {url}: se sigue en la próxima corrida', flush=True)
+    raise SinTiempo()
 
 
 def opciones(t, nombre):
@@ -138,9 +145,19 @@ def trabajar(e):
                 e['asociaciones'].append({'id': uid, 'union': uid, 'nombre': 'Unión ' + nombre, 'orden': 0, 'url': f'/es/{uid}/', 'sin_regiones': True})
         print(f'{len(e["uniones"])} uniones, {len(e["asociaciones"])} asociaciones/misiones', flush=True)
 
-    # 2) Cada asociación: sus regiones de Conquistadores y sus ciudades
+    # 2 y 3, primero para Perú y después para el resto
+    prio = {a['id']: orden_asoc(a) for a in e['asociaciones']}
+    peru = lambda asoc: next((x['union'] for x in e['asociaciones'] if x['id'] == asoc), '') in PRIORIDAD  # noqa: E731
+    for primero in (True, False):
+        asociaciones(e, h, lambda a: peru(a['id']) == primero)
+        regiones(e, h, prio, lambda r: peru(r['asoc']) == primero)
+    pasos_finales(e, h)
+
+
+def asociaciones(e, h, filtro):
+    """2) Cada asociación: sus regiones de Conquistadores y sus ciudades."""
     for a in sorted(e['asociaciones'], key=orden_asoc):
-        if a['id'] in h['asoc']:
+        if a['id'] in h['asoc'] or not filtro(a):
             continue
         t = pedir(a['url'])
         m = re.search(r'<title>[^<]* - ([^<]*)</title>', t)
@@ -160,10 +177,12 @@ def trabajar(e):
         h['asoc'].append(a['id'])
         print(f'{a["id"]}: {len(regs)} regiones — {a["nombre"]}', flush=True)
 
-    # 3) Cada región: sus clubes (Perú primero)
-    prio = {a['id']: orden_asoc(a) for a in e['asociaciones']}
+
+
+def regiones(e, h, prio, filtro):
+    """3) Cada región: sus clubes."""
     for r in sorted(e['regiones'], key=lambda r: prio.get(r['asoc'], (9,))):
-        if r['id'] in h['region'] or not r.get('url'):
+        if r['id'] in h['region'] or not r.get('url') or not filtro(r):
             continue
         t = pedir(r['url'])
         n = 0
@@ -180,6 +199,9 @@ def trabajar(e):
             print(f'  aviso: región {r["id"]} ({r["nombre"]}) tiene {n} clubes y el sitio dice {r["clubes"]}', flush=True)
         h['region'].append(r['id'])
 
+
+
+def pasos_finales(e, h):
     # 4) Paraguaya y Uruguaya: departamento → ciudad → club → región (de la página del club)
     for asoc, est in e['pend_estados']:
         clave = f'{asoc}:{est}'
